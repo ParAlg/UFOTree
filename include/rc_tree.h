@@ -4,8 +4,7 @@
 #include <parlay/sequence.h>
 #include <unordered_set>
 #include<vector>
-
-typedef uint32_t vertex_t;
+#include "types.h"
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_nodes[0] != source ? cluster.boundary_nodes[0] : cluster.boundary_nodes[1]
 
