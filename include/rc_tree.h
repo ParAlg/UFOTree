@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iterator>
-#include <parlaylib/include/parlay/sequence.h>
+#include <parlay/sequence.h>
 #include <unordered_set>
 #include<vector>
 
