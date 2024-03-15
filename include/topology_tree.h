@@ -4,9 +4,13 @@
 
 template<typename aug_t>
 struct TopologyCluster {
+    // Topology cluster data
     TopologyCluster* neighbors[3];
     TopologyCluster* parent;
     aug_t value;
+    // Helper functions
+    void insert_neighbor(TopologyCluster<aug_t>* c);
+    void remove_neighbor(TopologyCluster<aug_t>* c);
 };
 
 template<typename aug_t>
@@ -21,10 +25,9 @@ private:
     parlay::sequence<TopologyCluster<aug_t>> leaves;
     std::function<aug_t(aug_t, aug_t)> f;
     QueryType query_type;
+    parlay::sequence<parlay::sequence<TopologyCluster<aug_t>*>> root_clusters;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v);
-    void insert_neighbor(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v);
-    void remove_neighbor(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v);
 };
 
 template<typename aug_t>
@@ -34,54 +37,75 @@ query_type(query_type), f(f) { leaves.reserve(n); }
 template<typename aug_t>
 void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     remove_ancestors(u, v);
-    insert_neighbor(&leaves[u], &leaves[v]);
-    insert_neighbor(&leaves[v], &leaves[u]);
+    leaves[u].insert_neighbor(&leaves[v]);
+    leaves[v].insert_neighbor(&leaves[u]);
     // recluster(u, v);
 }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     remove_ancestors(u, v);
-    remove_neighbor(&leaves[u], &leaves[v]);
-    remove_neighbor(&leaves[v], &leaves[u]);
+    leaves[u].remove_neighbor(&leaves[v]);
+    leaves[v].remove_neighbor(&leaves[u]);
     // recluster(u, v);
 }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v) {
-    parlay::sequence<std::array<TopologyCluster<aug_t>*,4>> root_clusters;
+    // Collect all the root clusters while removing ancestors
+    root_clusters.clear();
+    root_clusters.reserve(HEIGHT(leaves.size()));
+    for (auto neighbor : u->neighbors)
+        if (neighbor->parent == u->parent) {
+            neighbor->parent = nullptr; // Set sibling parent pointer to null
+            root_clusters[0].push_back(neighbor); // Keep track of parentless cluster
+        }
     auto curr = u->parent;
-    for (auto neighbor : u->neighbors) // Set sibling parent pointer to null
-        if (neighbor->parent == u->parent)
-            neighbor->parent = nullptr;
+    int level = 0;
     u->parent = nullptr;
+    root_clusters[0].push_back(u);
     while (curr) {
         auto prev = curr;
         curr = prev->parent;
-        for (auto neighbor : prev->neighbors) // Set sibling parent pointer to null
-            if (neighbor->parent == prev->parent)
-                neighbor->parent = nullptr;
-        free(prev);
+        level++;
+        for (auto neighbor : prev->neighbors) {
+            if (neighbor->parent == prev->parent) {
+                neighbor->parent = nullptr; // Set sibling parent pointer to null
+                root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
+            }
+            neighbor->remove_neighbor(prev); // Remove prev from adjacency
+        }
+        free(prev); // Remove cluster prev
     }
+    for (auto neighbor : v->neighbors)
+        if (neighbor->parent == v->parent) {
+            neighbor->parent = nullptr; // Set sibling parent pointer to null
+            root_clusters[0].push_back(neighbor); // Keep track of parentless cluster
+        }
     curr = v->parent;
-    for (auto neighbor : v->neighbors) // Set sibling parent pointer to null
-        if (neighbor->parent == v->parent)
-            neighbor->parent = nullptr;
+    level = 0;
+    v->parent = nullptr;
+    root_clusters[0].push_back(v);
     while (curr) {
         auto prev = curr;
         curr = prev->parent;
-        for (auto neighbor : prev->neighbors) // Set sibling parent pointer to null
-            if (neighbor->parent == prev->parent)
-                neighbor->parent = nullptr;
-        free(prev);
+        level++;
+        for (auto neighbor : prev->neighbors) {
+            if (neighbor->parent == prev->parent) {
+                neighbor->parent = nullptr; // Set sibling parent pointer to null
+                root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
+            }
+            neighbor->remove_neighbor(prev); // Remove prev from adjacency
+        }
+        free(prev); // Remove cluster prev
     }
 }
 
 template<typename aug_t>
-void TopologyTree<aug_t>::insert_neighbor(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v) {
+void TopologyCluster<aug_t>::insert_neighbor(TopologyCluster<aug_t>* c) {
     for (int i = 0; i < 3; i++)
-        if (leaves[u]->neighbors[i] == nullptr) {
-            leaves[u]->neighbors[i] = leaves[v];
+        if (this->neighbors[i] == nullptr) {
+            this->neighbors[i] = c;
             return;
         }
     std::cerr << "No space to insert neighbor." << std::endl;
@@ -89,10 +113,10 @@ void TopologyTree<aug_t>::insert_neighbor(TopologyCluster<aug_t>* u, TopologyClu
 }
 
 template<typename aug_t>
-void TopologyTree<aug_t>::remove_neighbor(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v) {
+void TopologyCluster<aug_t>::remove_neighbor(TopologyCluster<aug_t>* c) {
     for (int i = 0; i < 3; i++)
-        if (leaves[u]->neighbors[i] == leaves[v]) {
-            leaves[u]->neighbors[i] = nullptr;
+        if (this->neighbors[i] == c) {
+            this->neighbors[i] = nullptr;
             return;
         }
     std::cerr << "Neighbor to delete not found." << std::endl;
