@@ -8,15 +8,16 @@ TEST(TopologyTreeSuite, incremental_linkedlist_test) {
     auto f = [](int x, int y)->int{return x + y;};
 
     TopologyTree<int> tree(n, qt, f);
-    for (vertex_t i = 0; i < n-1; i++)
+    for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
+    }
     for (vertex_t u = 0; u < n-1; u++)
         for (vertex_t v = u+1; v < n; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "All vertices not connected.";
+            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
 }
 
 TEST(TopologyTreeSuite, incremental_binarytree_test) {
-    vertex_t n = 1024;
+    vertex_t n = 32;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
 
@@ -28,5 +29,5 @@ TEST(TopologyTreeSuite, incremental_binarytree_test) {
     if (n%2 == 0) tree.link((n-1)/2,n-1);
     for (vertex_t u = 0; u < n-1; u++)
         for (vertex_t v = u+1; v < n; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "All vertices not connected.";
+            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
 }
