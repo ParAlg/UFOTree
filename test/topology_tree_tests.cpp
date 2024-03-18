@@ -2,12 +2,31 @@
 #include "../include/topology_tree.h"
 
 
-TEST(TopologyTreeSuite, example_test) {
-    vertex_t num_vertices = 10;
+TEST(TopologyTreeSuite, incremental_linkedlist_test) {
+    vertex_t n = 1024;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
 
-    TopologyTree<int> tree(num_vertices, qt, f);
-    tree.link(0,1);
-    tree.cut(0,1);
+    TopologyTree<int> tree(n, qt, f);
+    for (vertex_t i = 0; i < n-1; i++)
+        tree.link(i,i+1);
+    for (vertex_t u = 0; u < n-1; u++)
+        for (vertex_t v = u+1; v < n; v++)
+            ASSERT_TRUE(tree.connected(u,v)) << "All vertices not connected.";
+}
+
+TEST(TopologyTreeSuite, incremental_binarytree_test) {
+    vertex_t n = 1024;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+
+    TopologyTree<int> tree(n, qt, f);
+    for (vertex_t i = 0; i < (n-1)/2; i++) {
+        tree.link(i,2*i+1);
+        tree.link(i,2*i+2);
+    }
+    if (n%2 == 0) tree.link((n-1)/2,n-1);
+    for (vertex_t u = 0; u < n-1; u++)
+        for (vertex_t v = u+1; v < n; v++)
+            ASSERT_TRUE(tree.connected(u,v)) << "All vertices not connected.";
 }
