@@ -103,6 +103,8 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
         }
         free(prev); // Remove cluster prev
     }
+    level = -1;
+    while (root_clusters[++level].size() > 0) root_clusters[level] = parlay::remove_duplicates(root_clusters[level]);
 }
 
 template<typename aug_t>
@@ -201,6 +203,8 @@ void TopologyTree<aug_t>::recluster_tree() {
                 if (c2->neighbors[i] && c2->neighbors[i] != c1) // Don't add c2's parent (itself)
                     parent->insert_neighbor(c2->neighbors[i]->parent);
         }
+        // Clear the contents of this level
+        root_clusters[level].clear();
     }
 }
 
