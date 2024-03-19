@@ -4,6 +4,7 @@
 #include <parlaylib/include/parlay/sequence.h>
 #include <unordered_set>
 #include<vector>
+#include<parlaylib/include/parlay/monoid.h>
 
 typedef uint32_t vertex_t;
 
@@ -22,16 +23,15 @@ struct RCCluster {
       aug_val(aug_val);
       representative_vertex = representative_vertex;
     }
-
 };
 
 template<typename aug_t>
 class RCTree {
+  int degree_bound, n; //n is number of vertices in the tree.
   parlay::sequence<RCCluster<aug_t>> clusters;
   parlay::sequence<RCCluster<aug_t>> leaf_clusters;
-  parlay::sequence<parlay::sequence<parlay::sequence<RCCluster<aug_t>>>> adj; // RCCluster pointer not int
+  parlay::sequence<RCCluster<aug_t>**> adj; // RCCluster pointer not int
   std::unordered_set<int> affected; 
-  int degree_bound, n; //n is number of vertices in the tree.
   
   int get_degree(int v, int round);
   bool contracts(vertex_t v, int round);
@@ -48,7 +48,6 @@ public:
 
   void link(int u, int v, int weight);
   void cut(int u, int v);
-
 };
 
 template<typename aug_t>
@@ -56,7 +55,11 @@ template<typename aug_t>
 RCTree<aug_t>::RCTree(int n, int degree_bound) { 
   degree_bound = degree_bound;
   n = n;
-  adj.resize(n);
+  adj.push_back(new RCCluster<aug_t>* [n]);
+
+  for(int i = 0; i < n; i++){
+    adj[0][i] = new RCCluster<aug_t> [degree_bound]; 
+  }
 }
 
 /* ------- HELPER METHODS ------- */
@@ -70,6 +73,7 @@ int RCTree<aug_t>::get_degree(int v, int round) {
 
   return degree;
 }
+
 template<typename aug_t>
 bool RCTree<aug_t>::contracts(vertex_t v, int round) {
   // Take in vertex and round number to determine if the vertex contracts in that
@@ -212,7 +216,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   //Get boundary vertex
   auto neighbors = adj[round][vertex];
   vertex_t neighbor; //To be initialized later, helpful for doing contractions.
-  RCCluster<aug_t> new_cluster(0, vertex);  //New augmented cluster to be used for replacement.
+  RCCluster<aug_t> new_cluster(0, vertex);  //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
 
   // Go through all neighboring clusters and aggregate values onto self.
   for(auto neighboring_cluster : neighbors) {
@@ -221,6 +225,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
       neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
     }
   }
+
   new_cluster.boundary_vertexes.insert(neighbor);
   //Check neighbor's clusters to see if we exist as a rep vertex and if so
   //compare current cluster to it.
@@ -243,7 +248,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
 
 template<typename aug_t>
 void RCTree<aug_t>::compress(vertex_t vertex, int round){
-
+  
 }
 
 template<typename aug_t>
