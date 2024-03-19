@@ -1,3 +1,4 @@
+#include <unordered_set>
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
 #include "types.h"
@@ -31,7 +32,7 @@ private:
     parlay::sequence<TopologyCluster<aug_t>> leaves;
     std::function<aug_t(aug_t, aug_t)> f;
     QueryType query_type;
-    parlay::sequence<parlay::sequence<TopologyCluster<aug_t>*>> root_clusters;
+    parlay::sequence<std::unordered_set<TopologyCluster<aug_t>*>> root_clusters;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v);
     void recluster_tree();
@@ -72,13 +73,13 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
     for (auto neighbor : u->neighbors) {
         if (neighbor && neighbor->parent == u->parent) {
             neighbor->parent = nullptr; // Set sibling parent pointer to null
-            root_clusters[0].push_back(neighbor); // Keep track of parentless cluster
+            root_clusters[0].insert(neighbor); // Keep track of parentless cluster
         }
     }
     auto curr = u->parent;
     int level = 0;
     u->parent = nullptr;
-    root_clusters[0].push_back(u);
+    root_clusters[0].insert(u);
     while (curr) {
         auto prev = curr;
         curr = prev->parent;
@@ -86,22 +87,23 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
         for (auto neighbor : prev->neighbors) {
             if (neighbor && neighbor->parent == prev->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
+                root_clusters[level].insert(neighbor); // Keep track of parentless cluster
             }
             if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         }
         free(prev); // Remove cluster prev
+        root_clusters[level].erase(prev);
     }
     for (auto neighbor : v->neighbors) {
         if (neighbor && neighbor->parent == v->parent) {
             neighbor->parent = nullptr; // Set sibling parent pointer to null
-            root_clusters[0].push_back(neighbor); // Keep track of parentless cluster
+            root_clusters[0].insert(neighbor); // Keep track of parentless cluster
         }
     }
     curr = v->parent;
     level = 0;
     v->parent = nullptr;
-    root_clusters[0].push_back(v);
+    root_clusters[0].insert(v);
     while (curr) {
         auto prev = curr;
         curr = prev->parent;
@@ -109,20 +111,20 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
         for (auto neighbor : prev->neighbors) {
             if (neighbor && neighbor->parent == prev->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
+                root_clusters[level].insert(neighbor); // Keep track of parentless cluster
             }
             if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         }
         free(prev); // Remove cluster prev
+        root_clusters[level].erase(prev);
     }
-    for (int level = 0; level < root_clusters.size(); level++) root_clusters[level] = parlay::remove_duplicates(root_clusters[level]);
 }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
     parlay::sequence<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,TopologyCluster<aug_t>*>> contractions;
     for (int level = 0; level < root_clusters.size(); level++) {
-        if (root_clusters[level].size() == 0) continue;
+        if (root_clusters[level].empty()) continue;
         // Combine deg 3 root clusters with deg 1 root  or non-root clusters
         for (auto cluster : root_clusters[level]) {
             if (cluster->get_degree() == 3) {
@@ -131,7 +133,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                         auto parent = neighbor->parent;
                         if (!parent) { // If neighbor is a root cluster
                             parent = new TopologyCluster<aug_t>();
-                            root_clusters[level+1].push_back(parent);
+                            root_clusters[level+1].insert(parent);
                         }
                         parent->value = f(cluster->value, neighbor->value);
                         cluster->parent = parent;
@@ -151,7 +153,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                         parent->value = f(cluster->value, neighbor->value);
                         cluster->parent = parent;
                         neighbor->parent = parent;
-                        root_clusters[level+1].push_back(parent);
+                        root_clusters[level+1].insert(parent);
                         contractions.push_back({{cluster,neighbor},parent});
                         break;
                     }
@@ -188,7 +190,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                         parent->value = f(cluster->value, neighbor->value);
                         cluster->parent = parent;
                         neighbor->parent = parent;
-                        root_clusters[level+1].push_back(parent);
+                        root_clusters[level+1].insert(parent);
                         contractions.push_back({{cluster,neighbor},parent});
                         break;
                     }
@@ -222,7 +224,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                 auto parent = new TopologyCluster<aug_t>();
                 parent->value = cluster->value;
                 cluster->parent = parent;
-                root_clusters[level+1].push_back(parent);
+                root_clusters[level+1].insert(parent);
                 contractions.push_back({{cluster,cluster},parent});
             }
         }
