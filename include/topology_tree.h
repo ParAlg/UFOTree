@@ -21,7 +21,7 @@ struct TopologyCluster {
 template<typename aug_t>
 class TopologyTree {
 public:
-    // Topology Tree interface
+    // Topology tree interface
     TopologyTree(vertex_t n, QueryType query_type, std::function<aug_t(aug_t, aug_t)> f);
     void link(vertex_t u, vertex_t v, aug_t value = 0);
     void cut(vertex_t u, vertex_t v);
@@ -39,7 +39,7 @@ private:
 
 template<typename aug_t>
 TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f) :
-query_type(query_type), f(f) { leaves.resize(n); }
+query_type(query_type), f(f) { leaves.resize(n); root_clusters.resize(max_tree_height(n)); }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
@@ -69,8 +69,6 @@ bool TopologyTree<aug_t>::connected(vertex_t u, vertex_t v) {
 template<typename aug_t>
 void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v) {
     // Collect all the root clusters while removing ancestors
-    root_clusters.clear();
-    root_clusters.reserve(max_tree_height(leaves.size()));
     for (auto neighbor : u->neighbors) {
         if (neighbor && neighbor->parent == u->parent) {
             neighbor->parent = nullptr; // Set sibling parent pointer to null
@@ -117,16 +115,14 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
         }
         free(prev); // Remove cluster prev
     }
-    level = -1;
-    while (root_clusters[++level].size() > 0) root_clusters[level] = parlay::remove_duplicates(root_clusters[level]);
+    for (int level = 0; level < root_clusters.size(); level++) root_clusters[level] = parlay::remove_duplicates(root_clusters[level]);
 }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
     parlay::sequence<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,TopologyCluster<aug_t>*>> contractions;
-    int level = -1;
-    while (root_clusters[++level].size() > 0) {
-        contractions.clear();
+    for (int level = 0; level < root_clusters.size(); level++) {
+        if (root_clusters[level].size() == 0) continue;
         // Combine deg 3 root clusters with deg 1 root  or non-root clusters
         for (auto cluster : root_clusters[level]) {
             if (cluster->get_degree() == 3) {
@@ -162,11 +158,11 @@ void TopologyTree<aug_t>::recluster_tree() {
                 }
             }
         }
-        // Combine deg 2 root clusters with deg 2 non-root clusters
+        // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 2) {
                 for (auto neighbor : cluster->neighbors) {
-                    if (neighbor && neighbor->get_degree() == 2 && neighbor->parent) {
+                    if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
                         bool neighbor_contracts = false; // Check if neighbor already contracts
                         for (auto grandneighbor : neighbor->neighbors)
                             if (grandneighbor && grandneighbor->parent == neighbor->parent)
@@ -251,6 +247,7 @@ void TopologyTree<aug_t>::recluster_tree() {
         }
         // Clear the contents of this level
         root_clusters[level].clear();
+        contractions.clear();
     }
 }
 

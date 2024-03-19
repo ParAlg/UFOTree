@@ -17,7 +17,7 @@ TEST(TopologyTreeSuite, incremental_linkedlist_test) {
 }
 
 TEST(TopologyTreeSuite, incremental_binarytree_test) {
-    vertex_t n = 32;
+    vertex_t n = 1024;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
 
