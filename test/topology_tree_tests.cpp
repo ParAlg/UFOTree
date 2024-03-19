@@ -29,7 +29,7 @@ TEST(TopologyTreeSuite, incremental_binarytree_test) {
     }
     if (n%2 == 0) tree.link((n-1)/2,n-1);
     for (vertex_t u = 0; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
+        ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
 }
 
 TEST(TopologyTreeSuite, decremental_linkedlist_test) {
@@ -48,4 +48,31 @@ TEST(TopologyTreeSuite, decremental_linkedlist_test) {
         for (vertex_t u = i+1; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
             ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
     }
+}
+
+TEST(TopologyTreeSuite, decremental_binarytree_test) {
+    vertex_t n = 256;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+    TopologyTree<int> tree(n, qt, f);
+
+    for (vertex_t i = 0; i < (n-1)/2; i++) {
+        tree.link(i,2*i+1);
+        tree.link(i,2*i+2);
+    }
+    if (n%2 == 0) tree.link((n-1)/2,n-1);
+    for (vertex_t i = 0; i < (n-1)/2; i++) {
+        tree.cut(i,2*i+1);
+        tree.cut(i,2*i+2);
+        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v < n; v++)
+            ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
+        ASSERT_FALSE(tree.connected(2*i+1,2*i+2)) << "Vertex " << 2*i+1 << " and " << 2*i+2 << " connected.";
+        if (4*i+6 < n) {
+            ASSERT_TRUE(tree.connected(4*i+3,4*i+4)) << "Vertex " << 4*i+3 << " and " << 4*i+4 << " not connected.";
+            ASSERT_TRUE(tree.connected(4*i+5,4*i+6)) << "Vertex " << 4*i+3 << " and " << 4*i+4 << " not connected.";
+        }
+    }
+    if (n%2 == 0) tree.cut((n-1)/2,n-1);
+    for (vertex_t u = 0; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
+        ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
 }
