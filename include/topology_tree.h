@@ -13,6 +13,7 @@ struct TopologyCluster {
     aug_t value;
     // Helper functions
     int get_degree();
+    bool contracts();
     bool contains_neighbor(TopologyCluster<aug_t>* c);
     void insert_neighbor(TopologyCluster<aug_t>* c);
     void remove_neighbor(TopologyCluster<aug_t>* c);
@@ -27,6 +28,8 @@ public:
     void link(vertex_t u, vertex_t v, aug_t value = 0);
     void cut(vertex_t u, vertex_t v);
     bool connected(vertex_t u, vertex_t v);
+    // Testing helpers
+    bool is_valid();
 private:
     // Class data and parameters
     parlay::sequence<TopologyCluster<aug_t>> leaves;
@@ -165,11 +168,7 @@ void TopologyTree<aug_t>::recluster_tree() {
             if (!cluster->parent && cluster->get_degree() == 2) {
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
-                        bool neighbor_contracts = false; // Check if neighbor already contracts
-                        for (auto grandneighbor : neighbor->neighbors)
-                            if (grandneighbor && grandneighbor->parent == neighbor->parent)
-                                neighbor_contracts = true;
-                        if (neighbor_contracts) continue;
+                        if (neighbor->contracts()) continue;
                         auto parent = neighbor->parent;
                         if (!parent) parent = new TopologyCluster<aug_t>();
                         parent->value = f(cluster->value, neighbor->value);
@@ -202,11 +201,7 @@ void TopologyTree<aug_t>::recluster_tree() {
             if (!cluster->parent && cluster->get_degree() == 1) {
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->parent && (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
-                        bool neighbor_contracts = false; // Check if neighbor already contracts
-                        for (auto grandneighbor : neighbor->neighbors)
-                            if (grandneighbor && grandneighbor->parent == neighbor->parent)
-                                neighbor_contracts = true;
-                        if (neighbor_contracts) continue;
+                        if (neighbor->contracts()) continue;
                         auto parent = neighbor->parent;
                         if (!parent) parent = new TopologyCluster<aug_t>();
                         parent->value = f(cluster->value, neighbor->value);
@@ -260,6 +255,14 @@ int TopologyCluster<aug_t>::get_degree() {
     return deg;
 }
 
+template<typename aug_t>
+bool TopologyCluster<aug_t>::contracts() {
+    bool contracts = false;
+    for (auto neighbor : this->neighbors)
+        if (neighbor && neighbor->parent == this->parent)
+            contracts = true;
+    return contracts;
+}
 
 template<typename aug_t>
 bool TopologyCluster<aug_t>::contains_neighbor(TopologyCluster<aug_t>* c) {
