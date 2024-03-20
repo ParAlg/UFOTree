@@ -33,7 +33,20 @@ bool TopologyTree<aug_t>::is_valid() {
     return true;
 }
 
-TEST(TopologyTreeSuite, incremental_linkedlist_test) {
+TEST(TopologyTreeSuite, incremental_binarytree_speed_test) {
+    vertex_t n = 1000;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+    TopologyTree<int> tree(n, qt, f);
+
+    for (vertex_t i = 0; i < (n-1)/2; i++) {
+        tree.link(i,2*i+1);
+        tree.link(i,2*i+2);
+    }
+    if (n%2 == 0) tree.link((n-1)/2,n-1);
+}
+
+TEST(TopologyTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
@@ -47,7 +60,7 @@ TEST(TopologyTreeSuite, incremental_linkedlist_test) {
     }
 }
 
-TEST(TopologyTreeSuite, incremental_binarytree_test) {
+TEST(TopologyTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
@@ -66,7 +79,7 @@ TEST(TopologyTreeSuite, incremental_binarytree_test) {
     ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
 }
 
-TEST(TopologyTreeSuite, decremental_linkedlist_test) {
+TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
@@ -85,7 +98,7 @@ TEST(TopologyTreeSuite, decremental_linkedlist_test) {
     }
 }
 
-TEST(TopologyTreeSuite, decremental_binarytree_test) {
+TEST(TopologyTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};

@@ -36,6 +36,7 @@ private:
     std::function<aug_t(aug_t, aug_t)> f;
     QueryType query_type;
     parlay::sequence<std::unordered_set<TopologyCluster<aug_t>*>> root_clusters;
+    std::vector<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,TopologyCluster<aug_t>*>> contractions;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v);
     void recluster_tree();
@@ -43,7 +44,7 @@ private:
 
 template<typename aug_t>
 TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f) :
-query_type(query_type), f(f) { leaves.resize(n); root_clusters.resize(max_tree_height(n)); }
+query_type(query_type), f(f) { leaves.resize(n); root_clusters.resize(max_tree_height(n)); contractions.reserve(4); }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
@@ -125,7 +126,6 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
 
 template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
-    parlay::sequence<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,TopologyCluster<aug_t>*>> contractions;
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
         // Combine deg 3 root clusters with deg 1 root  or non-root clusters
@@ -228,14 +228,14 @@ void TopologyTree<aug_t>::recluster_tree() {
             auto c1 = contraction.first.first;
             auto c2 = contraction.first.second;
             auto parent = contraction.second;
-            for (int i = 0; i < 3; i++) parent->neighbors[i] = nullptr;
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3; ++i) parent->neighbors[i] = nullptr;
+            for (int i = 0; i < 3; ++i) {
                 if (c1->neighbors[i] && c1->neighbors[i] != c2) { // Don't add c2's parent (itself)
                     parent->insert_neighbor(c1->neighbors[i]->parent);
                     c1->neighbors[i]->parent->insert_neighbor(parent);
                 }
             }
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3; ++i) {
                 if (c2->neighbors[i] && c2->neighbors[i] != c1) { // Don't add c1's parent (itself)
                     parent->insert_neighbor(c2->neighbors[i]->parent);
                     c2->neighbors[i]->parent->insert_neighbor(parent);
@@ -266,14 +266,14 @@ bool TopologyCluster<aug_t>::contracts() {
 
 template<typename aug_t>
 bool TopologyCluster<aug_t>::contains_neighbor(TopologyCluster<aug_t>* c) {
-    for (int i = 0; i < 3; i++) if (this->neighbors[i] == c) return true;
+    for (int i = 0; i < 3; ++i) if (this->neighbors[i] == c) return true;
     return false;
 }
 
 template<typename aug_t>
 void TopologyCluster<aug_t>::insert_neighbor(TopologyCluster<aug_t>* c) {
     if (this->contains_neighbor(c)) return;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; ++i) {
         if (this->neighbors[i] == nullptr) {
             this->neighbors[i] = c;
             return;
@@ -285,7 +285,7 @@ void TopologyCluster<aug_t>::insert_neighbor(TopologyCluster<aug_t>* c) {
 
 template<typename aug_t>
 void TopologyCluster<aug_t>::remove_neighbor(TopologyCluster<aug_t>* c) {
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; ++i) {
         if (this->neighbors[i] == c) {
             this->neighbors[i] = nullptr;
             return;
