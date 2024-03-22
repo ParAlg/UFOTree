@@ -1,10 +1,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iterator>
-#include <parlaylib/include/parlay/sequence.h>
+#include <parlay/sequence.h>
 #include <unordered_set>
 #include<vector>
-#include<parlaylib/include/parlay/monoid.h>
+#include<parlay/monoid.h>
 
 typedef uint32_t vertex_t;
 
@@ -12,27 +12,28 @@ typedef uint32_t vertex_t;
 
 template<typename aug_t>
 struct RCCluster {
+public:
   aug_t aug_val;
   vertex_t representative_vertex = -1; //Set to -1 to recognize uncontracted binary clusters.
   std::vector<int> boundary_vertexes;
   RCCluster* parent;
-  public:
-    RCCluster(aug_t aug_val){ aug_val(aug_val);}
+    RCCluster(aug_t _aug_val){ aug_val = _aug_val;}
     
-    RCCluster(aug_t aug_val, vertex_t representative_vertex){
-      aug_val(aug_val);
-      representative_vertex = representative_vertex;
+    RCCluster(aug_t _aug_val, vertex_t _representative_vertex){
+      aug_val = _aug_val;
+      representative_vertex = _representative_vertex;
     }
 };
 
 template<typename aug_t>
 class RCTree {
+public: 
   int degree_bound, n; //n is number of vertices in the tree.
   parlay::sequence<RCCluster<aug_t>> clusters;
   parlay::sequence<RCCluster<aug_t>> leaf_clusters;
-  parlay::sequence<RCCluster<aug_t>**> adj; // RCCluster pointer not int
   std::unordered_set<int> affected; 
-  
+  parlay::sequence<RCCluster<aug_t>***> adj; // RCCluster pointer not int - Made public for testing, will actually be private.
+  void add_neighbor(RCCluster<aug_t>** adjacencies, RCCluster<aug_t>* cluster);
   int get_degree(int v, int round);
   bool contracts(vertex_t v, int round);
   void spread_affection(int round);
@@ -42,24 +43,21 @@ class RCTree {
   void rake(vertex_t vertex, int round);
   void compress(vertex_t vertex, int round);
   void update();
-public:
+  int neighbor_count(RCCluster<aug_t>** neighbors);
   RCTree(int n, int degree_bound);
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
-
   void link(int u, int v, int weight);
   void cut(int u, int v);
 };
 
 template<typename aug_t>
 // Constructor. Presently assume a degree bound of 3.
-RCTree<aug_t>::RCTree(int n, int degree_bound) { 
-  degree_bound = degree_bound;
-  n = n;
-  adj.push_back(new RCCluster<aug_t>* [n]);
+RCTree<aug_t>::RCTree(int _n, int _degree_bound) { 
+  degree_bound = _degree_bound;
+  n = _n;
+  adj.push_back(new RCCluster<aug_t>** [_n]);
 
-  for(int i = 0; i < n; i++){
-    adj[0][i] = new RCCluster<aug_t> [degree_bound]; 
-  }
+  for(int i = 0; i < n; i++){ adj[0][i] = (RCCluster<int>**) calloc(degree_bound, sizeof(RCCluster<int>*));}
 }
 
 /* ------- HELPER METHODS ------- */
@@ -68,52 +66,81 @@ int RCTree<aug_t>::get_degree(int v, int round) {
 
   int degree = 0;
 
-  for(auto cluster : adj[round][v])
-  if(cluster.boundaries.size() == 2) degree++;
+  for(int i = 0; i < degree_bound; i++){
+    auto cluster = adj[round][v][i];
+    if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) degree++;
+  }
 
   return degree;
+}
+
+template<typename aug_t>
+int RCTree<aug_t>::neighbor_count(RCCluster<aug_t>** neighbors){
+  int count = 0;
+  for(int i = 0; i < degree_bound; i++){
+    auto neighbor_ptr = neighbors[i];
+    if(neighbor_ptr != nullptr){
+      count += 1;
+    }
+  }
+  return count;
 }
 
 template<typename aug_t>
 bool RCTree<aug_t>::contracts(vertex_t v, int round) {
   // Take in vertex and round number to determine if the vertex contracts in that
   // round.
-  if(round < adj.size() && adj[round + 1][v].size() == 0){
+  if(round < adj.size() - 1 && neighbor_count(adj[round + 1][v]) == 0){
     return true;
   }
   return false;
 }
+
+template<typename aug_t>
+void RCTree<aug_t>::add_neighbor(RCCluster<aug_t>** adjacencies, RCCluster<aug_t> *cluster){
+  for(int i = 0; i < degree_bound; i++){
+    if(adjacencies[i] == nullptr){
+      adjacencies[i] = cluster;
+      break;
+    }
+  }
+}
 /* ------------------------------- */
 template<typename aug_t>
 void RCTree<aug_t>::spread_affection(int round) {
+  /* Determine the vertices we spread affection to via dependence as a result of changes
+   * to the input and add them to the affected set, prior to building an MIS of the
+   * affected vertices.
+   */
 
   //Vertices that affection is spread to from orginal affected vertices
-  std::unordered_set<int> new_affected; 
+  std::unordered_set<int> new_affected(affected); 
   auto induced_tree = adj[round];
 
   for(auto vertex : affected) {
     //Iterate through all adjacencies of affected vertex
-    for(int i = 0; i < induced_tree[vertex].size(); i++) {
+    for(int i = 0; i < degree_bound; i++) {
 
-      RCCluster<aug_t> cluster = induced_tree[vertex][i];
+      RCCluster<aug_t> cluster = *induced_tree[vertex][i];
 
       if(get_degree(cluster, round) == 2) {
-        int neighbor = GET_NEIGHBOR(vertex, cluster);
+        int neighbor = GET_NEIGHBOR(vertex, cluster); // Neighbor of the affected vertex.
         if(!new_affected.count(neighbor) && spread_by_dependence(neighbor, round, &new_affected)){
           new_affected.insert(neighbor);
         }
       } 
     }
   } 
-  affected.merge(new_affected);
 }
 
 template<typename aug_t>
 bool RCTree<aug_t>::spread_by_dependence(int vertex, int round, std::unordered_set<int> &current_affected){
+  /* Determine if a vertex becomes affected as result of contracting neighbors added to the affected set.
+   * Return true if the vertex is now affected, false otherwise.*/ 
   auto induced_tree = adj[round];
   bool spreads = true;
-  for(auto neighbor : induced_tree[vertex]){
-    if(!contracts(neighbor) && (current_affected.count(neighbor))) {
+  for(auto neighbor : induced_tree[vertex]){ //Neighbors of the neighbor of the affected vertex.
+    if(!contracts(*neighbor) && (current_affected.count(*neighbor))) {
       spreads = false;
       break;
     }
@@ -171,14 +198,14 @@ void RCTree<aug_t>::link(int u, int v, int weight) {
   // and the edge being added does not yet violate
   // any tree properties.
 
-  parlay::sequence<parlay::sequence<RCCluster<aug_t>>> base_tree = adj[0];
+  auto base_tree = adj[0];
 
   RCCluster new_edge(weight);
   new_edge.boundary_vertexes[0] = u;
   new_edge.boundary_vertexes[1] = v;
 
-  base_tree[u].insert(new_edge); //v can be > t. Make it ternary.
-  base_tree[v].insert(new_edge);
+  add_neighbor(base_tree[u], &new_edge); //v can be > t. Make it ternary.
+  add_neighbor(base_tree[v], &new_edge);
 
   affected.insert(u);          // Insert initial affected vertices.
   affected.insert(v);          

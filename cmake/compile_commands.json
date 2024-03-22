@@ -1,0 +1,38 @@
+[
+{
+  "directory": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++ -DPARLAY_ELASTIC_PARALLELISM=true -I/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/parlaylib-src/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -o CMakeFiles/dynamic_tree_tests.dir/test/test_runner.cpp.o -c /Users/atharvsharma/Documents/practicaldynamictrees/test/test_runner.cpp",
+  "file": "/Users/atharvsharma/Documents/practicaldynamictrees/test/test_runner.cpp",
+  "output": "CMakeFiles/dynamic_tree_tests.dir/test/test_runner.cpp.o"
+},
+{
+  "directory": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++ -DPARLAY_ELASTIC_PARALLELISM=true -I/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/parlaylib-src/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk -o CMakeFiles/dynamic_tree_tests.dir/test/rc_tree_tests.cpp.o -c /Users/atharvsharma/Documents/practicaldynamictrees/test/rc_tree_tests.cpp",
+  "file": "/Users/atharvsharma/Documents/practicaldynamictrees/test/rc_tree_tests.cpp",
+  "output": "CMakeFiles/dynamic_tree_tests.dir/test/rc_tree_tests.cpp.o"
+},
+{
+  "directory": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-build/googlemock",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -I/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock/include -I/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest -g -std=c++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gmock.dir/src/gmock-all.cc.o -c /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock/src/gmock-all.cc",
+  "file": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock/src/gmock-all.cc",
+  "output": "_deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o"
+},
+{
+  "directory": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-build/googlemock",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest -g -std=c++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock/src/gmock_main.cc",
+  "file": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googlemock/src/gmock_main.cc",
+  "output": "_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o"
+},
+{
+  "directory": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-build/googletest",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -I/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/include -I/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest -g -std=c++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gtest.dir/src/gtest-all.cc.o -c /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/src/gtest-all.cc",
+  "file": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/src/gtest-all.cc",
+  "output": "_deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o"
+},
+{
+  "directory": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-build/googletest",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/include -isystem /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest -g -std=c++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c /Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/src/gtest_main.cc",
+  "file": "/Users/atharvsharma/Documents/practicaldynamictrees/cmake/_deps/googletest-src/googletest/src/gtest_main.cc",
+  "output": "_deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o"
+}
+]
