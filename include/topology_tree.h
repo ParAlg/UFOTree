@@ -10,7 +10,7 @@ struct TopologyCluster {
     // Topology cluster data
     TopologyCluster<aug_t>* neighbors[3];
     TopologyCluster<aug_t>* parent;
-    aug_t value;
+    aug_t value = 1;
     // Helper functions
     int get_degree();
     bool contracts();
@@ -24,17 +24,20 @@ template<typename aug_t>
 class TopologyTree {
 public:
     // Topology tree interface
-    TopologyTree(vertex_t n, QueryType query_type, std::function<aug_t(aug_t, aug_t)> f);
+    TopologyTree(vertex_t n, QueryType query_type, std::function<aug_t(aug_t, aug_t)> f, aug_t identity);
     void link(vertex_t u, vertex_t v, aug_t value = 0);
     void cut(vertex_t u, vertex_t v);
     bool connected(vertex_t u, vertex_t v);
+    aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
+    aug_t path_query(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
 private:
     // Class data and parameters
     parlay::sequence<TopologyCluster<aug_t>> leaves;
-    std::function<aug_t(aug_t, aug_t)> f;
     QueryType query_type;
+    std::function<aug_t(aug_t, aug_t)> f;
+    aug_t identity;
     parlay::sequence<std::unordered_set<TopologyCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,TopologyCluster<aug_t>*>> contractions;
     // Helper functions
@@ -43,9 +46,14 @@ private:
 };
 
 template<typename aug_t>
-TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f) :
-query_type(query_type), f(f) { leaves.resize(n); root_clusters.resize(max_tree_height(n)); contractions.reserve(4); }
+TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t identity) :
+query_type(query_type), f(f), identity(identity) {
+    leaves.resize(n); root_clusters.resize(max_tree_height(n));
+    contractions.reserve(4);
+}
 
+/* Link vertex u and vertex v in the tree. Optionally include an
+augmented value for the new edge (u,v). */
 template<typename aug_t>
 void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
@@ -56,6 +64,7 @@ void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     recluster_tree();
 }
 
+/* Cut vertex u and vertex v in the tree. */
 template<typename aug_t>
 void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
@@ -66,61 +75,93 @@ void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     recluster_tree();
 }
 
+/* Return true if and only if there is a path from vertex u to
+vertex v in the tree. */
 template<typename aug_t>
 bool TopologyTree<aug_t>::connected(vertex_t u, vertex_t v) {
     return leaves[u].get_root() == leaves[v].get_root();
 }
 
+/* Returns the value of the associative function f applied over
+the augmented values for all the vertices in the subtree rooted
+at v with respect to its parent p. If p = -1 then return the sum
+over the entire tree containing v. */
+template<typename aug_t>
+aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
+    assert(v >= 0 && v < leaves.size() && p >= 0 && (p < leaves.size() || p == MAX_VERTEX_T));
+    if (p == -1) return leaves[v].get_root()->value;
+    assert(leaves[v].contains_neighbor(&leaves[p]));
+    // Get the total up until the LCA of v and p
+    aug_t total = f(identity, leaves[v].value);
+    auto curr_v = &leaves[v];
+    auto curr_p = &leaves[p];
+    while (curr_v->parent != curr_p->parent) {
+        for (auto neighbor : curr_v->neighbors) if (neighbor && neighbor->parent == curr_v->parent)
+            total = f(total, neighbor->value); // Only count vertices on the side of v
+        curr_v = curr_v->parent;
+        curr_p = curr_p->parent;
+    }
+    // Add the total after the LCA of v and p
+    if (curr_v->get_degree() == 1) return total;
+    TopologyCluster<aug_t>* curr_u;
+    for (auto neighbor : curr_v->neighbors) if (neighbor && neighbor != curr_p)
+        curr_u = neighbor; // Find the neighbor of curr_v that is not curr_p
+    while (curr_v->parent) {
+        if (curr_u->parent == curr_v->parent) {
+            total = f(total, curr_u->value); // Count the remaining root clusters on the side of v
+            if (curr_u->get_degree() == 1) return total;
+            for (auto neighbor : curr_u->neighbors) if (neighbor && neighbor != curr_v)
+                curr_u = neighbor->parent; // Find the neighbor of curr_u that is not curr_v
+            curr_v = curr_v->parent;
+        } else {
+            curr_u = curr_u->parent;
+            curr_v = curr_v->parent;
+        }
+    }
+    return total;
+}
+
+/* Returns the value of the associative function f applied over
+the augmented values for all the edges on the path from vertex
+u to vertex v. */
+template<typename aug_t>
+aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
+    return 0;
+}
+
 template<typename aug_t>
 void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCluster<aug_t>* v) {
-    // Collect all the root clusters while removing ancestors
-    for (auto neighbor : u->neighbors) {
-        if (neighbor && neighbor->parent == u->parent) {
-            neighbor->parent = nullptr; // Set sibling parent pointer to null
-            root_clusters[0].insert(neighbor); // Keep track of parentless cluster
-        }
-    }
-    auto curr = u->parent;
-    int level = 0;
-    u->parent = nullptr;
-    root_clusters[0].insert(u);
-    while (curr) {
-        auto prev = curr;
-        curr = prev->parent;
-        level++;
-        for (auto neighbor : prev->neighbors) {
-            if (neighbor && neighbor->parent == prev->parent) {
+    for (auto leaf: {u,v}) {
+        for (auto neighbor : leaf->neighbors) {
+            if (neighbor && neighbor->parent == leaf->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].insert(neighbor); // Keep track of parentless cluster
+                root_clusters[0].insert(neighbor); // Keep track of parentless cluster
             }
-            if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         }
-        free(prev); // Remove cluster prev
-        root_clusters[level].erase(prev);
-    }
-    for (auto neighbor : v->neighbors) {
-        if (neighbor && neighbor->parent == v->parent) {
-            neighbor->parent = nullptr; // Set sibling parent pointer to null
-            root_clusters[0].insert(neighbor); // Keep track of parentless cluster
+        auto curr = leaf->parent;
+        int level = 0;
+        leaf->parent = nullptr;
+        root_clusters[0].insert(leaf);
+        while (curr) {
+            auto prev = curr;
+            curr = prev->parent;
+            level++;
+            for (auto neighbor : prev->neighbors) {
+                if (neighbor && neighbor->parent == prev->parent) {
+                    neighbor->parent = nullptr; // Set sibling parent pointer to null
+                    root_clusters[level].insert(neighbor); // Keep track of parentless cluster
+                }
+                if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
+            }
+            free(prev); // Remove cluster prev
+            root_clusters[level].erase(prev);
         }
-    }
-    curr = v->parent;
-    level = 0;
-    v->parent = nullptr;
-    root_clusters[0].insert(v);
-    while (curr) {
-        auto prev = curr;
-        curr = prev->parent;
-        level++;
-        for (auto neighbor : prev->neighbors) {
-            if (neighbor && neighbor->parent == prev->parent) {
+        for (auto neighbor : v->neighbors) {
+            if (neighbor && neighbor->parent == v->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].insert(neighbor); // Keep track of parentless cluster
+                root_clusters[0].insert(neighbor); // Keep track of parentless cluster
             }
-            if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         }
-        free(prev); // Remove cluster prev
-        root_clusters[level].erase(prev);
     }
 }
 

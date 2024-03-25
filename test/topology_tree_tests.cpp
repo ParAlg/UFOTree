@@ -37,7 +37,7 @@ TEST(TopologyTreeSuite, incremental_binarytree_speed_test) {
     vertex_t n = 1000;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f);
+    TopologyTree<int> tree(n, qt, f, 0);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -50,7 +50,7 @@ TEST(TopologyTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f);
+    TopologyTree<int> tree(n, qt, f, 0);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -64,7 +64,7 @@ TEST(TopologyTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f);
+    TopologyTree<int> tree(n, qt, f, 0);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -83,7 +83,7 @@ TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f);
+    TopologyTree<int> tree(n, qt, f, 0);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -102,7 +102,7 @@ TEST(TopologyTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f);
+    TopologyTree<int> tree(n, qt, f, 0);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -125,4 +125,35 @@ TEST(TopologyTreeSuite, decremental_binarytree_correctness_test) {
     for (vertex_t u = 0; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
         ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
     ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all cuts.";
+}
+
+TEST(TopologyTreeSuite, subtree_query_test) {
+    vertex_t n = 10;
+    QueryType qt = SUBTREE;
+    auto f = [](int x, int y)->int{return x + y;};
+    // TopologyTree<int> tree(n, qt, f, 0);
+
+    // for (vertex_t i = 0; i < n-1; i++) {
+    //     tree.link(i,i+1);
+    // }
+    // std::cout << "Num vertices 1: " << tree.subtree_query(0) << std::endl;
+    // std::cout << "Num vertices 2: " << tree.subtree_query(3,4) << std::endl;
+    // std::cout << "Num vertices 3: " << tree.subtree_query(4,3) << std::endl;
+    // tree.cut(n/2, n/2-1);
+    // std::cout << "Num vertices 4: " << tree.subtree_query(0) << std::endl;
+    // std::cout << "Num vertices 5: " << tree.subtree_query(n-1) << std::endl;
+
+    TopologyTree<int> tree(n, qt, f, 0);
+
+    for (vertex_t i = 0; i < (n-1)/2; i++) {
+        tree.link(i,2*i+1);
+        tree.link(i,2*i+2);
+    }
+    if (n%2 == 0) tree.link((n-1)/2,n-1);
+    std::cout << "Num vertices in subtree 3 parent 1: " << tree.subtree_query(3,1) << std::endl;
+    std::cout << "Num vertices in subtree 1 parent 3: " << tree.subtree_query(1,3) << std::endl;
+    std::cout << "Num vertices in subtree 5 parent 2: " << tree.subtree_query(5,2) << std::endl;
+    std::cout << "Num vertices in subtree 2 parent 5: " << tree.subtree_query(2,5) << std::endl;
+    std::cout << "Num vertices in subtree 0 parent 1: " << tree.subtree_query(0,1) << std::endl;
+    std::cout << "Num vertices in subtree 1 parent 0: " << tree.subtree_query(1,0) << std::endl;
 }
