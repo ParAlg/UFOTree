@@ -103,6 +103,15 @@ aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
     }
     // Add the total after the LCA of v and p
     if (curr_v->get_degree() == 1) return total;
+    if (curr_v->get_degree() == 3) {
+        curr_v = curr_v->parent;
+        while (curr_v->parent) {
+            for (auto neighbor : curr_v->neighbors) if (neighbor && neighbor->parent == curr_v->parent)
+                total = f(total, neighbor->value); // Count all remaining root clusters
+            curr_v = curr_v->parent;
+        }
+        return total;
+    }
     TopologyCluster<aug_t>* curr_u;
     for (auto neighbor : curr_v->neighbors) if (neighbor && neighbor != curr_p)
         curr_u = neighbor; // Find the neighbor of curr_v that is not curr_p
@@ -110,6 +119,15 @@ aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
         if (curr_u->parent == curr_v->parent) {
             total = f(total, curr_u->value); // Count the remaining root clusters on the side of v
             if (curr_u->get_degree() == 1) return total;
+            if (curr_u->get_degree() == 3) {
+                curr_v = curr_v->parent;
+                while (curr_v->parent) {
+                    for (auto neighbor : curr_v->neighbors) if (neighbor && neighbor->parent == curr_v->parent)
+                        total = f(total, neighbor->value); // Count all remaining root clusters
+                    curr_v = curr_v->parent;
+                }
+                return total;
+            }
             for (auto neighbor : curr_u->neighbors) if (neighbor && neighbor != curr_v)
                 curr_u = neighbor->parent; // Find the neighbor of curr_u that is not curr_v
             curr_v = curr_v->parent;
