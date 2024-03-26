@@ -128,32 +128,23 @@ TEST(TopologyTreeSuite, decremental_binarytree_correctness_test) {
 }
 
 TEST(TopologyTreeSuite, subtree_query_test) {
-    vertex_t n = 10;
+    vertex_t n = 256;
     QueryType qt = SUBTREE;
     auto f = [](int x, int y)->int{return x + y;};
-    // TopologyTree<int> tree(n, qt, f, 0);
-
-    // for (vertex_t i = 0; i < n-1; i++) {
-    //     tree.link(i,i+1);
-    // }
-    // std::cout << "Num vertices 1: " << tree.subtree_query(0) << std::endl;
-    // std::cout << "Num vertices 2: " << tree.subtree_query(3,4) << std::endl;
-    // std::cout << "Num vertices 3: " << tree.subtree_query(4,3) << std::endl;
-    // tree.cut(n/2, n/2-1);
-    // std::cout << "Num vertices 4: " << tree.subtree_query(0) << std::endl;
-    // std::cout << "Num vertices 5: " << tree.subtree_query(n-1) << std::endl;
-
     TopologyTree<int> tree(n, qt, f, 0);
 
-    for (vertex_t i = 0; i < (n-1)/2; i++) {
-        tree.link(i,2*i+1);
-        tree.link(i,2*i+2);
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.link(i,i+1);
+        for (vertex_t v = 0; v <= i+1; v++) {
+            ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : -1)), i+2-v);
+            ASSERT_EQ(tree.subtree_query(v, (v <= i ? v+1 : -1)), v+1);
+        }
     }
-    if (n%2 == 0) tree.link((n-1)/2,n-1);
-    std::cout << "Num vertices in subtree 3 parent 1: " << tree.subtree_query(3,1) << std::endl;
-    std::cout << "Num vertices in subtree 1 parent 3: " << tree.subtree_query(1,3) << std::endl;
-    std::cout << "Num vertices in subtree 5 parent 2: " << tree.subtree_query(5,2) << std::endl;
-    std::cout << "Num vertices in subtree 2 parent 5: " << tree.subtree_query(2,5) << std::endl;
-    std::cout << "Num vertices in subtree 0 parent 1: " << tree.subtree_query(0,1) << std::endl;
-    std::cout << "Num vertices in subtree 1 parent 0: " << tree.subtree_query(1,0) << std::endl;
+    for (vertex_t i = n-1; i > 0; i--) {
+        tree.cut(i-1,i);
+        for (vertex_t v = 0; v < i; v++) {
+            ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : -1)), i-v);
+            ASSERT_EQ(tree.subtree_query(v, (v < i-1 ? v+1 : -1)), v+1);
+        }
+    }
 }
