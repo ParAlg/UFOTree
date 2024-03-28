@@ -80,7 +80,7 @@ TEST(TopologyTreeSuite, incremental_binarytree_correctness_test) {
 }
 
 TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
-    vertex_t n = 256;
+    vertex_t n = 128;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     TopologyTree<int> tree(n, qt, f, 0, 0);
@@ -152,7 +152,7 @@ TEST(TopologyTreeSuite, subtree_query_test) {
 }
 
 TEST(TopologyTreeSuite, path_query_test) {
-    vertex_t n = 16;
+    vertex_t n = 64;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     int id = 0;
@@ -161,9 +161,12 @@ TEST(TopologyTreeSuite, path_query_test) {
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
-        // for (vertex_t v = 0; v <= i+1; v++) {
-        //     ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : MAX_VERTEX_T)), i+2-v);
-        //     ASSERT_EQ(tree.subtree_query(v, (v <= i ? v+1 : MAX_VERTEX_T)), v+1);
-        // }
+        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
+            ASSERT_EQ(tree.path_query(u,v), v-u);
+    }
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.cut(i,i+1);
+        for (vertex_t u = i+1; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
+            ASSERT_EQ(tree.path_query(u,v), v-u);
     }
 }

@@ -151,11 +151,12 @@ vertex u to vertex v. */
 template<typename aug_t>
 aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
-    assert(connected(u,v));
+    assert(u != v && connected(u,v));
     // Compute the path on both sides for both vertices until they combine
     aug_t path_u1, path_u2, path_v1, path_v2;
     path_u1 = path_u2 = path_v1 = path_v2 = identity;
-    TopologyCluster<aug_t>* bdry_u1, bdry_u2, bdry_v1, bdry_v2;
+    TopologyCluster<aug_t> *bdry_u1, *bdry_u2, *bdry_v1, *bdry_v2;
+    bdry_u1 = bdry_u2 = bdry_v1 = bdry_v2 = nullptr;
     if (leaves[u].get_degree() == 2) {
         bdry_u1 = leaves[u].neighbors[0] ? leaves[u].neighbors[0] : leaves[u].neighbors[1];
         bdry_u2 = leaves[u].neighbors[2] ? leaves[u].neighbors[2] : leaves[u].neighbors[1];
@@ -263,11 +264,8 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     else
         total = f(total, path_v1);
     // Add the value of the last edge
-    for (int i = 0; i < 3; i++) {
-        if (curr_u->neighbors[i] == curr_v)
-            total = f(total, curr_u->edge_weights[i]);
-        break;
-    }
+    for (int i = 0; i < 3; i++) if (curr_u->neighbors[i] == curr_v)
+        total = f(total, curr_u->edge_values[i]);
     return total;
 }
 
