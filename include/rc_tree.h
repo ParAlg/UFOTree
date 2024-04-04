@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <iterator>
 #include <parlay/sequence.h>
+#include <stdexcept>
 #include <unordered_set>
 #include<vector>
 #include<parlay/monoid.h>
@@ -31,6 +32,7 @@ public:
   int degree_bound, n; //n is number of vertices in the tree.
   parlay::sequence<RCCluster<aug_t>> clusters;
   parlay::sequence<RCCluster<aug_t>> leaf_clusters;
+  void is_valid_MIS(std::unordered_set<int> maximal_set, int round);
   std::unordered_set<int> affected; 
   parlay::sequence<RCCluster<aug_t>***> adj; // RCCluster pointer not int - Made public for testing, will actually be private.
   void add_neighbor(int round, RCCluster<aug_t>* cluster);
@@ -109,6 +111,48 @@ void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster){
     }
   }
 }
+
+template<typename aug_t>
+void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round){
+  //Given a computed MIS, check to see if the MIS is maximal and no
+  //vertices added are neighbors of each other.
+  
+  //Checks to see if the set is maximal by going through all vertexes in the
+  //tree and checking to see if atleast one neighbor of every vertex is in
+  //the tree.
+  for(auto vertex : affected){
+    if(adj[round][vertex] != nullptr){ 
+      bool vertex_valid = false;
+      for(int i = 0; i < degree_bound; i++){
+        if(adj[round][vertex][i] != nullptr && 
+          adj[round][vertex][i]->boundary_vertexes.size() == 2){
+          auto dereferenced_cluster = *adj[round][vertex][i];
+          int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
+          if(maximal_set.count(vertex) == 0 && 
+              ((contracts(neighbor, round)  && affected.count(neighbor) == 0)|| 
+              maximal_set.count(neighbor) == 1)){
+            vertex_valid = true; // If either the vertex is next to an contracting unaffected neighbor or 
+                     // neighbor included in the MIS then increment count as this vertex is valid.
+          }
+          
+          // If 2 adjacent neighbors have been added then also throw an exception.
+          // as the set is not independent.
+          if(maximal_set.count(vertex) == 1 && 
+              maximal_set.count(neighbor) != 0){
+            throw std::invalid_argument("2 adjacent vertices have been added to the MIS");
+          }
+        }
+      }
+
+      //If no neighbors are in the maximal set then this vertex should have been
+      //in the maximal set. Thus the MIS is invalid
+      if(maximal_set.count(vertex) == 0 && vertex_valid == false){
+        throw std::invalid_argument("The set is not maximal :-(");
+      }
+    }  
+  }
+}
+
 /* ------------------------------- */
 template<typename aug_t>
 void RCTree<aug_t>::spread_affection(int round) {
@@ -269,13 +313,14 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   for(int i = 0; i < degree_bound; i++){
     if(neighbors[i] == nullptr) continue;
     auto neighboring_cluster = *neighbors[i];
-    new_cluster.aug_val += neighboring_cluster.aug_val; // Needs to be a associate binary op passed in by the user.
+    new_cluster.aug_val += neighboring_cluster.aug_val; // Needs to be a associative binary op passed in by the user.
     if(neighboring_cluster.boundary_vertexes.size() == 2){
       neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
     }
   }
 
   new_cluster.boundary_vertexes.insert(neighbor);
+
   //Check neighbor's clusters to see if we exist as a rep vertex and if so
   //compare current cluster to it.
   RCCluster<aug_t> representative_cluster = contains_rep(neighbor, vertex, round + 1);

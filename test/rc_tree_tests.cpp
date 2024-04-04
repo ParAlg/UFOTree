@@ -248,13 +248,14 @@ TEST(RCTreeSuite, test_MIS){
   print_tree(&tree, 0);
   print_tree(&tree, 1);
 
-  //tree.affected.insert(0);
-  //tree.affected.insert(1);
-  tree.affected.insert(2);
-  tree.affected.insert(4);
+  tree.affected.insert(0);
+  tree.affected.insert(1);
+  //tree.affected.insert(2);
+ // tree.affected.insert(4);
 
   auto maximum_set = tree.MIS(0);
   for(auto v : maximum_set){
     std::cout << v << " ";
   }
+  tree.is_valid_MIS(maximum_set, 0);
 }
