@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include "../include/rc_tree.h"
 void create_tree1();
@@ -95,8 +96,8 @@ TEST(RCTreeSuite, test_helper_methods){
   for(int i = 0; i < 7; i++){ tree.adj[1][i] = (RCCluster<int>**) calloc(3, sizeof(RCCluster<int>*));}
   ASSERT_EQ(tree.get_degree(0,0), 1);
   ASSERT_EQ(tree.get_degree(1,0), 1);
-  ASSERT_EQ(tree.neighbor_count(tree.adj[0][0]), 3);
-  ASSERT_EQ(tree.neighbor_count(tree.adj[0][1]), 1);
+  //ASSERT_EQ(tree.neighbor_count(tree.adj[0][0]), 3);
+  //ASSERT_EQ(tree.neighbor_count(tree.adj[0][1]), 1);
   ASSERT_EQ(tree.contracts(0, 0), true);
   ASSERT_EQ(tree.contracts(0, 1), false);
 }
@@ -165,8 +166,8 @@ TEST(RCTreeSuite, test_spread_affection){
   tree.add_neighbor(1, &unaryD);
   tree.add_neighbor(1, &binaryF);
   
-  print_tree(&tree, 0);
-  print_tree(&tree, 1);
+  //print_tree(&tree, 0);
+  //print_tree(&tree, 1);
 
   tree.affected.insert(0);
   tree.affected.insert(1);
@@ -258,4 +259,14 @@ TEST(RCTreeSuite, test_MIS){
     std::cout << v << " ";
   }
   tree.is_valid_MIS(maximum_set, 0);
+}
+
+TEST(RCTreeSuite, testRakeLinkedList){
+  int llist_size = 3;// User should set this to create a linked list of certain size for testing.
+  RCTree<int> tree(llist_size, 3);
+  for(int i = 0; i < llist_size - 1; i++){
+    tree.link(i, i+1, i+1);
+  }
+  print_tree(&tree,0);
+  print_tree(&tree,1);
 }

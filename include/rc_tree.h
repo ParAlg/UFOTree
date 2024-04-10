@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <iterator>
 #include <parlay/sequence.h>
 #include <stdexcept>
@@ -55,6 +56,7 @@ public:
   void compress(vertex_t vertex, int round);
   void update();
   int neighbor_count(RCCluster<aug_t>** neighbors);
+  void finalize(vertex_t v, int round);
   RCTree(int n, int degree_bound);
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   void link(int u, int v, int weight);
@@ -70,45 +72,46 @@ RCTree<aug_t>::RCTree(int _n, int _degree_bound) {
   representative_clusters = (RCCluster<int>**) calloc(_n, sizeof(RCCluster<int>*));
   for(int i = 0; i < n; i++){
     adj[0][i] = (RCCluster<int>**) calloc(degree_bound, sizeof(RCCluster<int>*));
-    RCCluster<int> to_insert = RCCluster(0);
-    representative_clusters[i] = &to_insert;
+    RCCluster<int>* to_insert = new RCCluster<int>(0);
+    representative_clusters[i] = to_insert;
   }
 }
 
 /* ------- HELPER METHODS ------- */
 template<typename aug_t>
 int RCTree<aug_t>::get_degree(int v, int round) {
-
+  // Get the degree of a vertex at a particular round. 
+  //
   int degree = 0;
-
   for(int i = 0; i < degree_bound; i++){
     auto cluster = adj[round][v][i];
-    if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) degree++;
+    if(cluster != nullptr && 
+      cluster->boundary_vertexes.size() == 2 && 
+      cluster->round_contracted >= round && cluster->round_contracted != PROCESSING) degree++;
   }
 
   return degree;
 }
-
+/*
 template<typename aug_t>
 int RCTree<aug_t>::neighbor_count(RCCluster<aug_t>** neighbors){
   int count = 0;
   for(int i = 0; i < degree_bound; i++){
     auto neighbor_ptr = neighbors[i];
-    if(neighbor_ptr != nullptr){
+    if(neighbor_ptr != nullptr && 
+       neighbor_ptr->round_contracted != PROCESSING && neighbor_ptr->round_contracted < round){
       count += 1;
     }
   }
   return count;
 }
-
+*/
 template<typename aug_t>
 bool RCTree<aug_t>::contracts(vertex_t v, int round) {
   // Take in vertex and round number to determine if the vertex contracts in that
   // round.
-  if(round < adj.size() - 1 && neighbor_count(adj[round + 1][v]) == 0){
-    return true;
-  }
-  return false;
+  return representative_clusters[v]->round_contracted != PROCESSING 
+          && representative_clusters[v]->round_contracted == round;
 }
 
 template<typename aug_t>
@@ -278,12 +281,11 @@ void RCTree<aug_t>::link(int u, int v, int weight) {
 
   auto base_tree = adj[0];
 
-  RCCluster new_edge(weight);
-  new_edge.boundary_vertexes[0] = u;
-  new_edge.boundary_vertexes[1] = v;
+  RCCluster<aug_t>* new_edge = new RCCluster<aug_t>(weight);
+  new_edge->boundary_vertexes.push_back(u);
+  new_edge->boundary_vertexes.push_back(v);
 
-  add_neighbor(base_tree[u], &new_edge); //v can be > t. Make it ternary.
-  add_neighbor(base_tree[v], &new_edge);
+  add_neighbor(0, new_edge); //v can be > t. Make it ternary.
 
   affected.insert(u);          // Insert initial affected vertices.
   representative_clusters[u]->round_contracted = PROCESSING;
@@ -324,7 +326,7 @@ int RCTree<aug_t>::find_update_neighbor(vertex_t neighbor, vertex_t v, int round
     }
   }
   if(to_return == -1){
-    throw std::invalid_argument("Replacement index was 0");
+    throw std::invalid_argument("Replacement index was not found");
   }
   return to_return;
 }
@@ -350,13 +352,13 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
     }
   }
 
-  new_cluster.boundary_vertexes.insert(neighbor);
+  new_cluster.boundary_vertexes.push_back(neighbor);
   new_cluster.round_contracted = round;
   new_cluster.parent = neighbor;
 
   //Add to the neighbor this new unary cluster.
   int index = find_update_neighbor(neighbor, vertex, round + 1);
-  adj[round][neighbor] = new_cluster;
+  adj[round][neighbor][index] = &new_cluster;
   representative_clusters[vertex] = &new_cluster;
 
   // Add other vertex I am raking onto into affected set if 
@@ -365,10 +367,8 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   // QUESTION : DO I NEED TO ADD IT IF VALUES NOT EQUIVALENT AS WELL - YES, to recontract with new values.
   affected.insert(neighbor);
   representative_clusters[neighbor]->round_contracted = PROCESSING;
-  //Now that the vertex has contracted in this round, we must clear everything
-  //else that happened when this vertex was uncontracted in subsequent rounds.
-  //QUESTION : Can this cause issues with other contractions that were adjacent
-  //to this one in subsequent rounds trying to contract themselves onto this.
+
+  affected.erase(vertex);
 }
 
 template<typename aug_t>
@@ -376,6 +376,11 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
 
 }
 
+template<typename aug_t>
+void RCTree<aug_t>::finalize(vertex_t v, int round){
+  representative_clusters[v] = (new RCCluster(0, round, -1));
+  affected.erase(v);
+}
 template<typename aug_t>
 void RCTree<aug_t>::update() {
   // Based on set of affected vertices,.count an MIS of the affected vertices, which induce
@@ -386,16 +391,33 @@ void RCTree<aug_t>::update() {
   // vertices.
   int round = 0;
   while(!affected.empty()){
+    // Must insert a new array into the RC Tree to represent vertices in the next round.
+    if(adj.size() - 1 < round + 1){
+      // building induced tree for next round of contractions.
+      auto new_tree = new RCCluster<aug_t>** [n];
+      for(int i = 0; i < n; i++){
+        new_tree[i] = (RCCluster<int>**) calloc(degree_bound, sizeof(RCCluster<int>*));
+        for(int j = 0; j < degree_bound; j++){ new_tree[i][j] = adj[round][i][j]; }
+      }
+      adj.push_back(new_tree);
+    }
     spread_affection(round);
-    std::unordered_set<vertex_t> maximal_set = MIS(round);
+    std::unordered_set<int> maximal_set = MIS(round);
     for(auto vertex : maximal_set){
       //Redo contractions for all vertices in maximal set.
       //Remove vertices from set of affected vertices.
-      if(get_degree(vertex, round) == 1) {
+      std::cout << vertex << " " << get_degree(vertex, round) << "\n";
+      auto vertex_degree = get_degree(vertex, round);
+      if(vertex_degree == 1) {
         rake(vertex, round);
-      } else {
-        compress(vertex, round);
+      } else if(vertex_degree == 0) {
+        // if the degree of a vertex is not 1 or 2 then it must be 0.
+        // We have found the new root of the RC Tree and as such, we can
+        // now finalize the vertex as the root of the new tree.
+        finalize(vertex, round);
+        break;
       }
+      round += 1;
     }
   }
 }
