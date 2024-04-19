@@ -41,7 +41,7 @@ public:
   parlay::sequence<RCCluster<aug_t>> clusters;
   parlay::sequence<RCCluster<aug_t>> leaf_clusters;
   std::unordered_set<int> affected; 
-  std::vector<parlay::sequence<RCCluster<aug_t>**>> contraction_tree; // RCCluster pointer not int - Made public for testing, will actually be private.  
+  parlay::sequence<parlay::sequence<RCCluster<aug_t>**>> contraction_tree; // RCCluster pointer not int - Made public for testing, will actually be private.  
   std::tuple<RCCluster<aug_t>*,int>* representative_clusters; //Stores the representative cluster and round contracted for each vertex.
 
   void is_valid_MIS(std::unordered_set<int> maximal_set, int round);
@@ -70,13 +70,12 @@ RCTree<aug_t>::RCTree(int _n, int _degree_bound) {
   n = _n;
 
   for(int i = 0; i < _n; i++){
-    contraction_tree[i] = *(new parlay::sequence<RCCluster<aug_t>**>);
+    contraction_tree.push_back(parlay::sequence<RCCluster<aug_t>**>());
   }
   representative_clusters = (std::tuple<RCCluster<aug_t>*, int>*) calloc(_n, sizeof(std::tuple<RCCluster<aug_t>*, int>)); 
   for(int i = 0; i < n; i++){ 
     contraction_tree[i].push_back((RCCluster<int>**) calloc(degree_bound, sizeof(RCCluster<int>*)));
-    RCCluster<int>* to_insert = new RCCluster<int>(0);
-    representative_clusters[i] = *(new std::tuple<RCCluster<aug_t>*, int>{to_insert, PROCESSING});
+    representative_clusters[i] = std::tuple<RCCluster<aug_t>*, int>{&RCCluster<aug_t>(0), 0};
   }
 }
 
@@ -88,7 +87,7 @@ int RCTree<aug_t>::get_degree(int v, int round) {
   int degree = 0;
   for(int i = 0; i < degree_bound; i++){
     auto cluster = contraction_tree[v][round][i];
-    if(cluster != nullptr) degree++;
+    if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) degree++;
   }
 
   return degree;
@@ -146,7 +145,7 @@ void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t 
         }
       }
     }
-    if(!vertex_added && null_idx != -1){
+    if(!vertex_added && null_idx == -1){
       throw std::invalid_argument("Vertex could not be added to the tree");
     }
     adjacencies[null_idx] = cluster;
@@ -303,14 +302,18 @@ void RCTree<aug_t>::link(int u, int v, int weight) {
   // and the edge being added does not yet violate
   // any tree properties.
 
-  RCCluster<aug_t>* new_edge = new RCCluster<aug_t>(weight);
+  RCCluster<aug_t> new_edge = RCCluster<aug_t>(weight);
   new_edge->boundary_vertexes.push_back(u);
   new_edge->boundary_vertexes.push_back(v);
 
-  add_neighbor(0, new_edge, -1); //v can be > t. Make it ternary.
+  add_neighbor(0, &new_edge, -1); //v can be > t. Make it ternary.
 
   affected.insert(u);          // Insert initial affected vertices.
-  affected.insert(v);          
+  affected.insert(v);
+  
+
+  representative_clusters[u] = std::tuple<RCCluster<aug_t>*, int>{nullptr, PROCESSING};
+  representative_clusters[v] = std::tuple<RCCluster<aug_t>*, int>{nullptr, PROCESSING};
   
   contraction_tree[u].resize(1);
   contraction_tree[v].resize(1);
@@ -384,9 +387,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   // is not a unary cluster. 
   // QUESTION : DO I NEED TO ADD IT IF VALUES NOT EQUIVALENT AS WELL - YES, to recontract with new values.
   affected.insert(neighbor);
-  auto to_free = &representative_clusters[neighbor];
-  representative_clusters[neighbor] = *(new std::tuple{std::get<0>(representative_clusters[neighbor]), PROCESSING});
-  delete to_free;
+  representative_clusters[neighbor] = std::tuple{std::get<0>(representative_clusters[neighbor]), PROCESSING};
   contraction_tree[neighbor].resize(round + 1); 
   affected.erase(vertex);
 }
@@ -414,7 +415,7 @@ void RCTree<aug_t>::update() {
     
     //Insert new neighbor list for next round for each vertex.
     for(int vertex = 0; vertex < n; vertex++){
-      if(!contracts(vertex, round, 1)){
+      if(!contracts(vertex, round, 0)){
         contraction_tree[vertex].push_back((RCCluster<aug_t>**) calloc(degree_bound, sizeof(RCCluster<aug_t>*)));
 
         //Copy over neighbor list from previous round for each vertex.
