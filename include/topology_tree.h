@@ -296,12 +296,6 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
             free(prev); // Remove cluster prev
             root_clusters[level].erase(prev);
         }
-        for (auto neighbor : v->neighbors) {
-            if (neighbor && neighbor->parent == v->parent) {
-                neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[0].insert(neighbor); // Keep track of parentless cluster
-            }
-        }
     }
 }
 

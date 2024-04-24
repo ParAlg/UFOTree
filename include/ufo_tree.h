@@ -15,6 +15,8 @@ struct UFOCluster {
     UFOCluster(aug_t value) : neighbors(), parent(), value(value) {};
     // Helper functions
     int get_degree();
+    bool high_degree();
+    bool parent_high_fanout();
     bool contracts();
     bool contains_neighbor(UFOCluster<aug_t>* c);
     void insert_neighbor(UFOCluster<aug_t>* c, aug_t value);
@@ -87,178 +89,159 @@ bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
 
 template<typename aug_t>
 void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v) {
-    for (auto leaf: {u,v}) {
-        for (auto entry : leaf->neighbors) {
-            auto neighbor = entry.first;
-            if (neighbor->parent == leaf->parent) {
-                neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[0].insert(neighbor); // Keep track of parentless cluster
+
+    int level = 0;
+    auto prev_u = u;
+    auto prev_v = v;
+    auto curr_u = u->parent;
+    auto curr_v = v->parent;
+    bool free_u = false;
+    bool free_v = false;
+
+    while (curr_u && curr_v) {
+        if (curr_u == curr_v) break;
+        // U
+        if (!curr_u->high_degree() && !prev_u->parent_high_fanout()) {  // We will delete curr_u next round
+            for (auto entry : prev_u->neighbors) {
+                auto neighbor = entry.first;
+                if (neighbor->parent == prev_u->parent) {
+                    neighbor->parent = nullptr; // Set sibling parent pointer to null
+                    root_clusters[0].insert(neighbor); // Keep track of parentless cluster
+                }
             }
+            if (free_u) { // Possibly delete prev_u
+                for (auto entry : prev_u->neighbors)
+                    entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
+                free(prev_u);
+                root_clusters[level].erase(prev_u);
+            }
+            else prev_u->parent = nullptr;
+            free_u = true;
+        } else {                                                        // We will not delete curr_u next round
+            if (free_u) { // Possibly delete prev_u
+                for (auto entry : prev_u->neighbors)
+                    entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
+                free(prev_u);
+                root_clusters[level].erase(prev_u);
+            }
+            free_u = false;
         }
-        auto curr = leaf->parent;
-        int level = 0;
-        leaf->parent = nullptr;
-        root_clusters[0].insert(leaf);
-        while (curr) {
-            auto prev = curr;
-            curr = prev->parent;
-            level++;
+        // V
+        if (!curr_v->high_degree() && !prev_v->parent_high_fanout()) {  // We will delete curr_v next round
+            for (auto entry : prev_v->neighbors) {
+                auto neighbor = entry.first;
+                if (neighbor->parent == prev_v->parent) {
+                    neighbor->parent = nullptr; // Set sibling parent pointer to null
+                    root_clusters[0].insert(neighbor); // Keep track of parentless cluster
+                }
+            }
+            if (free_v) { // Possibly delete prev_v
+                for (auto entry : prev_v->neighbors)
+                    entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
+                free(prev_v);
+                root_clusters[level].erase(prev_v);
+            }
+            else prev_v->parent = nullptr;
+            free_v = true;
+        } else {                                                        // We will not delete curr_v next round
+            if (free_v) { // Possibly delete prev_v
+                for (auto entry : prev_v->neighbors)
+                    entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
+                free(prev_v);
+                root_clusters[level].erase(prev_v);
+            }
+            free_v = false;
+        }
+        // Update pointers
+        prev_u = curr_u;
+        curr_u = prev_u->parent;
+        prev_v = curr_v;
+        curr_v = prev_v->parent;
+    }
+    // DO LAST DELETIONS
+    if (curr_u == curr_v) curr_v = nullptr;
+    if (!curr_u) {
+        if (free_u) { // Possibly delete prev_u
+            for (auto entry : prev_u->neighbors)
+                entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
+            free(prev_u);
+            root_clusters[level].erase(prev_u);
+        }
+    }
+    if (!curr_v) {
+        if (free_v) { // Possibly delete prev_v
+            for (auto entry : prev_v->neighbors)
+                entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
+            free(prev_v);
+            root_clusters[level].erase(prev_v);
+        }
+    }
+    // LOOP FOR REMAINING ONE PATH
+    auto curr = curr_u;
+    auto prev = prev_u;
+    bool free_p = free_u;
+    while (curr) {
+        if (!curr->high_degree() && !prev->parent_high_fanout()) {  // We will delete curr next round
             for (auto entry : prev->neighbors) {
                 auto neighbor = entry.first;
                 if (neighbor->parent == prev->parent) {
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
-                    root_clusters[level].insert(neighbor); // Keep track of parentless cluster
+                    root_clusters[0].insert(neighbor); // Keep track of parentless cluster
                 }
-                neighbor->remove_neighbor(prev); // Remove prev from adjacency
             }
-            free(prev); // Remove cluster prev
-            root_clusters[level].erase(prev);
+            if (free_p) { // Possibly delete prev
+                for (auto entry : prev->neighbors)
+                    entry.first->remove_neighbor(prev); // Remove prev from adjacency
+                free(prev);
+                root_clusters[level].erase(prev);
+            }
+            else prev->parent = nullptr;
+            free_p = true;
+        } else {                                                        // We will not delete curr next round
+            if (free_p) { // Possibly delete prev
+                for (auto entry : prev->neighbors)
+                    entry.first->remove_neighbor(prev); // Remove prev from adjacency
+                free(prev);
+                root_clusters[level].erase(prev);
+            }
+            free_p = false;
         }
-        for (auto entry : v->neighbors) {
-            auto neighbor = entry.first;
-            if (neighbor->parent == v->parent) {
-                neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[0].insert(neighbor); // Keep track of parentless cluster
-            }
+        prev = curr;
+        curr = prev->parent;
+    }
+    // DO LAST DELETION
+    if (!curr) {
+        if (free_p) { // Possibly delete prev
+            for (auto entry : prev->neighbors)
+                entry.first->remove_neighbor(prev); // Remove prev from adjacency
+            free(prev);
+            root_clusters[level].erase(prev);
         }
     }
 }
 
 template<typename aug_t>
 void UFOTree<aug_t>::recluster_tree() {
-    for (int level = 0; level < root_clusters.size(); level++) {
-        if (root_clusters[level].empty()) continue;
-        // Combine deg 3 root clusters with deg 1 root  or non-root clusters
-        for (auto cluster : root_clusters[level]) {
-            if (cluster->get_degree() == 3) {
-                for (auto entry : cluster->neighbors) {
-                    auto neighbor = entry.first;
-                    if (neighbor->get_degree() == 1) {
-                        auto parent = neighbor->parent;
-                        if (!parent) { // If neighbor is a root cluster
-                            parent = new UFOCluster<aug_t>(default_value);
-                            root_clusters[level+1].insert(parent);
-                        }
-                        // if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        contractions.push_back({{cluster,neighbor},parent});
-                        break;
-                    }
-                }
-            }
-        }
-        // Combine deg 2 root clusters with deg 1 or 2 root clusters
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 2) {
-                for (auto entry : cluster->neighbors) {
-                    auto neighbor = entry.first;
-                    if (!neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
-                        auto parent = new UFOCluster<aug_t>(default_value);
-                        // if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        // if (query_type == PATH && neighbor->get_degree() == 2)
-                        //     parent->value = f(f(cluster->value, neighbor->value), cluster->edge_values[i]);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        root_clusters[level+1].insert(parent);
-                        contractions.push_back({{cluster,neighbor},parent});
-                        break;
-                    }
-                }
-            }
-        }
-        // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 2) {
-                for (auto entry : cluster->neighbors) {
-                    auto neighbor = entry.first;
-                    if (neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
-                        if (neighbor->contracts()) continue;
-                        auto parent = neighbor->parent;
-                        if (!parent) parent = new UFOCluster<aug_t>(default_value);
-                        // if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        // if (query_type == PATH && neighbor->get_degree() == 2)
-                        //     parent->value = f(f(cluster->value, neighbor->value), cluster->edge_values[i]);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        contractions.push_back({{cluster,neighbor},parent});
-                        break;
-                    }
-                }
-            }
-        }
-        // Combine deg 1 root clusters with deg 1 root clusters
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 1) {
-                for (auto entry : cluster->neighbors) {
-                    auto neighbor = entry.first;
-                    if (neighbor->get_degree() == 1) {
-                        auto parent = new UFOCluster<aug_t>(default_value);
-                        // if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        root_clusters[level+1].insert(parent);
-                        contractions.push_back({{cluster,neighbor},parent});
-                        break;
-                    }
-                }
-            }
-        }
-        // Combine deg 1 root clusters with deg 2 or 3 non-root clusters
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 1) {
-                for (auto entry : cluster->neighbors) {
-                    auto neighbor = entry.first;
-                    if (neighbor->parent && (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
-                        if (neighbor->contracts()) continue;
-                        auto parent = neighbor->parent;
-                        if (!parent) parent = new UFOCluster<aug_t>(default_value);
-                        // if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        contractions.push_back({{cluster,neighbor},parent});
-                        break;
-                    }
-                }
-            }
-        }
-        // Add remaining uncombined clusters to the next level
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() > 0) {
-                auto parent = new UFOCluster<aug_t>(default_value);
-                parent->value = cluster->value;
-                cluster->parent = parent;
-                root_clusters[level+1].insert(parent);
-                contractions.push_back({{cluster,cluster},parent});
-            }
-        }
-        // Fill in the neighbor lists of the new clusters
-        for (auto contraction : contractions) {
-            auto c1 = contraction.first.first;
-            auto c2 = contraction.first.second;
-            auto parent = contraction.second;
-            for (auto entry : c1->neighbors) {
-                if (entry.first != c2) {
-                    parent->insert_neighbor(entry.first->parent, entry.second);
-                    entry.first->parent->insert_neighbor(parent, entry.second);
-                }
-            }
-            for (auto entry : c2->neighbors) {
-                if (entry.first != c1) {
-                    parent->insert_neighbor(entry.first->parent, entry.second);
-                    entry.first->parent->insert_neighbor(parent, entry.second);
-                }
-            }
-        }
-        // Clear the contents of this level
-        root_clusters[level].clear();
-        contractions.clear();
-    }
+    return;
 }
 
 template<typename aug_t>
 int UFOCluster<aug_t>::get_degree() {
     return neighbors.size();
+}
+
+template<typename aug_t>
+bool UFOCluster<aug_t>::high_degree() {
+    return (neighbors.size() > 2);
+}
+
+template<typename aug_t>
+bool UFOCluster<aug_t>::parent_high_fanout() {
+    assert(parent);
+    if (neighbors.size() == 1)
+        if (neighbors.begin()->first->get_degree() - parent->get_degree() > 1) return true;
+    else if (this->get_degree() - parent->get_degree() > 1) return true;
+    return false;
 }
 
 template<typename aug_t>
