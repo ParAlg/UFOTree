@@ -54,7 +54,7 @@ TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(a
 query_type(q), f(f), identity(id), default_value(d) {
     leaves.resize(n, d);
     root_clusters.resize(max_tree_height(n));
-    contractions.reserve(4);
+    contractions.reserve(6);
 }
 
 /* Link vertex u and vertex v in the tree. Optionally include an
@@ -293,7 +293,7 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* u, TopologyCl
                 }
                 if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
             }
-            free(prev); // Remove cluster prev
+            delete prev; // Remove cluster prev
             root_clusters[level].erase(prev);
         }
     }

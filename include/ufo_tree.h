@@ -95,8 +95,8 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
     auto prev_v = v;
     auto curr_u = u->parent;
     auto curr_v = v->parent;
-    bool free_u = false;
-    bool free_v = false;
+    bool del_u = false;
+    bool del_v = false;
 
     while (curr_u && curr_v) {
         if (curr_u == curr_v) break;
@@ -109,22 +109,22 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                     root_clusters[0].insert(neighbor); // Keep track of parentless cluster
                 }
             }
-            if (free_u) { // Possibly delete prev_u
+            if (del_u) { // Possibly delete prev_u
                 for (auto entry : prev_u->neighbors)
                     entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
-                free(prev_u);
+                delete prev_u;
                 root_clusters[level].erase(prev_u);
             }
             else prev_u->parent = nullptr;
-            free_u = true;
+            del_u = true;
         } else {                                                        // We will not delete curr_u next round
-            if (free_u) { // Possibly delete prev_u
+            if (del_u) { // Possibly delete prev_u
                 for (auto entry : prev_u->neighbors)
                     entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
-                free(prev_u);
+                delete prev_u;
                 root_clusters[level].erase(prev_u);
             }
-            free_u = false;
+            del_u = false;
         }
         // V
         if (!curr_v->high_degree() && !prev_v->parent_high_fanout()) {  // We will delete curr_v next round
@@ -135,22 +135,22 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                     root_clusters[0].insert(neighbor); // Keep track of parentless cluster
                 }
             }
-            if (free_v) { // Possibly delete prev_v
+            if (del_v) { // Possibly delete prev_v
                 for (auto entry : prev_v->neighbors)
                     entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-                free(prev_v);
+                delete prev_v;
                 root_clusters[level].erase(prev_v);
             }
             else prev_v->parent = nullptr;
-            free_v = true;
+            del_v = true;
         } else {                                                        // We will not delete curr_v next round
-            if (free_v) { // Possibly delete prev_v
+            if (del_v) { // Possibly delete prev_v
                 for (auto entry : prev_v->neighbors)
                     entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-                free(prev_v);
+                delete prev_v;
                 root_clusters[level].erase(prev_v);
             }
-            free_v = false;
+            del_v = false;
         }
         // Update pointers
         prev_u = curr_u;
@@ -161,25 +161,25 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
     // DO LAST DELETIONS
     if (curr_u == curr_v) curr_v = nullptr;
     if (!curr_u) {
-        if (free_u) { // Possibly delete prev_u
+        if (del_u) { // Possibly delete prev_u
             for (auto entry : prev_u->neighbors)
                 entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
-            free(prev_u);
+            delete prev_u;
             root_clusters[level].erase(prev_u);
         }
     }
     if (!curr_v) {
-        if (free_v) { // Possibly delete prev_v
+        if (del_v) { // Possibly delete prev_v
             for (auto entry : prev_v->neighbors)
                 entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-            free(prev_v);
+            delete prev_v;
             root_clusters[level].erase(prev_v);
         }
     }
     // LOOP FOR REMAINING ONE PATH
     auto curr = curr_u;
     auto prev = prev_u;
-    bool free_p = free_u;
+    bool del = del_u;
     while (curr) {
         if (!curr->high_degree() && !prev->parent_high_fanout()) {  // We will delete curr next round
             for (auto entry : prev->neighbors) {
@@ -189,32 +189,32 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                     root_clusters[0].insert(neighbor); // Keep track of parentless cluster
                 }
             }
-            if (free_p) { // Possibly delete prev
+            if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
                     entry.first->remove_neighbor(prev); // Remove prev from adjacency
-                free(prev);
+                delete prev;
                 root_clusters[level].erase(prev);
             }
             else prev->parent = nullptr;
-            free_p = true;
+            del = true;
         } else {                                                        // We will not delete curr next round
-            if (free_p) { // Possibly delete prev
+            if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
                     entry.first->remove_neighbor(prev); // Remove prev from adjacency
-                free(prev);
+                delete prev;
                 root_clusters[level].erase(prev);
             }
-            free_p = false;
+            del = false;
         }
         prev = curr;
         curr = prev->parent;
     }
     // DO LAST DELETION
     if (!curr) {
-        if (free_p) { // Possibly delete prev
+        if (del) { // Possibly delete prev
             for (auto entry : prev->neighbors)
                 entry.first->remove_neighbor(prev); // Remove prev from adjacency
-            free(prev);
+            delete prev;
             root_clusters[level].erase(prev);
         }
     }
