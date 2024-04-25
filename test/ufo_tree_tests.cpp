@@ -40,6 +40,20 @@ TEST(UFOTreeSuite, incremental_binarytree_correctness_test) {
     ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
 }
 
+TEST(UFOTreeSuite, incremental_star_correctness_test) {
+    vertex_t n = 256;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+    UFOTree<int> tree(n, qt, f, 0, 0);
+
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.link(0,i+1);
+        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
+            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
+    }
+}
+
 TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 128;
     QueryType qt = PATH;
