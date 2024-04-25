@@ -7,27 +7,13 @@ bool UFOTree<aug_t>::is_valid() {
     return true;
 }
 
-TEST(UFOTreeSuite, incremental_binarytree_speed_test) {
-    vertex_t n = 1000;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
-
-    for (vertex_t i = 0; i < (n-1)/2; i++) {
-        tree.link(i,2*i+1);
-        tree.link(i,2*i+2);
-    }
-    if (n%2 == 0) tree.link((n-1)/2,n-1);
-}
-
 TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
-    vertex_t n = 10;
+    vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int> tree(n, qt, f, 0, 0);
 
     for (vertex_t i = 0; i < n-1; i++) {
-        std::cout << "LINKING " << i << " " << i+1 << std::endl;
         tree.link(i,i+1);
         for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
             ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
