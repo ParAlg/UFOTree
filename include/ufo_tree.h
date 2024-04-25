@@ -115,7 +115,10 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 delete prev_u;
                 root_clusters[level].erase(prev_u);
             }
-            else prev_u->parent = nullptr;
+            else {
+                prev_u->parent = nullptr;
+                root_clusters[level].insert(prev_u);
+            }
             del_u = true;
         } else {                                                        // We will not delete curr_u next round
             if (del_u) { // Possibly delete prev_u
@@ -141,7 +144,10 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 delete prev_v;
                 root_clusters[level].erase(prev_v);
             }
-            else prev_v->parent = nullptr;
+            else {
+                prev_v->parent = nullptr;
+                root_clusters[level].insert(prev_v);
+            }
             del_v = true;
         } else {                                                        // We will not delete curr_v next round
             if (del_v) { // Possibly delete prev_v
@@ -157,6 +163,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
         curr_u = prev_u->parent;
         prev_v = curr_v;
         curr_v = prev_v->parent;
+        level++;
     }
     // DO LAST DELETIONS
     if (curr_u == curr_v) curr_v = nullptr;
@@ -166,7 +173,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
             delete prev_u;
             root_clusters[level].erase(prev_u);
-        }
+        } else root_clusters[level].insert(prev_u);
     }
     if (!curr_v) {
         if (del_v) { // Possibly delete prev_v
@@ -174,7 +181,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
             delete prev_v;
             root_clusters[level].erase(prev_v);
-        }
+        } else root_clusters[level].insert(prev_v);
     }
     // LOOP FOR REMAINING ONE PATH
     auto curr = curr_u;
@@ -195,7 +202,10 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 delete prev;
                 root_clusters[level].erase(prev);
             }
-            else prev->parent = nullptr;
+            else {
+                prev->parent = nullptr;
+                root_clusters[level].insert(prev);
+            }
             del = true;
         } else {                                                        // We will not delete curr next round
             if (del) { // Possibly delete prev
@@ -216,13 +226,95 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 entry.first->remove_neighbor(prev); // Remove prev from adjacency
             delete prev;
             root_clusters[level].erase(prev);
-        }
+        } else root_clusters[level].insert(prev);
     }
 }
 
 template<typename aug_t>
 void UFOTree<aug_t>::recluster_tree() {
-    return;
+    for (int level = 0; level < root_clusters.size(); level++) {
+        if (root_clusters[level].empty()) continue;
+        // Always combine deg 1 root clusters with its neighboring cluster
+        for (auto cluster : root_clusters[level]) {
+            if (!cluster->parent && cluster->get_degree() == 1) {
+                auto neighbor = cluster->neighbors.begin()->first;  // Deg 1 cluster only one neighbor
+                if (neighbor->parent) {
+                    auto parent = neighbor->parent;
+                    cluster->parent = parent;
+                    contractions.push_back({{cluster,neighbor},parent});
+                } else {
+                    auto parent = new UFOCluster<aug_t>(default_value);
+                    cluster->parent = parent;
+                    neighbor->parent = parent;
+                    contractions.push_back({{cluster,neighbor},parent});
+                }
+            }
+        }
+        // Combine deg 2 root clusters with deg 2 root clusters
+        for (auto cluster : root_clusters[level]) {
+            if (!cluster->parent && cluster->get_degree() == 2) {
+                for (auto entry : cluster->neighbors) {
+                    auto neighbor = entry.first;
+                    if (!neighbor->parent && (neighbor->get_degree() == 2)) {
+                        auto parent = new UFOCluster<aug_t>(default_value);
+                        cluster->parent = parent;
+                        neighbor->parent = parent;
+                        root_clusters[level+1].insert(parent);
+                        contractions.push_back({{cluster,neighbor},parent});
+                        break;
+                    }
+                }
+            }
+        }
+        // Combine deg 2 root clusters with deg 2 non-root clusters
+        for (auto cluster : root_clusters[level]) {
+            if (!cluster->parent && cluster->get_degree() == 2) {
+                for (auto entry : cluster->neighbors) {
+                    auto neighbor = entry.first;
+                    if (neighbor->parent && (neighbor->get_degree() == 2)) {
+                        if (neighbor->contracts()) continue;
+                        auto parent = neighbor->parent;
+                        if (!parent) parent = new UFOCluster<aug_t>(default_value);
+                        cluster->parent = parent;
+                        neighbor->parent = parent;
+                        contractions.push_back({{cluster,neighbor},parent});
+                        break;
+                    }
+                }
+            }
+        }
+        // Add remaining uncombined clusters to the next level
+        for (auto cluster : root_clusters[level]) {
+            if (!cluster->parent && cluster->get_degree() > 0) {
+                auto parent = new UFOCluster<aug_t>(default_value);
+                parent->value = cluster->value;
+                cluster->parent = parent;
+                root_clusters[level+1].insert(parent);
+                contractions.push_back({{cluster,cluster},parent});
+            }
+        }
+        // Fill in the neighbor lists of the new clusters
+        for (auto contraction : contractions) {
+            auto c1 = contraction.first.first;
+            auto c2 = contraction.first.second;
+            auto parent = contraction.second;
+            for (auto entry : c1->neighbors) {
+                if (entry.first != c2) {
+                    parent->insert_neighbor(entry.first->parent, entry.second);
+                    entry.first->parent->insert_neighbor(parent, entry.second);
+                }
+            }
+            for (auto entry : c2->neighbors) {
+                if (entry.first != c1) {
+                    parent->insert_neighbor(entry.first->parent, entry.second);
+                    entry.first->parent->insert_neighbor(parent, entry.second);
+                }
+            }
+        }
+        // Clear the contents of this level
+        root_clusters[level].clear();
+        contractions.clear();
+    }
 }
 
 template<typename aug_t>

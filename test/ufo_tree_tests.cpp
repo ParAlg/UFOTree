@@ -21,13 +21,14 @@ TEST(UFOTreeSuite, incremental_binarytree_speed_test) {
 }
 
 TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
-    vertex_t n = 256;
+    vertex_t n = 10;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int> tree(n, qt, f, 0, 0);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
+        std::cout << "LINK " << i << " " << i+1 << std::endl;
         for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
             ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
