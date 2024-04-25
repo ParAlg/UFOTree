@@ -4,6 +4,30 @@
 
 template<typename aug_t>
 bool UFOTree<aug_t>::is_valid() {
+    std::unordered_set<UFOCluster<aug_t>*> clusters;
+    std::unordered_set<UFOCluster<aug_t>*> next_clusters;
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
+    while (!clusters.empty()) {
+        for (auto cluster : clusters) {
+            for (auto entry : cluster->neighbors) // Ensure all neighbors also point back
+                if (!entry.first->contains_neighbor(cluster)) return false;
+            if (!cluster->contracts()) { // Ensure maximality of contraction
+                if (cluster->get_degree() == 1) return false;
+                else if (cluster->get_degree() == 2) {
+                    for (auto entry : cluster->neighbors)
+                        if (!entry.first->contracts() && entry.first->get_degree() < 3) return false;
+                } else if (cluster->get_degree() >= 3) {
+                    for (auto entry : cluster->neighbors)
+                        if (entry.first->get_degree() < 2) return false;
+                }
+            }
+            if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
+        }
+        // Maximality should ensure this, but we leave the test as a sanity check
+        if (6*next_clusters.size() > 5*clusters.size()) return false;
+        clusters.swap(next_clusters);
+        next_clusters.clear();
+    }
     return true;
 }
 
