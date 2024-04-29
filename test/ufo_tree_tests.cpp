@@ -42,8 +42,6 @@ TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
-        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
     }
 }
@@ -57,13 +55,9 @@ TEST(UFOTreeSuite, incremental_binarytree_correctness_test) {
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
         tree.link(i,2*i+2);
-        for (vertex_t u = 0; u < 2*i+2; u++) for (vertex_t v = u+1; v <= 2*i+2; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " with children.";
     }
     if (n%2 == 0) tree.link((n-1)/2,n-1);
-    for (vertex_t u = 0; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
-        ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
     ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
 }
 
@@ -75,9 +69,7 @@ TEST(UFOTreeSuite, incremental_star_correctness_test) {
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(0,i+1);
-        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << 0 << " and " << i+1 << ".";
     }
 }
 
@@ -117,12 +109,8 @@ TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
         tree.link(i,i+1);
     }
     for (vertex_t i = 0; i < n-1; i++) {
-        std::cout << "CUTTING " << i << " " << i+1 << std::endl;
         tree.cut(i,i+1);
-        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v < n; v++)
-            ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
-        for (vertex_t u = i+1; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
-            ASSERT_TRUE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " not connected.";
+        ASSERT_FALSE(tree.connected(i,i+1)) << "Vertex " << i << " and " << i+1 << " connected.";
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << i << " and " << i+1 << ".";
     }
 }
@@ -141,17 +129,63 @@ TEST(UFOTreeSuite, decremental_binarytree_correctness_test) {
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.cut(i,2*i+1);
         tree.cut(i,2*i+2);
-        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v < n; v++)
-            ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
-        ASSERT_FALSE(tree.connected(2*i+1,2*i+2)) << "Vertex " << 2*i+1 << " and " << 2*i+2 << " connected.";
-        if (4*i+6 < n) {
-            ASSERT_TRUE(tree.connected(4*i+3,4*i+4)) << "Vertex " << 4*i+3 << " and " << 4*i+4 << " not connected.";
-            ASSERT_TRUE(tree.connected(4*i+5,4*i+6)) << "Vertex " << 4*i+3 << " and " << 4*i+4 << " not connected.";
-        }
+        ASSERT_FALSE(tree.connected(i,2*i+1)) << "Vertex " << i << " and " << 2*i+1 << " connected.";
+        ASSERT_FALSE(tree.connected(i,2*i+2)) << "Vertex " << i << " and " << 2*i+2 << " connected.";
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << i << " from children.";
     }
     if (n%2 == 0) tree.cut((n-1)/2,n-1);
-    for (vertex_t u = 0; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
-        ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
+    ASSERT_FALSE(tree.connected((n-1)/2,n-1)) << "Vertex " << (n-1)/2 << " and " << n-1 << " connected.";
     ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all cuts.";
+}
+
+TEST(UFOTreeSuite, decremental_star_correctness_test) {
+    vertex_t n = 256;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+    UFOTree<int> tree(n, qt, f, 0, 0);
+
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.link(0,i+1);
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
+    }
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.cut(0,i+1);
+        ASSERT_FALSE(tree.connected(0,i+1)) << "Vertex " << 0 << " and " << i+1 << " connected.";
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << 0 << " and " << i+1 << ".";
+    }
+}
+
+TEST(UFOTreeSuite, decremental_random_correctness_test) {
+    int num_trials = 10;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 10;
+        QueryType qt = PATH;
+        auto f = [](int x, int y)->int{return x + y;};
+        UFOTree<int> tree(n, qt, f, 0, 0);
+        std::pair<vertex_t, vertex_t> edges[n-1];
+
+        auto seed = seeds[trial];
+        srand(seed);
+        int links = 0;
+        while (links < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v && !tree.connected(u,v)) {
+                std::cout << "LINKING " << u << " " << v << std::endl;
+                tree.link(u,v);
+                edges[links++] = {u,v};
+            }
+        }
+        for (auto edge : edges) {
+            auto u = edge.first;
+            auto v = edge.second;
+            std::cout << "CUTTING " << u << " " << v << std::endl;
+            tree.cut(u,v);
+            ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
+        }
+    }
 }

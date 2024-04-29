@@ -190,6 +190,17 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 prev->parent = nullptr;
                 root_clusters[level].insert(prev);
             }
+            if (curr == curr_u && curr == curr_v) { // Need to do on last deletion on both sides
+                if (del_v) { // Possibly delete prev
+                    for (auto entry : prev_v->neighbors)
+                        entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
+                    delete prev_v;
+                    root_clusters[level].erase(prev_v);
+                } else {
+                    prev_v->parent = nullptr;
+                    root_clusters[level].insert(prev_v);
+                }
+            }
             del = true;
         } else { // We will not delete curr next round
             if (del) { // Possibly delete prev
@@ -200,6 +211,17 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
             } else if (prev->get_degree() == 1) {
                 prev->parent = nullptr;
                 root_clusters[level].insert(prev);
+            }
+            if (curr == curr_u && curr == curr_v) { // Need to do on last deletion on both sides
+                if (del_v) { // Possibly delete prev
+                    for (auto entry : prev_v->neighbors)
+                        entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
+                    delete prev_v;
+                    root_clusters[level].erase(prev_v);
+                } else if (prev_v->get_degree() == 1) {
+                    prev_v->parent = nullptr;
+                    root_clusters[level].insert(prev_v);
+                }
             }
             del = false;
         }
