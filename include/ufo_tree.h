@@ -46,6 +46,7 @@ private:
     // Helper functions
     void remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v);
     void recluster_tree();
+    void disconnect_siblings(UFOCluster<aug_t>* c, int level);
     void insert_adjacency(vertex_t u, vertex_t v, aug_t value);
     void remove_adjacency(vertex_t u, vertex_t v);
 };
@@ -100,13 +101,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
         if (curr_u == curr_v) break;
         // U
         if (!curr_u->high_degree() && !prev_u->parent_high_fanout()) { // We will delete curr_u next round
-            for (auto entry : prev_u->neighbors) {
-                auto neighbor = entry.first;
-                if (neighbor->parent == prev_u->parent) {
-                    neighbor->parent = nullptr; // Set sibling parent pointer to null
-                    root_clusters[level].insert(neighbor); // Keep track of parentless cluster
-                }
-            }
+            disconnect_siblings(prev_u, level);
             if (del_u) { // Possibly delete prev_u
                 for (auto entry : prev_u->neighbors)
                     entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
@@ -131,13 +126,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
         }
         // V
         if (!curr_v->high_degree() && !prev_v->parent_high_fanout()) { // We will delete curr_v next round
-            for (auto entry : prev_v->neighbors) {
-                auto neighbor = entry.first;
-                if (neighbor->parent == prev_v->parent) {
-                    neighbor->parent = nullptr; // Set sibling parent pointer to null
-                    root_clusters[level].insert(neighbor); // Keep track of parentless cluster
-                }
-            }
+            disconnect_siblings(prev_v, level);
             if (del_v) { // Possibly delete prev_v
                 for (auto entry : prev_v->neighbors)
                     entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
@@ -191,13 +180,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
     bool del = curr_u ? del_u : del_v;
     while (curr) {
         if (!curr->high_degree() && !prev->parent_high_fanout()) { // We will delete curr next round
-            for (auto entry : prev->neighbors) {
-                auto neighbor = entry.first;
-                if (neighbor->parent == prev->parent) {
-                    neighbor->parent = nullptr; // Set sibling parent pointer to null
-                    root_clusters[level].insert(neighbor); // Keep track of parentless cluster
-                }
-            }
+            disconnect_siblings(prev, level);
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
                     entry.first->remove_neighbor(prev); // Remove prev from adjacency
@@ -328,6 +311,30 @@ void UFOTree<aug_t>::recluster_tree() {
 }
 
 template<typename aug_t>
+void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
+    if (c->get_degree() == 1) {
+        auto center = c->neighbors.begin()->first;
+        for (auto entry : center->neighbors) {
+            auto neighbor = entry.first;
+            if (neighbor->parent == c->parent && neighbor != c) {
+                neighbor->parent = nullptr; // Set sibling parent pointer to null
+                root_clusters[level].insert(neighbor); // Keep track of root clusters
+            }
+        }
+        center->parent = nullptr;
+        root_clusters[level].insert(center);
+    } else {
+        for (auto entry : c->neighbors) {
+            auto neighbor = entry.first;
+            if (neighbor->parent == c->parent) {
+                neighbor->parent = nullptr; // Set sibling parent pointer to null
+                root_clusters[level].insert(neighbor); // Keep track of root clusters
+            }
+        }
+    }
+}
+
+template<typename aug_t>
 void UFOTree<aug_t>::insert_adjacency(vertex_t u, vertex_t v, aug_t value) {
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
@@ -370,9 +377,9 @@ bool UFOCluster<aug_t>::parent_high_fanout() {
     // return false;
 
     if (get_degree() == 1) {
-        if (neighbors.begin()->first->get_degree() - parent->get_degree() > 1) return true;
+        if (neighbors.begin()->first->get_degree() - parent->get_degree() > 2) return true;
     } else {
-        if (get_degree() - parent->get_degree() > 1) return true;
+        if (get_degree() - parent->get_degree() > 2) return true;
     }
     return false;
 }

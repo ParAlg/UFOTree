@@ -93,14 +93,12 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
         UFOTree<int> tree(n, qt, f, 0, 0);
 
         auto seed = seeds[trial];
-        // seed = 1714166146;
-        std::cout << "SEED: " << seed << std::endl;
+        srand(seed);
         int links = 0;
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
             if (u != v && !tree.connected(u,v)) {
-                // std::cout << u << " " << v << std::endl;
                 tree.link(u,v);
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << u << " and " << v << ".";
                 links++;
