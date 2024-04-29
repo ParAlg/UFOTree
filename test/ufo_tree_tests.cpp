@@ -6,6 +6,9 @@ template<typename aug_t>
 bool UFOTree<aug_t>::is_valid() {
     std::unordered_set<UFOCluster<aug_t>*> clusters;
     std::unordered_set<UFOCluster<aug_t>*> next_clusters;
+    for (auto leaf : leaves) // Ensure that every pair of incident vertices are in the same component
+        for (auto entry : leaf.neighbors) // This ensures all connectivity is correct by transitivity
+            if (leaf.get_root() != entry.first->get_root()) return false;
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
@@ -78,6 +81,34 @@ TEST(UFOTreeSuite, incremental_star_correctness_test) {
     }
 }
 
+TEST(UFOTreeSuite, incremental_random_correctness_test) {
+    int num_trials = 1;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 256;
+        QueryType qt = PATH;
+        auto f = [](int x, int y)->int{return x + y;};
+        UFOTree<int> tree(n, qt, f, 0, 0);
+
+        auto seed = seeds[trial];
+        // seed = 1714166146;
+        std::cout << "SEED: " << seed << std::endl;
+        int links = 0;
+        while (links < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v && !tree.connected(u,v)) {
+                // std::cout << u << " " << v << std::endl;
+                tree.link(u,v);
+                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << u << " and " << v << ".";
+                links++;
+            }
+        }
+    }
+}
+
 TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 128;
     QueryType qt = PATH;
@@ -88,6 +119,7 @@ TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
         tree.link(i,i+1);
     }
     for (vertex_t i = 0; i < n-1; i++) {
+        std::cout << "CUTTING " << i << " " << i+1 << std::endl;
         tree.cut(i,i+1);
         for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v < n; v++)
             ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
