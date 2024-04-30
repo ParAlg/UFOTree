@@ -246,7 +246,8 @@ void UFOTree<aug_t>::recluster_tree() {
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 1) {
                 auto neighbor = cluster->neighbors.begin()->first;  // Deg 1 cluster only one neighbor
-                if (neighbor->parent && !(neighbor->get_degree() == 2 && neighbor->contracts())) {
+                if (neighbor->parent) {
+                    if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
                     contractions.push_back({{cluster,neighbor},false});
                     if (neighbor->get_degree() == 3) { // For deg exactly 3 make all deg 1 neighbors combine with it
@@ -254,7 +255,9 @@ void UFOTree<aug_t>::recluster_tree() {
                             if (entry.first->get_degree() == 1 && entry.first->parent != neighbor->parent) {
                                 auto old_parent = entry.first->parent;
                                 entry.first->parent = neighbor->parent;
-                                delete old_parent;
+                                contractions.push_back({{entry.first, neighbor},false});
+                                neighbor->parent->remove_neighbor(old_parent);
+                                if (old_parent) delete old_parent;
                             }
                     }
                 } else {
@@ -263,6 +266,16 @@ void UFOTree<aug_t>::recluster_tree() {
                     neighbor->parent = parent;
                     root_clusters[level+1].insert(parent);
                     contractions.push_back({{cluster,neighbor},true});
+                    if (neighbor->get_degree() == 3) { // For deg exactly 3 make all deg 1 neighbors combine with it
+                        for (auto entry : neighbor->neighbors)
+                            if (entry.first->get_degree() == 1 && entry.first->parent != neighbor->parent) {
+                                auto old_parent = entry.first->parent;
+                                entry.first->parent = neighbor->parent;
+                                contractions.push_back({{entry.first, neighbor},false});
+                                neighbor->parent->remove_neighbor(old_parent);
+                                if (old_parent) delete old_parent;
+                            }
+                    }
                 }
             }
         }
