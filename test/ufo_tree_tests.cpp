@@ -15,8 +15,10 @@ bool UFOTree<aug_t>::is_valid() {
             for (auto entry : cluster->neighbors) // Ensure all neighbors also point back
                 if (!entry.first->contains_neighbor(cluster)) return false;
             if (!cluster->contracts()) { // Ensure maximality of contraction
-                if (cluster->get_degree() == 1) return false;
-                else if (cluster->get_degree() == 2) {
+                if (cluster->get_degree() == 1) {
+                    if (cluster->neighbors.begin()->first->high_degree()) return false;
+                    else if (!cluster->neighbors.begin()->first->contracts()) return false;
+                } else if (cluster->get_degree() == 2) {
                     for (auto entry : cluster->neighbors)
                         if (!entry.first->contracts() && entry.first->get_degree() < 3) return false;
                 } else if (cluster->get_degree() >= 3) {
@@ -156,12 +158,12 @@ TEST(UFOTreeSuite, decremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, decremental_random_correctness_test) {
-    int num_trials = 10;
+    int num_trials = 100;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 10;
+        vertex_t n = 256;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int> tree(n, qt, f, 0, 0);

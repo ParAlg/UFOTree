@@ -246,21 +246,17 @@ void UFOTree<aug_t>::recluster_tree() {
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 1) {
                 auto neighbor = cluster->neighbors.begin()->first;  // Deg 1 cluster only one neighbor
-                if (neighbor->parent) {
-                    if (neighbor->contracts() && neighbor->get_degree() == 2) { // Avoid making 2-2-1 clusters
-                        for (auto entry : neighbor->neighbors) {
-                            if (entry.first != cluster && entry.first->get_degree() == 2) {
-                                auto parent = new UFOCluster<aug_t>(default_value);
-                                cluster->parent = parent;
-                                neighbor->parent = parent;
-                                root_clusters[level+1].insert(parent);
-                                contractions.push_back({{cluster,neighbor},true});
-                                continue;
-                            }
-                        }
-                    }
+                if (neighbor->parent && !(neighbor->get_degree() == 2 && neighbor->contracts())) {
                     cluster->parent = neighbor->parent;
                     contractions.push_back({{cluster,neighbor},false});
+                    if (neighbor->get_degree() == 3) { // For deg exactly 3 make all deg 1 neighbors combine with it
+                        for (auto entry : neighbor->neighbors)
+                            if (entry.first->get_degree() == 1 && entry.first->parent != neighbor->parent) {
+                                auto old_parent = entry.first->parent;
+                                entry.first->parent = neighbor->parent;
+                                delete old_parent;
+                            }
+                    }
                 } else {
                     auto parent = new UFOCluster<aug_t>(default_value);
                     cluster->parent = parent;
@@ -286,12 +282,12 @@ void UFOTree<aug_t>::recluster_tree() {
                 }
             }
         }
-        // Combine deg 2 root clusters with deg 2 non-root clusters
+        // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 2) {
                 for (auto entry : cluster->neighbors) {
                     auto neighbor = entry.first;
-                    if (neighbor->parent && (neighbor->get_degree() == 2)) {
+                    if (neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
