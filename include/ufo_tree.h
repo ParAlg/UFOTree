@@ -44,7 +44,7 @@ private:
     parlay::sequence<std::unordered_set<UFOCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
     // Helper functions
-    void remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v);
+    void remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, bool deletion);
     void recluster_tree();
     void disconnect_siblings(UFOCluster<aug_t>* c, int level);
     void insert_adjacency(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, aug_t value);
@@ -66,7 +66,7 @@ template<typename aug_t>
 void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    remove_ancestors(&leaves[u], &leaves[v]);
+    remove_ancestors(&leaves[u], &leaves[v], false);
     insert_adjacency(&leaves[u], &leaves[v], value);
     recluster_tree();
 }
@@ -76,7 +76,7 @@ template<typename aug_t>
 void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
-    remove_ancestors(&leaves[u], &leaves[v]);
+    remove_ancestors(&leaves[u], &leaves[v], true);
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
 }
@@ -89,7 +89,18 @@ bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
 }
 
 template<typename aug_t>
-void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v) {
+void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, bool deletion) {
+    std::unordered_set<UFOCluster<aug_t>*> decr_deg;
+    if (deletion) {
+        auto cur_u = u;
+        auto cur_v = v;
+        while (cur_u && cur_v && cur_u != cur_v) {
+            decr_deg.insert(cur_u);
+            decr_deg.insert(cur_v);
+            cur_u = cur_u->parent;
+            cur_v = cur_v->parent;
+        }
+    }
     int level = 0;
     auto prev_u = u;
     auto prev_v = v;
@@ -100,7 +111,9 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
     while (curr_u && curr_v) {
         if (curr_u == curr_v) break;
         // U
-        if (!curr_u->high_degree() && !prev_u->parent_high_fanout()) { // We will delete curr_u next round
+        vertex_t deg_threshold = (decr_deg.find(curr_u) == decr_deg.end()) ? 2 : 3;
+        bool high_deg = curr_u->get_degree() > deg_threshold;
+        if (!high_deg && !prev_u->parent_high_fanout()) { // We will delete curr_u next round
             disconnect_siblings(prev_u, level);
             if (del_u) { // Possibly delete prev_u
                 for (auto entry : prev_u->neighbors)
@@ -125,7 +138,9 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
             del_u = false;
         }
         // V
-        if (!curr_v->high_degree() && !prev_v->parent_high_fanout()) { // We will delete curr_v next round
+        deg_threshold = (decr_deg.find(curr_v) == decr_deg.end()) ? 2 : 3;
+        high_deg = curr_v->get_degree() > deg_threshold;
+        if (!high_deg && !prev_v->parent_high_fanout()) { // We will delete curr_v next round
             disconnect_siblings(prev_v, level);
             if (del_v) { // Possibly delete prev_v
                 for (auto entry : prev_v->neighbors)
@@ -179,7 +194,9 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
     auto prev = curr_u ? prev_u : prev_v;
     bool del = curr_u ? del_u : del_v;
     while (curr) {
-        if (!curr->high_degree() && !prev->parent_high_fanout()) { // We will delete curr next round
+        vertex_t deg_threshold = (decr_deg.find(curr) == decr_deg.end()) ? 2 : 3;
+        bool high_deg = curr->get_degree() > deg_threshold;
+        if (!high_deg && !prev->parent_high_fanout()) { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
