@@ -242,6 +242,28 @@ template<typename aug_t>
 void UFOTree<aug_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
+        // Merge deg exactly 3 root clusters with all of its deg 1 neighbors
+        for (auto cluster : root_clusters[level]) {
+            if (!cluster->parent && cluster->get_degree() == 3) {
+                auto parent = new UFOCluster<aug_t>(default_value);
+                cluster->parent = parent;
+                root_clusters[level+1].insert(parent);
+                bool first_contraction = true;
+                for (auto entry : cluster->neighbors)
+                    if (entry.first->get_degree() == 1) {
+                        auto old_parent = entry.first->parent;
+                        entry.first->parent = cluster->parent;
+                        while (old_parent) {
+                            auto temp = old_parent;
+                            old_parent = old_parent->parent;
+                            delete temp;
+                        }
+                        contractions.push_back({{entry.first, cluster},first_contraction});
+                        first_contraction = false;
+                    }
+                if (first_contraction) contractions.push_back({{cluster, cluster}, true});
+            }
+        }
         // Always combine deg 1 root clusters with its neighboring cluster
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 1) {
