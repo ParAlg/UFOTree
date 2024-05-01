@@ -12,7 +12,7 @@
 //TODO: other methods that deal with degree, neighbors, etc. need to be updated to deal with 
 //PROCESSING flag and vertices that are no longer alive.
 
-typedef uint32_t vertex_t;
+typedef int32_t vertex_t;
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 #define PROCESSING -1 //Flag that indicates and affected vertex is still being processed and has not contracted yet.
@@ -40,7 +40,7 @@ public:
 
   parlay::sequence<RCCluster<aug_t>> clusters;
   parlay::sequence<RCCluster<aug_t>> leaf_clusters;
-  std::unordered_set<int> affected; 
+  std::unordered_set<int>* affected = new std::unordered_set<int>();
   parlay::sequence<parlay::sequence<RCCluster<aug_t>**>> contraction_tree; // RCCluster pointer not int - Made public for testing, will actually be private.  
   std::tuple<RCCluster<aug_t>*,int>* representative_clusters; //Stores the representative cluster and round contracted for each vertex.
 
@@ -50,7 +50,7 @@ public:
   bool contracts(vertex_t v, int round, bool version);
   void spread_affection(int round);
   bool affected_by_dependence(int vertex, int round, std::unordered_set<int> *current_affected);
-  std::unordered_set<int> MIS(int round);
+  std::unordered_set<int>* MIS(int round);
   int find_update_neighbor(vertex_t neighbor, vertex_t v, int round);
   void rake(vertex_t vertex, int round);
   void compress(vertex_t vertex, int round);
@@ -74,8 +74,8 @@ RCTree<aug_t>::RCTree(int _n, int _degree_bound) {
   }
   representative_clusters = (std::tuple<RCCluster<aug_t>*, int>*) calloc(_n, sizeof(std::tuple<RCCluster<aug_t>*, int>)); 
   for(int i = 0; i < n; i++){ 
-    contraction_tree[i].push_back((RCCluster<int>**) calloc(degree_bound, sizeof(RCCluster<int>*)));
-    representative_clusters[i] = std::tuple<RCCluster<aug_t>*, int>{&RCCluster<aug_t>(0), 0};
+    contraction_tree[i].push_back(new RCCluster<aug_t>*[3]{nullptr});
+    representative_clusters[i] = std::tuple<RCCluster<aug_t>*, int>{(RCCluster<aug_t>*) new RCCluster<aug_t>(0), 0};
   }
 }
 
@@ -116,14 +116,14 @@ bool RCTree<aug_t>::contracts(vertex_t v, int round, bool version) {
     return std::get<1>(representative_clusters[v]) == round; 
   }
   return std::get<1>(representative_clusters[v]) <= round &&
-          std::get<1>(representative_clusters[v]) != PROCESSING;
+  std::get<1>(representative_clusters[v]) != PROCESSING;
 }
 
 template<typename aug_t>
-void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t v){
+void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t contracted_v){
   //For a given RCCluster, add cluster to neighbor lists of boundary vertices of that 
   //vertex at a particular round if neighbors is full, throw an exception.
-  
+
   // If the cluster is not represented yet by any vertex v, passing in -1 for the v param
   // will allow the cluster to be added to a nullptr location of the adjacencies.
 
@@ -134,22 +134,39 @@ void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t 
     bool vertex_added = false;
     int null_idx = -1; // To add to null index iff it couldn't be added to any other slots in the adjacencies list.
     for(int i = 0; i < degree_bound; i++){
-      if(adjacencies[i] == nullptr){
+      auto neighbor_cluster = adjacencies[i];
+      if(neighbor_cluster == nullptr){
         null_idx = i;
       } else {
-        // If cluster contains v as boundary vertex then it is the one to be overwritten.
-        if(adjacencies[i]->boundary_vertexes[0] == v 
-            || adjacencies[i]->boundary_vertexes[1] == v){
+        // Needs a fix to account for unary clusters that need to overwrite binary clusters.
+        if((contracted_v != -1 &&
+          std::get<0>(representative_clusters[contracted_v]) == neighbor_cluster)
+          || (neighbor_cluster->boundary_vertexes.size() == 2
+          && boundaries_equal(neighbor_cluster, cluster))
+          || (neighbor_cluster->boundary_vertexes[0] == contracted_v ||
+          neighbor_cluster->boundary_vertexes[1] == contracted_v)){
           adjacencies[i] = cluster;
           vertex_added = true;
+          break;
         }
-      }
+
+      } 
     }
     if(!vertex_added && null_idx == -1){
       throw std::invalid_argument("Vertex could not be added to the tree");
     }
-    adjacencies[null_idx] = cluster;
+    if(!vertex_added){
+      adjacencies[null_idx] = cluster;
+    }
   }
+}
+
+template<typename aug_t>
+bool boundaries_equal(RCCluster<aug_t>* neighbor, RCCluster<aug_t>* cluster){
+  return (neighbor->boundary_vertexes[0] == cluster->boundary_vertexes[0] &&
+  neighbor->boundary_vertexes[1] == cluster->boundary_vertexes[1]) ||
+  (neighbor->boundary_vertexes[0] == cluster->boundary_vertexes[1] &&
+  neighbor->boundary_vertexes[1] == cluster->boundary_vertexes[0]);
 }
 
 template<typename aug_t>
@@ -160,7 +177,7 @@ void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round)
   //Checks to see if the set is maximal by going through all vertexes in the
   //tree and checking to see if atleast one neighbor of every vertex is in
   //the tree.
-  for(auto vertex : affected){
+  for(auto vertex : *affected){
     if(contraction_tree[vertex][round] != nullptr){ 
       bool vertex_valid = false;
       for(int i = 0; i < degree_bound; i++){
@@ -169,7 +186,7 @@ void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round)
           auto dereferenced_cluster = *contraction_tree[vertex][round][i];
           int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
           if(maximal_set.count(vertex) == 0 && 
-            ((contracts(neighbor, round)  && affected.count(neighbor) == 0)|| 
+            ((contracts(neighbor, round, 0)  && affected->count(neighbor) == 0)|| 
             maximal_set.count(neighbor) == 1)){
             vertex_valid = true; // If either the vertex is next to an contracting unaffected neighbor or 
             // neighbor included in the MIS then increment count as this vertex is valid.
@@ -202,9 +219,9 @@ void RCTree<aug_t>::spread_affection(int round) {
    */
 
   //Vertices that affection is spread to from orginal affected vertices
-  std::unordered_set<int> new_affected(affected); 
+  std::unordered_set<int> *new_affected = new std::unordered_set<int>(*affected);
 
-  for(auto vertex : affected) {
+  for(auto vertex : *affected) {
     //Iterate through all adjacencies of affected vertex
     for(int i = 0; i < degree_bound; i++) {
 
@@ -214,14 +231,15 @@ void RCTree<aug_t>::spread_affection(int round) {
         RCCluster<aug_t> dereferenced_cluster = *neighboring_cluster; // Why can't I just pass in *cluster directly to GET_NEIGHBOR?
         int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster); // Neighbor of the affected vertex.
         //Check to see if neighbor is already affected and if all contracting neighbors are affected.
-        if(new_affected.count(neighbor) == 0 && affected_by_dependence(neighbor, round, &new_affected)){ 
-          new_affected.insert(neighbor);
+        if(new_affected->count(neighbor) == 0 && affected_by_dependence(neighbor, round, new_affected)){ 
+          new_affected->insert(neighbor);
           std::get<1>(representative_clusters[neighbor]) = PROCESSING;
           contraction_tree[neighbor].resize(round + 1);
         }
       } 
     }
   }
+  delete affected;
   affected = new_affected;
 }
 
@@ -236,7 +254,7 @@ bool RCTree<aug_t>::affected_by_dependence(int vertex, int round, std::unordered
       RCCluster<aug_t> dereferenced_cluster = *neighbor_cluster;
       int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster); // Neighbor of the affected vertex.
       // If my neighbor does not contract
-      if(contracts(neighbor, round, 0) && !current_affected->count(neighbor)) {
+      if(!(contracts(neighbor, round, 0) && current_affected->count(neighbor))) {
         spreads = false;
         break;
       }
@@ -246,17 +264,17 @@ bool RCTree<aug_t>::affected_by_dependence(int vertex, int round, std::unordered
 }
 
 template<typename aug_t>
-std::unordered_set<int> RCTree<aug_t>::MIS(int round){
+std::unordered_set<int>* RCTree<aug_t>::MIS(int round){
   //pick a random vertex
   //Include vertex in MIS
   //Delete Neighbors
   //Return
 
-  std::unordered_set<int> maximal_set(affected);
-  for(auto random_vertex : affected){
+  std::unordered_set<int>* maximal_set = new std::unordered_set<int>(*affected);
+  for(auto random_vertex : *affected){
     // If the random vertex is not in the maximal_set then the vertex has already
     // been removed as a neighbor of some other vertex and we can't do any ops on it.
-    if(maximal_set.count(random_vertex) == 0) continue;
+    if(maximal_set->count(random_vertex) == 0) continue;
     // A few cases to deal with :
     // 1) If the vertex is next to a contracting unaffected vertex it is not to be considered.
     // 2) If the vertex cannot contract, it must remain in the set of affected vertices.
@@ -269,10 +287,10 @@ std::unordered_set<int> RCTree<aug_t>::MIS(int round){
       if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) {
         auto dereferenced_cluster = *cluster;
         int neighbor = GET_NEIGHBOR(random_vertex, dereferenced_cluster); 
-        
+
         //Neighbor not in MIS and neighbor contracts in this round.
-        if(!maximal_set.count(neighbor) && contracts(neighbor, round, 0)){
-          maximal_set.erase(random_vertex); // Remove from MIS, if so.
+        if(!maximal_set->count(neighbor) && contracts(neighbor, round, 0)){
+          maximal_set->erase(random_vertex); // Remove from MIS, if so.
           adjacent_unaffected_contracting = true;
           break;
         }
@@ -287,7 +305,7 @@ std::unordered_set<int> RCTree<aug_t>::MIS(int round){
         if(cluster != nullptr){
           auto dereferenced_cluster = *cluster;
           int neighbor = GET_NEIGHBOR(random_vertex, dereferenced_cluster);
-          if(maximal_set.count(neighbor)) maximal_set.erase(neighbor);
+          if(maximal_set->count(neighbor)) maximal_set->erase(neighbor);
         }
       }
     }
@@ -302,21 +320,19 @@ void RCTree<aug_t>::link(int u, int v, int weight) {
   // and the edge being added does not yet violate
   // any tree properties.
 
-  RCCluster<aug_t> new_edge = RCCluster<aug_t>(weight);
+  RCCluster<aug_t>* new_edge = (RCCluster<aug_t>*) new RCCluster<aug_t>(weight);
   new_edge->boundary_vertexes.push_back(u);
   new_edge->boundary_vertexes.push_back(v);
 
-  add_neighbor(0, &new_edge, -1); //v can be > t. Make it ternary.
+  add_neighbor(0, new_edge, -1); //v can be > t. Make it ternary.
 
-  affected.insert(u);          // Insert initial affected vertices.
-  affected.insert(v);
-  
+  affected->insert(u);          // Insert initial affected vertices.
+  affected->insert(v);
+
 
   representative_clusters[u] = std::tuple<RCCluster<aug_t>*, int>{nullptr, PROCESSING};
   representative_clusters[v] = std::tuple<RCCluster<aug_t>*, int>{nullptr, PROCESSING};
-  
-  contraction_tree[u].resize(1);
-  contraction_tree[v].resize(1);
+
   update(); 
 }
 
@@ -331,7 +347,7 @@ int RCTree<aug_t>::find_update_neighbor(vertex_t neighbor, vertex_t v, int round
   Once the cluster of a contracting vertex determined, all neighbors to which it belongs need
  * to be updated with its new representative cluster. The method below finds the spot
  * in the neighbors adjacency list, where the new representative cluster belongs.
-   
+
   auto adjacencies = contraction_tree[neighbor][round];
   int to_return = -1;
   for(int i = 0; i < degree_bound; i++){
@@ -364,32 +380,33 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   //Get boundary vertex
   auto neighbors = contraction_tree[vertex][round];
   vertex_t neighbor; //To be initialized later, helpful for doing contractions.
-  RCCluster<aug_t> new_cluster(0); //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
+  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(0); //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
 
   // Go through all neighboring clusters and aggregate values onto self.
   for(int i = 0; i < degree_bound; i++){
     if(neighbors[i] == nullptr) continue;
     auto neighboring_cluster = *neighbors[i];
-    new_cluster.aug_val += neighboring_cluster.aug_val; // Needs to be a associative binary op passed in by the user.
+    new_cluster->aug_val += neighboring_cluster.aug_val; // Needs to be a associative binary op passed in by the user.
     if(neighboring_cluster.boundary_vertexes.size() == 2){
       neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
     }
   }
 
-  new_cluster.boundary_vertexes.push_back(neighbor);
-
+  new_cluster->boundary_vertexes.push_back(neighbor);
+  new_cluster->parent = neighbor;
   //Add to the neighbor this new unary cluster.
-  add_neighbor(round + 1, &new_cluster, vertex);
-  representative_clusters[vertex] = std::tuple{&new_cluster, round};
+  add_neighbor(round + 1, new_cluster, vertex);
+  representative_clusters[vertex] = std::tuple{new_cluster, round}; //need to free the old tuple
 
   // Add other vertex I am raking onto into affected set if 
   // the cluster of the vertex being raked in the next round
   // is not a unary cluster. 
   // QUESTION : DO I NEED TO ADD IT IF VALUES NOT EQUIVALENT AS WELL - YES, to recontract with new values.
-  affected.insert(neighbor);
+
+  affected->insert(neighbor);
+  contraction_tree[vertex].resize(round + 1);
   representative_clusters[neighbor] = std::tuple{std::get<0>(representative_clusters[neighbor]), PROCESSING};
-  contraction_tree[neighbor].resize(round + 1); 
-  affected.erase(vertex);
+  affected->erase(vertex);
 }
 
 template<typename aug_t>
@@ -400,7 +417,8 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
 template<typename aug_t>
 void RCTree<aug_t>::finalize(vertex_t v, int round){
   representative_clusters[v] = *(new std::tuple<RCCluster<aug_t>*, int>{(new RCCluster(0, -1)), round});
-  affected.erase(v);
+  contraction_tree[v].resize(round + 1);
+  affected->erase(v);
 }
 template<typename aug_t>
 void RCTree<aug_t>::update() {
@@ -410,25 +428,62 @@ void RCTree<aug_t>::update() {
 
   // Spread affection and redo contractions till there are affected
   // vertices.
-  int round = 0;
-  while(!affected.empty()){
-    
-    //Insert new neighbor list for next round for each vertex.
-    for(int vertex = 0; vertex < n; vertex++){
-      if(!contracts(vertex, round, 0)){
-        contraction_tree[vertex].push_back((RCCluster<aug_t>**) calloc(degree_bound, sizeof(RCCluster<aug_t>*)));
 
+  int round = 0;
+
+
+  while(!affected->empty()){
+
+    spread_affection(round);
+    std::unordered_set<int> *maximal_set = MIS(round);
+    is_valid_MIS(*maximal_set, round);
+    //Insert new neighbor list for next round for each vertex. But this is inserting for those where
+    //it is not even necessary and updating the list at the next round unnecessarily.
+    for(auto vertex : *affected){
+      if(contraction_tree[vertex].size() < round + 2){
+        contraction_tree[vertex].push_back(new RCCluster<aug_t>*[degree_bound]{nullptr});
         //Copy over neighbor list from previous round for each vertex.
         for(int i = 0; i < degree_bound; i++){
-          contraction_tree[vertex][round + 1] = contraction_tree[vertex][round];
+          contraction_tree[vertex][round + 1][i] = contraction_tree[vertex][round][i];
+
+          auto prev_cluster = contraction_tree[vertex][round][i];
+          if(prev_cluster == nullptr || prev_cluster->boundary_vertexes.size() == 1){
+            continue;
+          }
+          auto dereferenced_cluster = *prev_cluster;
+          auto neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
+          if(contracts(neighbor,round,1) && affected->count(neighbor) == 0){
+            contraction_tree[vertex][round + 1][i] = std::get<0>(representative_clusters[neighbor]); 
+          }
+        }
+      } else {
+        for(int i = 0; i < degree_bound;i++){
+          if(contraction_tree[vertex][round + 1][i] != nullptr){
+            auto cluster = contraction_tree[vertex][round][i];
+            bool elem_found = false;
+            for(int j = 0; j < degree_bound; j++){
+              if(contraction_tree[vertex][round][j] != nullptr){
+                auto dereferenced_cluster = *contraction_tree[vertex][round][j];
+                auto neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
+
+                if(cluster == contraction_tree[vertex][round][j] || 
+                    std::get<0>(representative_clusters[neighbor]) == cluster){
+                  elem_found = true;
+                  break;
+                }
+              }
+            }
+
+            if(!elem_found){
+              contraction_tree[vertex][round][i] = nullptr;
+            }
+          }
         }
       }
     }
 
-    spread_affection(round);
-    std::unordered_set<int> maximal_set = MIS(round);
 
-    for(auto vertex : maximal_set){
+    for(auto vertex : *maximal_set){
       //Redo contractions for all vertices in maximal set.
       //Remove vertices from set of affected vertices.
 
@@ -442,7 +497,28 @@ void RCTree<aug_t>::update() {
         finalize(vertex, round);
         break;
       }
-      round += 1;
     }
+    
+    std::unordered_set<int> new_affected;
+    for(auto vertex : *affected){
+      for(int i = 0; i < degree_bound; i++){
+        auto cluster = contraction_tree[vertex][round][i];
+        if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) {
+          auto dereferenced_cluster = *cluster;
+          auto neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
+  
+          if(contracts(neighbor, round, 1)) continue;
+
+          add_neighbor(round + 1, cluster, vertex);
+          
+          new_affected.insert(neighbor);
+          std::get<1>(representative_clusters[neighbor]) = PROCESSING;
+        }
+      }
+    }
+
+    affected->merge(new_affected);
+    round += 1;
+    delete maximal_set;
   }
 }

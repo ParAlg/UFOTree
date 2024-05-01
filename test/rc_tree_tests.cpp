@@ -109,11 +109,12 @@ TEST(RCTreeSuite, test_MIS){
 */
 
 TEST(RCTreeSuite, testRakeLinkedList){
-  int llist_size = 3;// User should set this to create a linked list of certain size for testing.
+  int llist_size = 4;// User should set this to create a linked list of certain size for testing.
   RCTree<int> tree(llist_size, 3);
   for(int i = 0; i < llist_size - 1; i++){
     tree.link(i, i+1, i+1);
   }
   print_tree(&tree,0);
   print_tree(&tree,1);
+  print_tree(&tree, 2);
 }
