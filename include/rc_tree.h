@@ -414,7 +414,37 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
 
 template<typename aug_t>
 void RCTree<aug_t>::compress(vertex_t vertex, int round){
+  auto neighbors = contraction_tree[vertex][round];
+  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(0); //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
 
+  // Go through all neighboring clusters and aggregate values onto self.
+  for(int i = 0; i < degree_bound; i++){
+    if(neighbors[i] == nullptr) continue;
+    auto neighboring_cluster = *neighbors[i];
+    new_cluster->aug_val += neighboring_cluster.aug_val; // Needs to be a associative binary op passed in by the user.
+    if(neighboring_cluster.boundary_vertexes.size() == 2){
+      auto neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
+      new_cluster->boundary_vertexes.push_back(neighbor);
+    }
+  }
+  
+  auto neighbor1 = new_cluster->boundary_vertexes[0];
+  auto neighbor2 = new_cluster->boundary_vertexes[1];
+  //Add to the neighbor this new unary cluster.
+  add_neighbor(round + 1, new_cluster, vertex);
+  representative_clusters[vertex] = std::tuple{new_cluster, round}; //need to free the old tuple
+
+  // Add other vertex I am raking onto into affected set if 
+  // the cluster of the vertex being raked in the next round
+  // is not a unary cluster. 
+  // QUESTION : DO I NEED TO ADD IT IF VALUES NOT EQUIVALENT AS WELL - YES, to recontract with new values.
+
+  affected->insert(neighbor1);
+  affected->insert(neighbor2);
+  contraction_tree[vertex].resize(round + 1);
+  representative_clusters[neighbor1] = std::tuple{std::get<0>(representative_clusters[neighbor1]), PROCESSING};
+  representative_clusters[neighbor2] = std::tuple{std::get<0>(representative_clusters[neighbor2]), PROCESSING};
+  affected->erase(vertex);
 }
 
 template<typename aug_t>
@@ -493,7 +523,9 @@ void RCTree<aug_t>::update() {
       auto vertex_degree = get_degree(vertex, round);
       if(vertex_degree == 1) {
         rake(vertex, round);
-      } else if(vertex_degree == 0) {
+      } else if(vertex_degree == 2){ 
+        compress(vertex, round);
+      }else if(vertex_degree == 0) {
         // if the degree of a vertex is not 1 or 2 then it must be 0.
         // We have found the new root of the RC Tree and as such, we can
         // now finalize the vertex as the root of the new tree.
