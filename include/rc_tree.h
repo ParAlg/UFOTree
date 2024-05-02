@@ -141,13 +141,15 @@ void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t 
       } else {
         // Needs a fix to account for unary clusters that need to overwrite binary clusters.
 
-        
+        auto dereferenced_cluster = *cluster; 
         if((contracted_v != -1 &&
           std::get<0>(representative_clusters[contracted_v]) == neighbor_cluster)
           || (neighbor_cluster->boundary_vertexes.size() == 2
           && boundaries_equal(neighbor_cluster, cluster))
           || (neighbor_cluster->boundary_vertexes[0] == contracted_v ||
-          neighbor_cluster->boundary_vertexes[1] == contracted_v)){
+          neighbor_cluster->boundary_vertexes[1] == contracted_v)
+          || (cluster->boundary_vertexes.size() == 2 && 
+              neighbor_cluster == std::get<0>(representative_clusters[GET_NEIGHBOR(boundary_v, dereferenced_cluster)]))){
           adjacencies[i] = cluster;
           vertex_added = true;
           break;
@@ -400,9 +402,6 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   new_cluster->parent = neighbor;
   //Add to the neighbor this new unary cluster.
 
-  if(vertex == 7 && round == 2){
-    1 + 1;
-  }
   add_neighbor(round + 1, new_cluster, vertex);
   representative_clusters[vertex] = std::tuple{new_cluster, round}; //need to free the old tuple
 

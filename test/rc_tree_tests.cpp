@@ -107,17 +107,14 @@ TEST(RCTreeSuite, test_MIS){
 
 }
 */
-/*
-TEST(RCTreeSuite, testRakeLinkedList){
 
-  for(int llist_size = 1; llist_size < 100000; llist_size++){
-    RCTree<int> tree(llist_size, 3);
-    for(int i = 0; i < llist_size - 1; i++){
-      tree.link(i, i+1, i+1);
-    }
+TEST(RCTreeSuite, testRakeLinkedList){
+  int llist_size = 1000;
+  RCTree<int> tree(llist_size, 3);
+  for(int i = 0; i < llist_size - 1; i++){
+    tree.link(i, i+1, i+1);
   }
 }
-*/
 
 TEST(RCTreeSuite, testTHETREE){
   RCTree<int> tree(12, 3);
@@ -129,14 +126,15 @@ TEST(RCTreeSuite, testTHETREE){
   tree.link(4,7,6);
   tree.link(6,7,7);
   tree.link(7,8,8);
-
   tree.link(8,9,9);
+  tree.link(8,10,10);
+  tree.link(10,11,11);
+
 
   print_tree(&tree, 0);
   print_tree(&tree, 1);
   print_tree(&tree, 2);
   print_tree(&tree, 3);
-
-  tree.link(8,10,10);
-  tree.link(10,11,11);
+  print_tree(&tree, 4);
+  print_tree(&tree, 5);
 }
