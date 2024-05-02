@@ -178,11 +178,11 @@ void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round)
   //vertices added are neighbors of each other.
 
   //Checks to see if the set is maximal by going through all vertexes in the
-  //tree and checking to see if atleast one neighbor of every vertex is in
-  //the tree.
+  //affected set and checking to see if atleast one neighbor of every vertex is in
+  //the maximal independent set.
   for(auto vertex : *affected){
     if(contraction_tree[vertex][round] != nullptr){ 
-      bool vertex_valid = false;
+      bool neighbor_in_max = false;
       for(int i = 0; i < degree_bound; i++){
         if(contraction_tree[vertex][round][i] != nullptr && 
           contraction_tree[vertex][round][i]->boundary_vertexes.size() == 2){
@@ -191,7 +191,7 @@ void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round)
           if(maximal_set.count(vertex) == 0 && 
             ((contracts(neighbor, round, 0)  && affected->count(neighbor) == 0)|| 
             maximal_set.count(neighbor) == 1)){
-            vertex_valid = true; // If either the vertex is next to an contracting unaffected neighbor or 
+            neighbor_in_max = true; // If either the vertex is next to an contracting unaffected neighbor or 
             // neighbor included in the MIS then increment count as this vertex is valid.
           }
 
@@ -206,7 +206,8 @@ void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round)
 
       //If no neighbors are in the maximal set then this vertex should have been
       //in the maximal set. Thus the MIS is invalid
-      if(maximal_set.count(vertex) == 0 && vertex_valid == false){
+      if(maximal_set.count(vertex) == 0 && get_degree(vertex, round) < 3 &&
+          !neighbor_in_max){
         throw std::invalid_argument("The set is not maximal :-(");
       }
     }  
@@ -398,6 +399,10 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   new_cluster->boundary_vertexes.push_back(neighbor);
   new_cluster->parent = neighbor;
   //Add to the neighbor this new unary cluster.
+
+  if(vertex == 7 && round == 2){
+    1 + 1;
+  }
   add_neighbor(round + 1, new_cluster, vertex);
   representative_clusters[vertex] = std::tuple{new_cluster, round}; //need to free the old tuple
 
@@ -407,6 +412,9 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   // QUESTION : DO I NEED TO ADD IT IF VALUES NOT EQUIVALENT AS WELL - YES, to recontract with new values.
 
   affected->insert(neighbor);
+  for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
+    delete contraction_tree[vertex][i];
+  }
   contraction_tree[vertex].resize(round + 1);
   representative_clusters[neighbor] = std::tuple{std::get<0>(representative_clusters[neighbor]), PROCESSING};
   affected->erase(vertex);
@@ -515,11 +523,12 @@ void RCTree<aug_t>::update() {
       }
     }
 
-
+    std::unordered_set<int> uncontracting(*affected);
     for(auto vertex : *maximal_set){
       //Redo contractions for all vertices in maximal set.
       //Remove vertices from set of affected vertices.
 
+      uncontracting.erase(vertex); // if vertex does not contract, neighbors need to update cluster associated with it. 
       auto vertex_degree = get_degree(vertex, round);
       if(vertex_degree == 1) {
         rake(vertex, round);
@@ -534,8 +543,7 @@ void RCTree<aug_t>::update() {
       }
     }
     
-    std::unordered_set<int> new_affected;
-    for(auto vertex : *affected){
+    for(auto vertex : uncontracting){
       for(int i = 0; i < degree_bound; i++){
         auto cluster = contraction_tree[vertex][round][i];
         if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) {
@@ -552,13 +560,12 @@ void RCTree<aug_t>::update() {
 
           add_neighbor(round + 1, cluster, vertex);
           
-          new_affected.insert(neighbor);
+          affected->insert(neighbor);
           std::get<1>(representative_clusters[neighbor]) = PROCESSING;
         }
       }
     }
 
-    affected->merge(new_affected);
     round += 1;
     delete maximal_set;
   }

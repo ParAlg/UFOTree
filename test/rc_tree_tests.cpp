@@ -49,7 +49,7 @@ void create_tree1() {
 void print_tree(RCTree<int> *tree, int round){
   std::cout << "Round: " << round << "\n";
   for(int i = 0; i < tree->n; i++){
-    if(tree->contraction_tree[i][round] != nullptr){
+    if(tree->contraction_tree[i].size() >= round + 1 && tree->contraction_tree[i][round] != nullptr){
       std::cout << "Vertex: " << i << " :[";
       for(int j = 0; j < tree->degree_bound; j++){
         if(tree->contraction_tree[i][round][j] != nullptr){
@@ -107,11 +107,36 @@ TEST(RCTreeSuite, test_MIS){
 
 }
 */
-
+/*
 TEST(RCTreeSuite, testRakeLinkedList){
-  int llist_size = 1000;// User should set this to create a linked list of certain size for testing.
-  RCTree<int> tree(llist_size, 3);
-  for(int i = 0; i < llist_size - 1; i++){
-    tree.link(i, i+1, i+1);
+
+  for(int llist_size = 1; llist_size < 100000; llist_size++){
+    RCTree<int> tree(llist_size, 3);
+    for(int i = 0; i < llist_size - 1; i++){
+      tree.link(i, i+1, i+1);
+    }
   }
+}
+*/
+
+TEST(RCTreeSuite, testTHETREE){
+  RCTree<int> tree(12, 3);
+  tree.link(0,1,1);
+  tree.link(1,2,2);
+  tree.link(1,3,3);
+  tree.link(3,4,4);
+  tree.link(4,5,5);
+  tree.link(4,7,6);
+  tree.link(6,7,7);
+  tree.link(7,8,8);
+
+  tree.link(8,9,9);
+
+  print_tree(&tree, 0);
+  print_tree(&tree, 1);
+  print_tree(&tree, 2);
+  print_tree(&tree, 3);
+
+  tree.link(8,10,10);
+  tree.link(10,11,11);
 }
