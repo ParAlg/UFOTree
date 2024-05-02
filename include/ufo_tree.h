@@ -307,14 +307,14 @@ void UFOTree<aug_t>::recluster_tree() {
                         }
                     }
                 }
-                if (cluster->parent->get_degree() == 1 && neighbor->high_degree()) {
+                if (cluster->parent->get_degree() == 1) {
                     auto prev = cluster->parent;
                     auto curr = cluster->parent->parent;
                     auto sibling = prev->neighbors.begin()->first;
-                    bool del = (prev->parent != sibling->parent);
+                    bool del = (prev->parent && prev->parent != sibling->parent);
                     while (del) {
                         sibling = curr->neighbors.begin()->first;
-                        del = (curr->parent != sibling->parent);
+                        del = (curr->parent && curr->parent != sibling->parent);
                         sibling->remove_neighbor(curr);
                         delete curr;
                         prev = curr;
