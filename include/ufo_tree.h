@@ -289,32 +289,39 @@ void UFOTree<aug_t>::recluster_tree() {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
                     contractions.push_back({{cluster,neighbor},false});
-                    if (neighbor->get_degree() == 3) { // For deg exactly 3 make all deg 1 neighbors combine with it
-                        for (auto entry : neighbor->neighbors)
-                            if (entry.first->get_degree() == 1 && entry.first->parent != neighbor->parent) {
-                                auto old_parent = entry.first->parent;
-                                entry.first->parent = neighbor->parent;
-                                contractions.push_back({{entry.first, neighbor},false});
-                                neighbor->parent->remove_neighbor(old_parent);
-                                if (old_parent) delete old_parent;
-                            }
-                    }
                 } else {
                     auto parent = new UFOCluster<aug_t>(default_value);
                     cluster->parent = parent;
                     neighbor->parent = parent;
                     root_clusters[level+1].insert(parent);
                     contractions.push_back({{cluster,neighbor},true});
-                    if (neighbor->get_degree() == 3) { // For deg exactly 3 make all deg 1 neighbors combine with it
-                        for (auto entry : neighbor->neighbors)
-                            if (entry.first->get_degree() == 1 && entry.first->parent != neighbor->parent) {
-                                auto old_parent = entry.first->parent;
-                                entry.first->parent = neighbor->parent;
-                                contractions.push_back({{entry.first, neighbor},false});
-                                neighbor->parent->remove_neighbor(old_parent);
-                                if (old_parent) delete old_parent;
-                            }
+                }
+                if (neighbor->get_degree() == 3) { // For deg exactly 3 make all deg 1 neighbors combine with it
+                    for (auto entry : neighbor->neighbors) {
+                        if (entry.first->get_degree() == 1 && entry.first->parent != neighbor->parent) {
+                            auto old_parent = entry.first->parent;
+                            entry.first->parent = neighbor->parent;
+                            contractions.push_back({{entry.first, neighbor},false});
+                            neighbor->parent->remove_neighbor(old_parent);
+                            if (old_parent) delete old_parent;
+                        }
                     }
+                }
+                if (cluster->parent->get_degree() == 1 && neighbor->high_degree()) {
+                    auto prev = cluster->parent;
+                    auto curr = cluster->parent->parent;
+                    auto sibling = prev->neighbors.begin()->first;
+                    bool del = (prev->parent != sibling->parent);
+                    while (del) {
+                        sibling = curr->neighbors.begin()->first;
+                        del = (curr->parent != sibling->parent);
+                        sibling->remove_neighbor(curr);
+                        delete curr;
+                        prev = curr;
+                        curr = prev->parent;
+                    }
+                    cluster->parent->parent = nullptr;
+                    root_clusters[level+1].insert(cluster->parent);
                 }
             }
         }
