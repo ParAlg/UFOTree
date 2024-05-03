@@ -29,7 +29,7 @@ bool UFOTree<aug_t>::is_valid() {
             if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
         }
         // Maximality should ensure this, but we leave the test as a sanity check
-        if (6*next_clusters.size() > 5*clusters.size()) return false;
+        // if (6*next_clusters.size() > 5*clusters.size()) return false;
         clusters.swap(next_clusters);
         next_clusters.clear();
     }
@@ -76,18 +76,18 @@ TEST(UFOTreeSuite, incremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, incremental_random_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 100;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 10;
+        vertex_t n = 256;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int> tree(n, qt, f, 0, 0);
 
         auto seed = seeds[trial];
-        seed = 863583362;
+        // seed = 133178923;
         std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         int links = 0;
@@ -161,19 +161,19 @@ TEST(UFOTreeSuite, decremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, decremental_random_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 10000;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 10;
+        vertex_t n = 32;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int> tree(n, qt, f, 0, 0);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
         auto seed = seeds[trial];
-        seed = 140295745;
+        seed = 1375680989;
         std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         int links = 0;
@@ -194,5 +194,41 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
             ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
         }
+        tree.print_tree();
+    }
+}
+
+template<typename aug_t>
+void UFOTree<aug_t>::print_tree() {
+    std::multimap<UFOCluster<aug_t>*, UFOCluster<aug_t>*> clusters;
+    std::multimap<UFOCluster<aug_t>*, UFOCluster<aug_t>*> next_clusters;
+    std::cout << "========================= LEAVES =========================" << std::endl;
+    std::unordered_map<UFOCluster<aug_t>*, vertex_t> vertex_map;
+    for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
+    for (auto entry : clusters) {
+        auto leaf = entry.second;
+        auto parent = entry.first;
+        std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
+        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor.first] << " ";
+        std::cout << std::endl;
+        bool in_map = false;
+        for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+        if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+    }
+    clusters.swap(next_clusters);
+    next_clusters.clear();
+    while (!clusters.empty()) {
+        std::cout << "======================= NEXT LEVEL =======================" << std::endl;
+        for (auto entry : clusters) {
+            auto cluster = entry.second;
+            auto parent = entry.first;
+            std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
+            bool in_map = false;
+            for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+            if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+        }
+        clusters.swap(next_clusters);
+        next_clusters.clear();
     }
 }

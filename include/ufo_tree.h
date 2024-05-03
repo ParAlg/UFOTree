@@ -34,6 +34,7 @@ public:
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
+    void print_tree();
 private:
     // Class data and parameters
     parlay::sequence<UFOCluster<aug_t>> leaves;
@@ -131,7 +132,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                     entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
                 delete prev_u;
                 root_clusters[level].erase(prev_u);
-            } else if (prev_u->get_degree() == 1) {
+            } else if (prev_u->get_degree() <= 1) {
                 prev_u->parent = nullptr;
                 root_clusters[level].insert(prev_u);
             }
@@ -158,7 +159,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                     entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
                 delete prev_v;
                 root_clusters[level].erase(prev_v);
-            } else if (prev_v->get_degree() == 1) {
+            } else if (prev_v->get_degree() <= 1) {
                 prev_v->parent = nullptr;
                 root_clusters[level].insert(prev_v);
             }
@@ -225,7 +226,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                     entry.first->remove_neighbor(prev); // Remove prev from adjacency
                 delete prev;
                 root_clusters[level].erase(prev);
-            } else if (prev->get_degree() == 1) {
+            } else if (prev->get_degree() <= 1) {
                 prev->parent = nullptr;
                 root_clusters[level].insert(prev);
             }
@@ -235,7 +236,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                         entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
                     delete prev_v;
                     root_clusters[level].erase(prev_v);
-                } else if (prev_v->get_degree() == 1) {
+                } else if (prev_v->get_degree() <= 1) {
                     prev_v->parent = nullptr;
                     root_clusters[level].insert(prev_v);
                 }
@@ -307,15 +308,13 @@ void UFOTree<aug_t>::recluster_tree() {
                         }
                     }
                 }
-                if (cluster->parent->get_degree() == 1) {
+                if (cluster->parent->get_degree() == 1 || cluster->parent->get_degree() == 2) {
                     auto prev = cluster->parent;
                     auto curr = cluster->parent->parent;
-                    auto sibling = prev->neighbors.begin()->first;
-                    bool del = (prev->parent && prev->parent != sibling->parent);
+                    bool del = (prev->parent && !prev->contracts());
                     while (del) {
-                        sibling = curr->neighbors.begin()->first;
-                        del = (curr->parent && curr->parent != sibling->parent);
-                        sibling->remove_neighbor(curr);
+                        del = (curr->parent && !curr->contracts());
+                        for (auto entry : curr->neighbors) entry.first->remove_neighbor(curr);
                         delete curr;
                         prev = curr;
                         curr = prev->parent;
@@ -350,6 +349,19 @@ void UFOTree<aug_t>::recluster_tree() {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
+                        auto prev = cluster->parent;
+                        auto curr = cluster->parent->parent;
+                        bool del = (prev->parent && !prev->contracts());
+                        if (!del) break;
+                        while (del) {
+                            del = (curr->parent && !curr->contracts());
+                            for (auto entry : curr->neighbors) entry.first->remove_neighbor(curr);
+                            delete curr;
+                            prev = curr;
+                            curr = prev->parent;
+                        }
+                        cluster->parent->parent = nullptr;
+                        root_clusters[level+1].insert(cluster->parent);
                         break;
                     }
                 }
