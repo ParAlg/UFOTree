@@ -45,7 +45,7 @@ private:
     parlay::sequence<std::unordered_set<UFOCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
     // Helper functions
-    void remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, bool deletion);
+    void remove_ancestors(UFOCluster<aug_t>* c);
     void recluster_tree();
     void disconnect_siblings(UFOCluster<aug_t>* c, int level);
     void insert_adjacency(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, aug_t value);
@@ -67,7 +67,8 @@ template<typename aug_t>
 void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    remove_ancestors(&leaves[u], &leaves[v], false);
+    remove_ancestors(&leaves[u]);
+    remove_ancestors(&leaves[v]);
     insert_adjacency(&leaves[u], &leaves[v], value);
     recluster_tree();
 }
@@ -77,7 +78,8 @@ template<typename aug_t>
 void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
-    remove_ancestors(&leaves[u], &leaves[v], true);
+    remove_ancestors(&leaves[u]);
+    remove_ancestors(&leaves[v]);
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
 }
@@ -89,115 +91,16 @@ bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
     return leaves[u].get_root() == leaves[v].get_root();
 }
 
+/* Removes the ancestors of cluster c that are not high degree nor
+high fan-out and add them to root_clusters. */
 template<typename aug_t>
-void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, bool deletion) {
-    std::unordered_set<UFOCluster<aug_t>*> decr_deg;
-    if (deletion) {
-        auto cur_u = u;
-        auto cur_v = v;
-        while (cur_u && cur_v && cur_u != cur_v) {
-            decr_deg.insert(cur_u);
-            decr_deg.insert(cur_v);
-            cur_u = cur_u->parent;
-            cur_v = cur_v->parent;
-        }
-    }
+void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c) {
     int level = 0;
-    auto prev_u = u;
-    auto prev_v = v;
-    auto curr_u = u->parent;
-    auto curr_v = v->parent;
-    bool del_u = false;
-    bool del_v = false;
-    while (curr_u && curr_v) {
-        if (curr_u == curr_v) break;
-        // U
-        vertex_t deg_threshold = (decr_deg.find(curr_u) == decr_deg.end()) ? 2 : 3;
-        bool high_deg = curr_u->get_degree() > deg_threshold;
-        if (!high_deg && !prev_u->parent_high_fanout()) { // We will delete curr_u next round
-            disconnect_siblings(prev_u, level);
-            if (del_u) { // Possibly delete prev_u
-                for (auto entry : prev_u->neighbors)
-                    entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
-                delete prev_u;
-                root_clusters[level].erase(prev_u);
-            } else {
-                prev_u->parent = nullptr;
-                root_clusters[level].insert(prev_u);
-            }
-            del_u = true;
-        } else { // We will not delete curr_u next round
-            if (del_u) { // Possibly delete prev_u
-                for (auto entry : prev_u->neighbors)
-                    entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
-                delete prev_u;
-                root_clusters[level].erase(prev_u);
-            } else if (prev_u->get_degree() <= 1) {
-                prev_u->parent = nullptr;
-                root_clusters[level].insert(prev_u);
-            }
-            del_u = false;
-        }
-        // V
-        deg_threshold = (decr_deg.find(curr_v) == decr_deg.end()) ? 2 : 3;
-        high_deg = curr_v->get_degree() > deg_threshold;
-        if (!high_deg && !prev_v->parent_high_fanout()) { // We will delete curr_v next round
-            disconnect_siblings(prev_v, level);
-            if (del_v) { // Possibly delete prev_v
-                for (auto entry : prev_v->neighbors)
-                    entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-                delete prev_v;
-                root_clusters[level].erase(prev_v);
-            } else {
-                prev_v->parent = nullptr;
-                root_clusters[level].insert(prev_v);
-            }
-            del_v = true;
-        } else { // We will not delete curr_v next round
-            if (del_v) { // Possibly delete prev_v
-                for (auto entry : prev_v->neighbors)
-                    entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-                delete prev_v;
-                root_clusters[level].erase(prev_v);
-            } else if (prev_v->get_degree() <= 1) {
-                prev_v->parent = nullptr;
-                root_clusters[level].insert(prev_v);
-            }
-            del_v = false;
-        }
-        // Update pointers
-        prev_u = curr_u;
-        curr_u = prev_u->parent;
-        prev_v = curr_v;
-        curr_v = prev_v->parent;
-        level++;
-    }
-    // DO LAST DELETIONS
-    if (!curr_u) {
-        if (del_u) { // Possibly delete prev_u
-            for (auto entry : prev_u->neighbors)
-                entry.first->remove_neighbor(prev_u); // Remove prev from adjacency
-            delete prev_u;
-            root_clusters[level].erase(prev_u);
-        } else root_clusters[level].insert(prev_u);
-    }
-    if (!curr_v) {
-        if (del_v) { // Possibly delete prev_v
-            for (auto entry : prev_v->neighbors)
-                entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-            delete prev_v;
-            root_clusters[level].erase(prev_v);
-        } else root_clusters[level].insert(prev_v);
-    }
-    if (!curr_u && !curr_v) return;
-    // LOOP FOR REMAINING ONE PATH
-    auto curr = curr_u ? curr_u : curr_v;
-    auto prev = curr_u ? prev_u : prev_v;
-    bool del = curr_u ? del_u : del_v;
+    auto prev = c;
+    auto curr = c->parent;
+    bool del = false;
     while (curr) {
-        vertex_t deg_threshold = (decr_deg.find(curr) == decr_deg.end()) ? 2 : 3;
-        bool high_deg = curr->get_degree() > deg_threshold;
-        if (!high_deg && !prev->parent_high_fanout()) { // We will delete curr next round
+        if (!curr->high_degree() && !prev->parent_high_fanout()) { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
@@ -207,17 +110,6 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
             } else {
                 prev->parent = nullptr;
                 root_clusters[level].insert(prev);
-            }
-            if (curr == curr_u && curr == curr_v) { // Need to do on last deletion on both sides
-                if (del_v) { // Possibly delete prev
-                    for (auto entry : prev_v->neighbors)
-                        entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-                    delete prev_v;
-                    root_clusters[level].erase(prev_v);
-                } else {
-                    prev_v->parent = nullptr;
-                    root_clusters[level].insert(prev_v);
-                }
             }
             del = true;
         } else { // We will not delete curr next round
@@ -230,30 +122,22 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
                 prev->parent = nullptr;
                 root_clusters[level].insert(prev);
             }
-            if (curr == curr_u && curr == curr_v) { // Need to do on last deletion on both sides
-                if (del_v) { // Possibly delete prev
-                    for (auto entry : prev_v->neighbors)
-                        entry.first->remove_neighbor(prev_v); // Remove prev from adjacency
-                    delete prev_v;
-                    root_clusters[level].erase(prev_v);
-                } else if (prev_v->get_degree() <= 1) {
-                    prev_v->parent = nullptr;
-                    root_clusters[level].insert(prev_v);
-                }
-            }
             del = false;
         }
+        // Update pointers
         prev = curr;
         curr = prev->parent;
         level++;
     }
-    // DO LAST DELETION
-    if (del) { // Possibly delete prev
-        for (auto entry : prev->neighbors)
-            entry.first->remove_neighbor(prev); // Remove prev from adjacency
-        delete prev;
-        root_clusters[level].erase(prev);
-    } else root_clusters[level].insert(prev);
+    // DO LAST DELETIONS
+    if (!curr) {
+        if (del) { // Possibly delete prev
+            for (auto entry : prev->neighbors)
+                entry.first->remove_neighbor(prev); // Remove prev from adjacency
+            delete prev;
+            root_clusters[level].erase(prev);
+        } else root_clusters[level].insert(prev);
+    }
 }
 
 template<typename aug_t>
