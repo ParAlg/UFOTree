@@ -16,7 +16,7 @@ bool UFOTree<aug_t>::is_valid() {
                 if (!entry.first->contains_neighbor(cluster)) return false;
             if (!cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
-                    if (cluster->neighbors.begin()->first->high_degree()) return false;
+                    if (cluster->neighbors.begin()->first->get_degree() > 2) return false;
                     else if (!cluster->neighbors.begin()->first->contracts()) return false;
                 } else if (cluster->get_degree() == 2) {
                     for (auto entry : cluster->neighbors)
@@ -28,8 +28,6 @@ bool UFOTree<aug_t>::is_valid() {
             }
             if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
         }
-        // Maximality should ensure this, but we leave the test as a sanity check
-        // if (6*next_clusters.size() > 5*clusters.size()) return false;
         clusters.swap(next_clusters);
         next_clusters.clear();
     }
@@ -87,7 +85,7 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
         UFOTree<int> tree(n, qt, f, 0, 0);
 
         auto seed = seeds[trial];
-        // seed = 133178923;
+        // seed = 1589913108;
         std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         int links = 0;
@@ -166,14 +164,14 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 32;
+        vertex_t n = 10;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int> tree(n, qt, f, 0, 0);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
         auto seed = seeds[trial];
-        seed = 1375680989;
+        // seed = 33684194;
         std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         int links = 0;

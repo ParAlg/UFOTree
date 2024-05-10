@@ -44,6 +44,7 @@ private:
     aug_t default_value;
     parlay::sequence<std::unordered_set<UFOCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
+    std::unordered_map<UFOCluster<aug_t>*,int> changed_deg;
     // Helper functions
     void remove_ancestors(UFOCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
@@ -78,8 +79,17 @@ template<typename aug_t>
 void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
+    auto curr_u = &leaves[u];
+    auto curr_v = &leaves[v];
+    while (curr_u != curr_v) {
+        changed_deg[curr_u] = curr_u->get_degree()-1;
+        changed_deg[curr_v] = curr_v->get_degree()-1;
+        curr_u = curr_u->parent;
+        curr_v = curr_v->parent;
+    }
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
+    changed_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
 }
@@ -100,7 +110,8 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
     auto curr = c->parent;
     bool del = false;
     while (curr) {
-        if (!curr->high_degree() && !prev->parent_high_fanout()) { // We will delete curr next round
+        bool high_degree = (changed_deg.find(curr) == changed_deg.end()) ? (curr->get_degree() > 2) : (changed_deg[curr] > 2);
+        if (!high_degree && !prev->parent_high_fanout()) { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
@@ -333,11 +344,6 @@ void UFOTree<aug_t>::remove_adjacency(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v
 template<typename aug_t>
 int UFOCluster<aug_t>::get_degree() {
     return neighbors.size();
-}
-
-template<typename aug_t>
-bool UFOCluster<aug_t>::high_degree() {
-    return (neighbors.size() > 2);
 }
 
 template<typename aug_t>
