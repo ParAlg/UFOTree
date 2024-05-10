@@ -45,7 +45,7 @@ private:
     parlay::sequence<std::unordered_set<UFOCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
     // Helper functions
-    void remove_ancestors(UFOCluster<aug_t>* c);
+    void remove_ancestors(UFOCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
     void disconnect_siblings(UFOCluster<aug_t>* c, int level);
     void insert_adjacency(UFOCluster<aug_t>* u, UFOCluster<aug_t>* v, aug_t value);
@@ -94,8 +94,8 @@ bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
 /* Removes the ancestors of cluster c that are not high degree nor
 high fan-out and add them to root_clusters. */
 template<typename aug_t>
-void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c) {
-    int level = 0;
+void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
+    int level = start_level;
     auto prev = c;
     auto curr = c->parent;
     bool del = false;
@@ -130,14 +130,12 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c) {
         level++;
     }
     // DO LAST DELETIONS
-    if (!curr) {
-        if (del) { // Possibly delete prev
-            for (auto entry : prev->neighbors)
-                entry.first->remove_neighbor(prev); // Remove prev from adjacency
-            delete prev;
-            root_clusters[level].erase(prev);
-        } else root_clusters[level].insert(prev);
-    }
+    if (del) { // Possibly delete prev
+        for (auto entry : prev->neighbors)
+            entry.first->remove_neighbor(prev); // Remove prev from adjacency
+        delete prev;
+        root_clusters[level].erase(prev);
+    } else root_clusters[level].insert(prev);
 }
 
 template<typename aug_t>
@@ -233,19 +231,7 @@ void UFOTree<aug_t>::recluster_tree() {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
-                        auto prev = cluster->parent;
-                        auto curr = cluster->parent->parent;
-                        bool del = (prev->parent && !prev->contracts());
-                        if (!del) break;
-                        while (del) {
-                            del = (curr->parent && !curr->contracts());
-                            for (auto entry : curr->neighbors) entry.first->remove_neighbor(curr);
-                            delete curr;
-                            prev = curr;
-                            curr = prev->parent;
-                        }
-                        cluster->parent->parent = nullptr;
-                        root_clusters[level+1].insert(cluster->parent);
+                        remove_ancestors(cluster->parent, level+1);
                         break;
                     }
                 }
@@ -357,12 +343,8 @@ bool UFOCluster<aug_t>::high_degree() {
 template<typename aug_t>
 bool UFOCluster<aug_t>::parent_high_fanout() {
     assert(parent);
-    // if (neighbors.size() == 1)
-    //     if (neighbors.begin()->first->get_degree() - parent->get_degree() > 1) return true;
-    // else if (this->get_degree() - parent->get_degree() > 1) return true;
-    // return false;
-
     if (get_degree() == 1) {
+        if (neighbors.begin()->first->parent == parent)
         if (neighbors.begin()->first->get_degree() - parent->get_degree() > 2) return true;
     } else {
         if (get_degree() - parent->get_degree() > 2) return true;
