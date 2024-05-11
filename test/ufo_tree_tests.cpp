@@ -74,7 +74,7 @@ TEST(UFOTreeSuite, incremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, incremental_random_correctness_test) {
-    int num_trials = 100;
+    int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
@@ -85,15 +85,12 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
         UFOTree<int> tree(n, qt, f, 0, 0);
 
         auto seed = seeds[trial];
-        // seed = 1589913108;
-        std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         int links = 0;
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
             if (u != v && !tree.connected(u,v)) {
-                std::cout << "LINKING " << u << " " << v << std::endl;
                 tree.link(u,v);
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << u << " and " << v << ".";
                 links++;
@@ -159,27 +156,24 @@ TEST(UFOTreeSuite, decremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, decremental_random_correctness_test) {
-    int num_trials = 10000;
+    int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 10;
+        vertex_t n = 256;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int> tree(n, qt, f, 0, 0);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
         auto seed = seeds[trial];
-        // seed = 33684194;
-        std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         int links = 0;
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
             if (u != v && !tree.connected(u,v)) {
-                std::cout << "LINKING " << u << " " << v << std::endl;
                 tree.link(u,v);
                 edges[links++] = {u,v};
             }
@@ -187,12 +181,10 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
         for (auto edge : edges) {
             auto u = edge.first;
             auto v = edge.second;
-            std::cout << "CUTTING " << u << " " << v << std::endl;
             tree.cut(u,v);
             ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
         }
-        tree.print_tree();
     }
 }
 

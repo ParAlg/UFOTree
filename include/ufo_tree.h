@@ -290,8 +290,8 @@ void UFOTree<aug_t>::recluster_tree() {
                 if (c1->get_degree() == 2) { // We ordered contractions so c2 is the one that had a parent already
                     for (auto entry : c1->neighbors) if (entry.first != c2)
                         insert_adjacency(parent, entry.first->parent, entry.second);
-                    remove_ancestors(parent, level+1);
                 }
+                remove_ancestors(parent, level+1);
             }
         }
         // Clear the contents of this level
