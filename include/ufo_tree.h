@@ -110,8 +110,15 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
     auto curr = c->parent;
     bool del = false;
     while (curr) {
-        bool high_degree = (changed_deg.find(curr) == changed_deg.end()) ? (curr->get_degree() > 2) : (changed_deg[curr] > 2);
-        if (!high_degree && !prev->parent_high_fanout()) { // We will delete curr next round
+        int degree = (changed_deg.find(curr) == changed_deg.end()) ? curr->get_degree() : changed_deg[curr];
+        int prev_degree = (changed_deg.find(prev) == changed_deg.end()) ? prev->get_degree() : changed_deg[prev];
+        bool high_degree = (degree > 2);
+        bool high_fanout = false;
+        if (prev->get_degree() == 1) {
+            if (prev->neighbors.begin()->first->parent == curr)
+            if (prev->neighbors.begin()->first->get_degree() - curr->get_degree() > 2) high_fanout = true;
+        } else if (prev_degree - curr->get_degree() > 2) high_fanout = true;
+        if (!high_degree && !high_fanout) { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
@@ -208,9 +215,9 @@ void UFOTree<aug_t>::recluster_tree() {
                     while (del) {
                         del = (curr->parent && !curr->contracts());
                         for (auto entry : curr->neighbors) entry.first->remove_neighbor(curr);
-                        delete curr;
                         prev = curr;
                         curr = prev->parent;
+                        delete prev;
                     }
                     cluster->parent->parent = nullptr;
                     root_clusters[level+1].insert(cluster->parent);
@@ -242,7 +249,6 @@ void UFOTree<aug_t>::recluster_tree() {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
-                        remove_ancestors(cluster->parent, level+1);
                         break;
                     }
                 }
@@ -281,9 +287,11 @@ void UFOTree<aug_t>::recluster_tree() {
             } else {
                 if (c1->get_degree() == 1) parent->remove_neighbor(c1->parent);
                 if (c2->get_degree() == 1) parent->remove_neighbor(c2->parent);
-                if (c1->get_degree() == 2) // We ordered contractions so c2 is the one that had a parent already
+                if (c1->get_degree() == 2) { // We ordered contractions so c2 is the one that had a parent already
                     for (auto entry : c1->neighbors) if (entry.first != c2)
                         insert_adjacency(parent, entry.first->parent, entry.second);
+                    remove_ancestors(parent, level+1);
+                }
             }
         }
         // Clear the contents of this level
