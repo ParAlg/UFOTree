@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include <stdexcept>
 #include "../include/rc_tree.h"
 void create_tree1();
 void print_tree(RCTree<int> *tree, int round);
@@ -109,10 +110,20 @@ TEST(RCTreeSuite, test_MIS){
 */
 
 TEST(RCTreeSuite, testRakeLinkedList){
-  int llist_size = 1000;
+  int llist_size = 17;
   RCTree<int> tree(llist_size, 3);
   for(int i = 0; i < llist_size - 1; i++){
-    tree.link(i, i+1, i+1);
+    try {
+      tree.link(i, i+1, i+1);
+    } catch (std::invalid_argument){
+      std::cout << i;
+      print_tree(&tree, 0);
+      print_tree(&tree, 1);
+      print_tree(&tree, 2);
+      print_tree(&tree, 3);
+      print_tree(&tree, 4);
+      break;
+    }
   }
 }
 
@@ -125,16 +136,20 @@ TEST(RCTreeSuite, testTHETREE){
   tree.link(4,5,5);
   tree.link(4,7,6);
   tree.link(6,7,7);
+  tree.cut(6,7);
   tree.link(7,8,8);
   tree.link(8,9,9);
   tree.link(8,10,10);
   tree.link(10,11,11);
+}
 
-
-  print_tree(&tree, 0);
-  print_tree(&tree, 1);
-  print_tree(&tree, 2);
-  print_tree(&tree, 3);
-  print_tree(&tree, 4);
-  print_tree(&tree, 5);
+TEST(RCTreeSuite, testInsertCompleteBinaryTree){
+  int n = 7; // Set to a power of 2 for easier testing!
+  RCTree<int> tree(n, 3);
+  for(int i = 0; i < (n/2); i++){
+    tree.link(i, (2*i) + 1, i);
+    tree.link(i, (2*i) + 2, i);
+    print_tree(&tree, 0);
+    print_tree(&tree, 1);
+  }
 }
