@@ -110,11 +110,11 @@ TEST(RCTreeSuite, test_MIS){
 */
 
 TEST(RCTreeSuite, testRakeLinkedList){
-  int llist_size = 2;
+  int llist_size = 10000;
   RCTree<int> tree(llist_size, 3);
   for(int i = 0; i < llist_size - 1; i++){
     tree.link(i, i+1, i+1);
-  }
+  } 
 }
 
 TEST(RCTreeSuite, testTHETREE){
@@ -122,27 +122,29 @@ TEST(RCTreeSuite, testTHETREE){
   tree.link(0,1,1);
   tree.link(1,2,2);
   tree.link(1,3,3);
-  print_tree(&tree, 0);
-  print_tree(&tree, 1);
   tree.link(3,4,4);
   tree.link(4,5,5);
-  tree.link(4,7,6);
+  tree.link(4,7,6); 
   tree.link(6,7,7);
   tree.cut(6,7);
   tree.link(7,8,8);
   tree.link(8,9,9);
   tree.link(8,10,10);
   tree.link(10,11,11);
+
 }
 
 TEST(RCTreeSuite, testInsertCompleteBinaryTree){
-  int n = 7; // Set to a power of 2 for easier testing!
+  int n = 31; // Set to a power of 2 for easier testing
   RCTree<int> tree(n, 3);
-  for(int i = 0; i < (n/2); i++){
+  for(int i = 0; i < (n/2); i++){ 
     tree.link(i, (2*i) + 1, i);
+    if(i == 8){
+      print_tree(&tree, 0);
+      print_tree(&tree, 1);
+      print_tree(&tree, 2);
+      print_tree(&tree, 3);
+    }
     tree.link(i, (2*i) + 2, i);
-  } 
-  print_tree(&tree, 0);
-  print_tree(&tree, 1);
-  print_tree(&tree, 2);
+  }
 }
