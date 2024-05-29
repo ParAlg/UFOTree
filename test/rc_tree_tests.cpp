@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <stdexcept>
+#include <unordered_set>
 #include "../include/rc_tree.h"
 void create_tree1();
 void print_tree(RCTree<int> *tree, int round);
@@ -100,21 +101,134 @@ TEST(RCTreeSuite, test_helper_methods){
 }
 
 /*
-TEST(RCTreeSuite, test_spread_affection){
+ * 1) all contracting neighbors are affected, degree 1, degree 2, degree 3
+ * 2) Does not spread affection if all contracting are not affected
+ * */
+TEST(RCTreeSuite, test_spread_affection_contracting_affected){
+  
+  RCTree<int> tree(4, 3);
 
+  RCCluster<int> e1(9);
+  e1.boundary_vertexes = std::vector<int>({1,2});
+  RCCluster<int> e2(2);
+  e2.boundary_vertexes = std::vector<int>({1,3});
+  
+  //Degree 1
+  tree.round_contracted[1] = 0;
+  tree.round_contracted[2] = 1;
+  tree.round_contracted[3] = 1;
+  tree.add_neighbor(0, &e1, -1);
+  tree.add_neighbor(0, &e2, -1);
+  (tree.affected)->insert(1);
+  tree.spread_affection(0);
+   
+  std::unordered_set<int> actual_affected({1,2,3});
+  ASSERT_EQ(*(tree.affected), actual_affected);
+  
+  // Degree 2
+  RCTree<int> tree2(4,3);
+  tree2.add_neighbor(0, &e1, -1);
+  tree2.add_neighbor(0, &e2, -1);
+  (tree2.affected)->insert(2);
+  (tree2.affected)->insert(3);
+  tree2.round_contracted[2] = 0;
+  tree2.round_contracted[3] = 0;
+  tree2.round_contracted[1] = 1;
+  tree2.spread_affection(0);
+  std::unordered_set<int> actual_affected2({1,2,3});
+  ASSERT_EQ(*(tree2.affected), actual_affected2);
+
+  //Degree 3
+  RCTree<int> tree3(5, 3);
+  RCCluster<int> e3(2);
+  e3.boundary_vertexes = std::vector<int>({1,0});
+  tree3.add_neighbor(0, &e1, -1);
+  tree3.add_neighbor(0, &e2, -1);
+  tree3.add_neighbor(0, &e3, -1);
+  (tree3.affected)->insert(2);
+  (tree3.affected)->insert(3);
+  (tree3.affected)->insert(0);
+  tree3.round_contracted[0] = 0;
+  tree3.round_contracted[2] = 0;
+  tree3.round_contracted[3] = 0;
+  tree3.round_contracted[1] = 1;
+  tree3.spread_affection(0); 
+  std::unordered_set<int> actual_affected3({1,2,3,0});
+  ASSERT_EQ(*(tree3.affected), actual_affected3);
 }
 
+TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
+  // Test to make sure no vertices that are not supposed to be affected 
+  // are not getting affected.
+  RCTree<int> tree(5,3);
+ 
+  RCCluster<int> e1(9);
+  e1.boundary_vertexes = std::vector<int>({1,2});
+  RCCluster<int> e2(2);
+  e2.boundary_vertexes = std::vector<int>({1,3});
+  RCCluster<int> e3(3);
+  e3.boundary_vertexes = std::vector<int>({0,1});
+
+  //Degree 2
+  tree.round_contracted[1] = 0;
+  tree.round_contracted[2] = 1;
+  tree.round_contracted[3] = 0;
+  tree.add_neighbor(0, &e1, -1);
+  (tree.affected)->insert(2);
+  tree.spread_affection(0);
+  
+  std::unordered_set<int> actual_affected({2});
+  ASSERT_EQ(*(tree.affected), actual_affected);
+  
+  //Degree 3
+  tree.add_neighbor(0, &e2, -1);
+  tree.add_neighbor(0, &e3, -1);
+  tree.spread_affection(0);
+
+  actual_affected.insert(3);
+  tree.affected->insert(3);
+  ASSERT_EQ(*(tree.affected), actual_affected);
+}
+
+/*
+ * 1) No vertex already involved in a contraction gets selected
+ * 2) Degree 3 vertices do not get selected
+ * 3) Set is always maximal i.e. vertices that should've been selected are always selected
+ * 4) Test the valid MIS function always returns a valid MIS
+ */
 TEST(RCTreeSuite, test_MIS){
-
+  RCTree<int> linked_list(7, 3);
+  
+  RCCluster<int> e1(7);
+  RCCluster<int> e2(6);
+  RCCluster<int> e3(5);
+  RCCluster<int> e4(4);
+  RCCluster<int> e5(3);
+  RCCluster<int> e6(2);
+  
 }
-*/
 
+bool validTree(RCTree<int>* tree){
+  auto t = *tree; 
+  return true;
+}
 TEST(RCTreeSuite, testRakeLinkedList){
-  int llist_size = 10000;
-  RCTree<int> tree(llist_size, 3);
-  for(int i = 0; i < llist_size - 1; i++){
-    tree.link(i, i+1, i+1);
-  } 
+  std::unordered_set<int> to_test({1, 10, 100, 1000, 10000});
+  
+  for(auto llist_size : to_test){
+    RCTree<int> tree(llist_size, 3);
+    for(int i = 0; i < llist_size - 1; i++){
+      try{
+        tree.link(i , i + 1, i + 1);
+      } catch(std::invalid_argument){
+        auto height = tree.round_contracted[tree.root];
+        for(int j = 0; j < height; j++){
+          print_tree(&tree, j);
+        }
+        FAIL();
+      }
+    }
+  }
 }
 
 TEST(RCTreeSuite, testTHETREE){
@@ -135,16 +249,12 @@ TEST(RCTreeSuite, testTHETREE){
 }
 
 TEST(RCTreeSuite, testInsertCompleteBinaryTree){
-  int n = 31; // Set to a power of 2 for easier testing
-  RCTree<int> tree(n, 3);
-  for(int i = 0; i < (n/2); i++){ 
-    tree.link(i, (2*i) + 1, i);
-    if(i == 8){
-      print_tree(&tree, 0);
-      print_tree(&tree, 1);
-      print_tree(&tree, 2);
-      print_tree(&tree, 3);
+  std::unordered_set<int> to_test({1, 3, 31, 1023, 8191});
+  for(auto n : to_test){
+    RCTree<int> tree(n, 3);
+    for(int i = 0; i < (n/2); i++){ 
+      tree.link(i, (2*i) + 1, i);
+      tree.link(i, (2*i) + 2, i);
     }
-    tree.link(i, (2*i) + 2, i);
   }
 }

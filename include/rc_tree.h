@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
@@ -5,6 +6,7 @@
 #include <iterator>
 #include <parlay/sequence.h>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <unordered_set>
 #include<vector>
@@ -77,6 +79,7 @@ public:
   void finalize(vertex_t v, int round);
   void mark_for_deletion(RCCluster<aug_t>* start);
   void clear_deleted_clusters(int vertex, int round);
+  void is_valid_induced_tree(int round);
   RCTree(int n, int degree_bound);
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   void link(int u, int v, int weight);
@@ -130,7 +133,6 @@ bool RCTree<aug_t>::contracts(vertex_t v, int round, bool version) {
 template<typename aug_t>
 void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t contracted_v){
   for(vertex_t boundary_v : cluster->boundary_vertexes){
-    if(boundary_v == contracted_v) continue;
     auto adjacencies = contraction_tree[boundary_v][round]; //Get adjacency list of a boundary vertex of the cluster at a round.
     auto vertex_added = false;
 
@@ -183,39 +185,111 @@ void RCTree<aug_t>::is_valid_MIS(std::unordered_set<int> maximal_set, int round)
   //affected set and checking to see if atleast one neighbor of every vertex is in
   //the maximal independent set.
   for(auto vertex : *affected){
-    if(contraction_tree[vertex][round] != nullptr){ 
-      bool neighbor_in_max = false;
-      for(int i = 0; i < degree_bound; i++){
-        if(contraction_tree[vertex][round][i] != nullptr && 
-          contraction_tree[vertex][round][i]->boundary_vertexes.size() == 2){
-          auto dereferenced_cluster = *contraction_tree[vertex][round][i];
-          int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
-          if(maximal_set.count(vertex) == 0 && 
-            ((contracts(neighbor, round, 0)  && affected->count(neighbor) == 0)|| 
-            maximal_set.count(neighbor) == 1)){
-            neighbor_in_max = true; // If either the vertex is next to an contracting unaffected neighbor or 
-            // neighbor included in the MIS then increment count as this vertex is valid.
-          }
+    if(contraction_tree[vertex][round] == nullptr){
+      throw std::invalid_argument("Vertex " + std::to_string(vertex) + 
+                                  " did not live at round " + std::to_string(round));
+    }
+    bool neighbor_in_max = false;
+    for(int i = 0; i < degree_bound; i++){
+      if(contraction_tree[vertex][round][i] != nullptr && 
+        contraction_tree[vertex][round][i]->boundary_vertexes.size() == 2){
+        auto dereferenced_cluster = *contraction_tree[vertex][round][i];
+        int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
+        if(maximal_set.count(vertex) == 0 && 
+          ((contracts(neighbor, round, 0)  && affected->count(neighbor) == 0)|| 
+          maximal_set.count(neighbor) == 1)){
+          neighbor_in_max = true; // If either the vertex is next to an contracting unaffected neighbor or 
+          // neighbor included in the MIS then increment count as this vertex is valid.
+        }
 
-          // If 2 adjacent neighbors have been added then also throw an exception.
-          // as the set is not independent.
-          if(maximal_set.count(vertex) == 1 && 
-            maximal_set.count(neighbor) != 0){
-            throw std::invalid_argument("2 adjacent vertices have been added to the MIS");
-          }
+        // If 2 adjacent neighbors have been added then also throw an exception.
+        // as the set is not independent.
+        if(maximal_set.count(vertex) == 1 && 
+          maximal_set.count(neighbor) != 0){
+          throw std::invalid_argument("2 adjacent vertices have been added to the MIS");
         }
       }
+    }
 
-      //If no neighbors are in the maximal set then this vertex should have been
-      //in the maximal set. Thus the MIS is invalid
-      if(maximal_set.count(vertex) == 0 && get_degree(vertex, round) < 3 &&
-          !neighbor_in_max){
-        throw std::invalid_argument("The set is not maximal :-(");
-      }
-    }  
+    //If no neighbors are in the maximal set then this vertex should have been
+    //in the maximal set. Thus the MIS is invalid
+    if(maximal_set.count(vertex) == 0 && get_degree(vertex, round) < 3 &&
+      !neighbor_in_max){
+      throw std::invalid_argument("The set is not maximal");
+    }
   }
 }
 
+template <typename aug_t>
+void RCTree<aug_t>::is_valid_induced_tree(int round){
+  // Same edge has not been added twice for each vertex.
+  // Cluster has adjacency list its in as a boundary vertex, validating clusters.
+  // Comes from something at the previous level
+  // Edges are bidirectional.
+
+  for(int v = 0; v < n; v++){
+    if(contraction_tree[v].size() >= round + 1){
+      auto adjacencies = contraction_tree[v][round];
+      for(int j = 0; j < degree_bound; j++){
+        if(adjacencies[j] == nullptr) continue;
+        auto deref_cluster = *adjacencies[j];
+        auto boundaries = deref_cluster.boundary_vertexes;
+        if(boundaries.size() == 1){
+          if(boundaries[0] != v){
+            throw std::invalid_argument("Unary cluster does not have correct boundary_v");
+          }
+        } else {
+          if(boundaries[0] != v && boundaries[1] != v) 
+            throw std::invalid_argument("Binary cluster does not have correct verts as boundary_vertexes");
+
+          auto neighbor = GET_NEIGHBOR(v, deref_cluster);
+          if(contraction_tree[neighbor].size() <= round) 
+            throw std::invalid_argument("Neighbor did not live long enough.");
+
+          bool contains_cluster = false;
+          for(int i = 0; i < degree_bound; i++){
+            if(contraction_tree[neighbor][round][i] == adjacencies[j]){
+              contains_cluster = true; 
+              break;
+            }
+          }
+          if(!contains_cluster){
+            throw std::invalid_argument("Unidirectional edge found");
+          }
+        }
+
+        for(int i = 0; i < degree_bound; i++){
+          if(i == j) continue;
+          if(adjacencies[i] == adjacencies[j]){
+            throw std::invalid_argument("Same cluster has been added twice");
+          }
+        }
+        
+        if(round > 0){
+          bool in_prev_round = false;
+          for(int i = 0; i < degree_bound; i++){
+            if(contraction_tree[v][round - 1][i] == adjacencies[j]){
+              in_prev_round = true;
+              break;
+            }
+
+            if(contraction_tree[v][round - 1][i] != nullptr){
+              auto neighbor_boundaries = contraction_tree[v][round - 1][i]->boundary_vertexes;
+              if(std::find(neighbor_boundaries.begin(), neighbor_boundaries.end(), deref_cluster.rep_vertex)
+                != neighbor_boundaries.end()){
+                in_prev_round = true;
+                break;
+              }
+            }
+          }
+          if(!in_prev_round){
+            throw std::invalid_argument("Cluster comes from something that should not exist.");
+          }
+        }
+      }
+    }
+  }
+}
 template<typename aug_t>
 void RCTree<aug_t>::mark_for_deletion(RCCluster<aug_t>* start){
   auto curr = start;
@@ -284,7 +358,7 @@ std::unordered_set<int>* RCTree<aug_t>::MIS(int round){
   //pick a random vertex
   //Include vertex in MIS
   //Delete Neighbors
-  //Return
+  //Recurse
 
   std::unordered_set<int>* maximal_set = new std::unordered_set<int>(*affected);
   for(auto random_vertex : *affected){
@@ -446,7 +520,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
 template<typename aug_t>
 void RCTree<aug_t>::compress(vertex_t vertex, int round){
   auto neighbors = contraction_tree[vertex][round];
-  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(0); //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
+  RCCluster<aug_t>* new_cluster = new RCCluster<aug_t>(0); //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
 
   // Exactly the same as rake, but instead of a unary cluster being added to the list of 1 boundary vertex, it is a now 
   // a new binary cluster being added to the adjacency lists of both of its boundary_vertexes.
@@ -530,9 +604,15 @@ void RCTree<aug_t>::update() {
 
   while(!affected->empty()){
 
+    is_valid_induced_tree(round);
     spread_affection(round);
     std::unordered_set<int> *maximal_set = MIS(round);
     is_valid_MIS(*maximal_set, round);
+    
+    for(auto vertex: *affected){
+      to_delete->insert(representative_clusters[vertex]);
+    }
+
     //Insert new neighbor list for next round for each affected vertex if it does not already
     //have a list inserted into the sequence to allow for insertions in its next round, as these are presently
     //the only ones that need to be updated
@@ -541,20 +621,8 @@ void RCTree<aug_t>::update() {
         contraction_tree[vertex].push_back(new RCCluster<aug_t>*[degree_bound]{nullptr});
       }
 
-      for(int i = 0; i < degree_bound; i++){ 
-        contraction_tree[vertex][round + 1][i] = contraction_tree[vertex][round][i];
-        if(contraction_tree[vertex][round][i] != nullptr &&
-          contraction_tree[vertex][round][i]->boundary_vertexes.size() == 2){
-          auto dereferenced_cluster = *contraction_tree[vertex][round][i];
-          auto neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
-          if(contracts(neighbor, round, 1)){
-            contraction_tree[vertex][round + 1][i] = representative_clusters[neighbor];
-          }
-        }
-      }
-
-      clear_deleted_clusters(vertex, round + 1);
       for(int i = 0; i < degree_bound; i++){
+        contraction_tree[vertex][round + 1][i] = nullptr;
         auto cluster = contraction_tree[vertex][round][i];
         if(cluster != nullptr && cluster->boundary_vertexes.size() == 2){
           auto dereferenced_cluster = *cluster;
@@ -593,14 +661,42 @@ void RCTree<aug_t>::update() {
     for(auto vertex : uncontracting){
       for(int i = 0; i < degree_bound; i++){
         auto cluster = contraction_tree[vertex][round][i];
-        if(cluster != nullptr && cluster->boundary_vertexes.size() == 2) {
+
+        if(cluster == nullptr) continue; 
+
+        if(cluster->boundary_vertexes.size() == 1) {
+          add_neighbor(round + 1, cluster, vertex);
+        }
+
+        if(cluster->boundary_vertexes.size() == 2) {
           auto dereferenced_cluster = *cluster;
           auto neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
-          if(contracts(neighbor, round, 1)) continue;
-          add_neighbor(round + 1, cluster, vertex);
-          
-          if(contracts(vertex, round, 0)){
-            affected->insert(neighbor);
+          // If unaffected neighbor
+          if(!affected->count(neighbor) && !maximal_set->count(neighbor)){
+            if(contracts(neighbor, round ,1)){
+              for(int i = 0; i < degree_bound; i++){
+                if(contraction_tree[vertex][round + 1][i] == nullptr){
+                  contraction_tree[vertex][round + 1][i] = representative_clusters[neighbor];
+                  break;
+                }
+              }
+            } else {
+              add_neighbor(round + 1, cluster, vertex);
+              if(contracts(vertex, round, 0)){
+                affected->insert(neighbor);
+              }
+            }
+          } else if (affected->count(neighbor) == 1){
+            bool already_added = false;
+            for(int i = 0; i < degree_bound; i++){
+              if(contraction_tree[neighbor][round + 1][i] == cluster){
+                already_added = true;
+                break;
+              }
+            }
+            if(!already_added){
+              add_neighbor(round + 1, cluster, vertex); 
+            }
           }
         }
       }
