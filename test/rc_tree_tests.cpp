@@ -208,13 +208,22 @@ TEST(RCTreeSuite, test_MIS){
   
 }
 
-bool validTree(RCTree<int>* tree){
-  auto t = *tree; 
-  return true;
+TEST(RCTreeSuite, testBadCaseStarGraph){
+  RCTree<int> tree(20,3);
+  tree.link(0,1,1);
+  tree.link(0,6,6);
+  tree.link(0,11,11);
+  for(int i = 1; i <= 4; i++){
+    tree.link(1 + (i - 1), 1 + i, i);
+    tree.link(6 + (i - 1), 6 + i, 6 + i);
+    tree.link(11 + (i - 1), 11 + (i), 11 + i);
+  }
+
+  tree.cut(1,2);
 }
-TEST(RCTreeSuite, testRakeLinkedList){
-  std::unordered_set<int> to_test({1, 10, 100, 1000, 10000});
-  
+
+TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
+  std::unordered_set<int> to_test({2, 10, 100, 1000, 10000});
   for(auto llist_size : to_test){
     RCTree<int> tree(llist_size, 3);
     for(int i = 0; i < llist_size - 1; i++){
@@ -227,6 +236,11 @@ TEST(RCTreeSuite, testRakeLinkedList){
         }
         FAIL();
       }
+    }
+    
+    ASSERT_EQ(tree.representative_clusters[tree.root]->aug_val, (llist_size * (llist_size - 1))/2);
+    for(int i = 0; i < llist_size - 1; i++){
+      tree.cut(i , i + 1);
     }
   }
 }
@@ -248,7 +262,7 @@ TEST(RCTreeSuite, testTHETREE){
 
 }
 
-TEST(RCTreeSuite, testInsertCompleteBinaryTree){
+TEST(RCTreeSuite, testInsertDeleteCompleteBinaryTree){
   std::unordered_set<int> to_test({1, 3, 31, 1023, 8191});
   for(auto n : to_test){
     RCTree<int> tree(n, 3);
@@ -256,5 +270,51 @@ TEST(RCTreeSuite, testInsertCompleteBinaryTree){
       tree.link(i, (2*i) + 1, i);
       tree.link(i, (2*i) + 2, i);
     }
+
+    for(int i = 0; i < (n/2); i++){
+      tree.cut(i, (2*i) + 1);
+      tree.cut(i, (2*i) + 2);
+    }
   }
 }
+
+TEST(RCTreeSuite, randomDecrementalTestBinaryTree){
+
+  int n = 1023; 
+  RCTree<int> tree(n, 3);
+  for(int i = 0; i < (n/2); i++){ 
+    tree.link(i, (2*i) + 1, i);
+    tree.link(i, (2*i) + 2, i);
+  }  
+  
+  for(int i = 0; i < 1023; i++){
+    int u = std::rand() % 1023;
+    if(tree.edge_exists(u, (2*u) + 1)) tree.cut(u, (2*u)+1);
+    
+    if(tree.edge_exists(u, (2*u) + 2)) tree.cut(u, (2*u) + 2);
+  }
+}
+
+TEST(RCTreeSuite, randomIncrementalTestBinaryTree){
+  int n = 1024;
+  RCTree<int> tree(n, 3);
+  for(int i = 0; i < 10000; i++){
+    int u = std::rand() % n;
+    int v = std::rand() % n;
+
+    if(!tree.connected(u, v) && tree.get_degree(u, 0) < 3 && tree.get_degree(v, 0) < 3) tree.link(u, v, u);
+  }
+
+  for(int i = 0; i < 10000; i++){
+    int u = std::rand() % n;
+    for(int j = 0; j < 3; j++){
+      if(tree.is_edge(tree.contraction_tree[u][0][j])){
+        auto dereferenced_cluster = *tree.contraction_tree[u][0][j];
+        auto neighbor = GET_NEIGHBOR(u, dereferenced_cluster);
+        tree.cut(u, neighbor);
+      }
+    }
+  }
+}
+
+
