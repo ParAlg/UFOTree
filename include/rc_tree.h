@@ -659,7 +659,7 @@ void RCTree<aug_t>::update() {
   // a subtree on the original tree and recontract them accordingly. Then determine new
   // set of affected vertices from vertices that contracted and did not contract and recurse.
 
-  // Spread affection and redo contractions till there are affected
+  // Spread affection and redo contractions till there are no affected
   // vertices.
 
   int round = 0;
