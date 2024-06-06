@@ -7,7 +7,7 @@
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::map<int, int> root_clusters_histogram;
 #endif
-// #define COLLECT_HEIGHT_STATS
+#define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
 #endif
@@ -43,7 +43,7 @@ public:
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
-    int get_height();
+    int get_height(vertex_t v);
     void print_tree();
 private:
     // Class data and parameters
@@ -95,6 +95,11 @@ void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     remove_ancestors(&leaves[v]);
     insert_adjacency(&leaves[u], &leaves[v], value);
     recluster_tree();
+    // Collect tree height stats at the end of each update
+    #ifdef COLLECT_HEIGHT_STATS
+        max_height = std::max(max_height, get_height(u));
+        max_height = std::max(max_height, get_height(v));
+    #endif
 }
 
 /* Cut vertex u and vertex v in the tree. */
@@ -115,6 +120,11 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     changed_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
+    // Collect tree height stats at the end of each update
+    #ifdef COLLECT_HEIGHT_STATS
+        max_height = std::max(max_height, get_height(u));
+        max_height = std::max(max_height, get_height(v));
+    #endif
 }
 
 /* Return true if and only if there is a path from vertex u to
@@ -328,10 +338,6 @@ void UFOTree<aug_t>::recluster_tree() {
         root_clusters[level].clear();
         contractions.clear();
     }
-    // Collect tree height stats at the end of each update
-    #ifdef COLLECT_HEIGHT_STATS
-        int max_height = std::max(max_height, get_height());
-    #endif
 }
 
 template<typename aug_t>
