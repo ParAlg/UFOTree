@@ -248,7 +248,7 @@ TEST(UFOTreeSuite, random_performance_test) {
 
         auto seed = seeds[trial];
         srand(seed);
-        std::cout << "Trial " << trial << ", Seed: " << seed << std::endl;
+        std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
         int links = 0;
         while (links < n-1) {
             vertex_t u = rand() % n;

@@ -79,7 +79,7 @@ UFOTree<aug_t>::~UFOTree() {
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
-            std::cout << entry.first << ":\t" << entry.second << std::endl;
+            std::cout << entry.first << "\t" << entry.second << std::endl;
     #endif
     #ifdef COLLECT_HEIGHT_STATS
         std::cout << "Maximum height of the tree: " << max_height << std::endl;
