@@ -4,6 +4,15 @@
 #include "types.h"
 #include "util.h"
 
+#define COLLECT_ROOT_CLUSTER_STATS
+#ifdef COLLECT_ROOT_CLUSTER_STATS
+    std::map<int, int> root_clusters_histogram;
+#endif
+#define COLLECT_HEIGHT_STATS
+#ifdef COLLECT_HEIGHT_STATS
+    int max_height = 0;
+#endif
+
 
 template<typename aug_t>
 struct TopologyCluster {
@@ -27,9 +36,11 @@ template<typename aug_t>
 class TopologyTree {
 FRIEND_TEST(TopologyTreeSuite, incremental_random_correctness_test);
 FRIEND_TEST(TopologyTreeSuite, decremental_random_correctness_test);
+FRIEND_TEST(TopologyTreeSuite, random_performance_test);
 public:
     // Topology tree interface
     TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t dval);
+    ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
     bool connected(vertex_t u, vertex_t v);
@@ -37,6 +48,7 @@ public:
     aug_t path_query(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
+    int get_height(vertex_t v);
     void print_tree();
 private:
     // Class data and parameters
@@ -60,6 +72,19 @@ query_type(q), f(f), identity(id), default_value(d) {
     contractions.reserve(12);
 }
 
+template<typename aug_t>
+TopologyTree<aug_t>::~TopologyTree() {
+    #ifdef COLLECT_ROOT_CLUSTER_STATS
+    std::cout << "Number of root clusters: Frequency" << std::endl;
+        for (auto entry : root_clusters_histogram)
+            std::cout << entry.first << "\t" << entry.second << std::endl;
+    #endif
+    #ifdef COLLECT_HEIGHT_STATS
+        std::cout << "Maximum height of the tree: " << max_height << std::endl;
+    #endif
+    return;
+}
+
 /* Link vertex u and vertex v in the tree. Optionally include an
 augmented value for the new edge (u,v). If no augmented value is
 provided, the default value is 1. */
@@ -72,6 +97,11 @@ void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     leaves[u].insert_neighbor(&leaves[v], value);
     leaves[v].insert_neighbor(&leaves[u], value);
     recluster_tree();
+    // Collect tree height stats at the end of each update
+    #ifdef COLLECT_HEIGHT_STATS
+        max_height = std::max(max_height, get_height(u));
+        max_height = std::max(max_height, get_height(v));
+    #endif
 }
 
 /* Cut vertex u and vertex v in the tree. */
@@ -84,6 +114,11 @@ void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     leaves[u].remove_neighbor(&leaves[v]);
     leaves[v].remove_neighbor(&leaves[u]);
     recluster_tree();
+    // Collect tree height stats at the end of each update
+    #ifdef COLLECT_HEIGHT_STATS
+        max_height = std::max(max_height, get_height(u));
+        max_height = std::max(max_height, get_height(v));
+    #endif
 }
 
 template<typename aug_t>
@@ -118,6 +153,13 @@ template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
+        // Update root cluster stats if we are collecting them
+        #ifdef COLLECT_ROOT_CLUSTER_STATS
+            if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
+                root_clusters_histogram[root_clusters[level].size()] = 1;
+            else
+                root_clusters_histogram[root_clusters[level].size()] += 1;
+        #endif
         // Combine deg 3 root clusters with deg 1 root  or non-root clusters
         for (auto cluster : root_clusters[level]) {
             if (cluster->get_degree() == 3) {

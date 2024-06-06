@@ -35,6 +35,17 @@ bool TopologyTree<aug_t>::is_valid() {
 }
 
 template<typename aug_t>
+int TopologyTree<aug_t>::get_height(vertex_t v) {
+    int height = 0;
+    TopologyCluster<aug_t>* curr = &leaves[v];
+    while (curr) {
+        height++;
+        curr = curr->parent;
+    }
+    return height;
+}
+
+template<typename aug_t>
 void TopologyTree<aug_t>::print_tree() {
     std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> clusters;
     std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> next_clusters;
@@ -190,6 +201,40 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
             tree.cut(u,v);
             ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
+        }
+    }
+}
+
+TEST(TopologyTreeSuite, random_performance_test) {
+    int num_trials = 1; // 100;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 1000; // 1000000;
+        QueryType qt = PATH;
+        auto f = [](int x, int y)->int{return x + y;};
+        TopologyTree<int> tree(n, qt, f, 0, 0);
+        std::pair<vertex_t, vertex_t> edges[n-1];
+
+        auto seed = seeds[trial];
+        srand(seed);
+        std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
+        int links = 0;
+        while (links < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (tree.leaves[u].get_degree() >= 3) continue;
+            if (tree.leaves[v].get_degree() >= 3) continue;
+            if (u != v && !tree.connected(u,v)) {
+                tree.link(u,v);
+                edges[links++] = {u,v};
+            }
+        }
+        for (auto edge : edges) {
+            auto u = edge.first;
+            auto v = edge.second;
+            tree.cut(u,v);
         }
     }
 }
