@@ -35,16 +35,12 @@ bool UFOTree<aug_t>::is_valid() {
 }
 
 template<typename aug_t>
-int UFOTree<aug_t>::get_height() {
-    std::unordered_set<UFOCluster<aug_t>*> clusters;
-    std::unordered_set<UFOCluster<aug_t>*> next_clusters;
+int UFOTree<aug_t>::get_height(vertex_t v) {
     int height = 0;
-    for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
-    while (!clusters.empty()) {
+    UFOCluster<aug_t>* curr = &leaves[v];
+    while (curr) {
         height++;
-        for (auto cluster : clusters) if (cluster->parent) next_clusters.insert(cluster->parent);
-        clusters.swap(next_clusters);
-        next_clusters.clear();
+        curr = curr->parent;
     }
     return height;
 }
