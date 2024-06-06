@@ -1,8 +1,16 @@
-#include <unordered_set>
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
 #include "types.h"
 #include "util.h"
+
+#define COLLECT_ROOT_CLUSTER_STATS
+#ifdef COLLECT_ROOT_CLUSTER_STATS
+    std::map<int, int> root_clusters_histogram;
+#endif
+// #define COLLECT_HEIGHT_STATS
+#ifdef COLLECT_HEIGHT_STATS
+    int max_height = 0;
+#endif
 
 
 template<typename aug_t>
@@ -29,11 +37,13 @@ class UFOTree {
 public:
     // UFO tree interface
     UFOTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t dval);
+    ~UFOTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
+    int get_height();
     void print_tree();
 private:
     // Class data and parameters
@@ -59,6 +69,19 @@ query_type(q), f(f), identity(id), default_value(d) {
     leaves.resize(n, d);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(6);
+}
+
+template<typename aug_t>
+UFOTree<aug_t>::~UFOTree() {
+    #ifdef COLLECT_ROOT_CLUSTER_STATS
+    std::cout << "Number of root clusters: Frequency" << std::endl;
+        for (auto entry : root_clusters_histogram)
+            std::cout << entry.first << ":\t" << entry.second << std::endl;
+    #endif
+    #ifdef COLLECT_HEIGHT_STATS
+        std::cout << "Maximum height of the tree: " << max_height << std::endl;
+    #endif
+    return;
 }
 
 /* Link vertex u and vertex v in the tree. Optionally include an
@@ -160,6 +183,13 @@ template<typename aug_t>
 void UFOTree<aug_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
+        // Update root cluster stats if we are collecting them
+        #ifdef COLLECT_ROOT_CLUSTER_STATS
+            if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
+                root_clusters_histogram[root_clusters[level].size()] = 1;
+            else
+                root_clusters_histogram[root_clusters[level].size()] += 1;
+        #endif
         // Merge deg exactly 3 root clusters with all of its deg 1 neighbors
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 3) {
@@ -298,6 +328,10 @@ void UFOTree<aug_t>::recluster_tree() {
         root_clusters[level].clear();
         contractions.clear();
     }
+    // Collect tree height stats at the end of each update
+    #ifdef COLLECT_HEIGHT_STATS
+        int max_height = std::max(max_height, get_height());
+    #endif
 }
 
 template<typename aug_t>

@@ -34,6 +34,56 @@ bool UFOTree<aug_t>::is_valid() {
     return true;
 }
 
+template<typename aug_t>
+int UFOTree<aug_t>::get_height() {
+    std::unordered_set<UFOCluster<aug_t>*> clusters;
+    std::unordered_set<UFOCluster<aug_t>*> next_clusters;
+    int height = 0;
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
+    while (!clusters.empty()) {
+        height++;
+        for (auto cluster : clusters) if (cluster->parent) next_clusters.insert(cluster->parent);
+        clusters.swap(next_clusters);
+        next_clusters.clear();
+    }
+    return height;
+}
+
+template<typename aug_t>
+void UFOTree<aug_t>::print_tree() {
+    std::multimap<UFOCluster<aug_t>*, UFOCluster<aug_t>*> clusters;
+    std::multimap<UFOCluster<aug_t>*, UFOCluster<aug_t>*> next_clusters;
+    std::cout << "========================= LEAVES =========================" << std::endl;
+    std::unordered_map<UFOCluster<aug_t>*, vertex_t> vertex_map;
+    for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
+    for (auto entry : clusters) {
+        auto leaf = entry.second;
+        auto parent = entry.first;
+        std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
+        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor.first] << " ";
+        std::cout << std::endl;
+        bool in_map = false;
+        for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+        if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+    }
+    clusters.swap(next_clusters);
+    next_clusters.clear();
+    while (!clusters.empty()) {
+        std::cout << "======================= NEXT LEVEL =======================" << std::endl;
+        for (auto entry : clusters) {
+            auto cluster = entry.second;
+            auto parent = entry.first;
+            std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
+            bool in_map = false;
+            for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+            if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+        }
+        clusters.swap(next_clusters);
+        next_clusters.clear();
+    }
+}
+
 TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
@@ -188,37 +238,34 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
     }
 }
 
-template<typename aug_t>
-void UFOTree<aug_t>::print_tree() {
-    std::multimap<UFOCluster<aug_t>*, UFOCluster<aug_t>*> clusters;
-    std::multimap<UFOCluster<aug_t>*, UFOCluster<aug_t>*> next_clusters;
-    std::cout << "========================= LEAVES =========================" << std::endl;
-    std::unordered_map<UFOCluster<aug_t>*, vertex_t> vertex_map;
-    for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
-    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
-    for (auto entry : clusters) {
-        auto leaf = entry.second;
-        auto parent = entry.first;
-        std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor.first] << " ";
-        std::cout << std::endl;
-        bool in_map = false;
-        for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-        if (parent && !in_map) next_clusters.insert({parent->parent, parent});
-    }
-    clusters.swap(next_clusters);
-    next_clusters.clear();
-    while (!clusters.empty()) {
-        std::cout << "======================= NEXT LEVEL =======================" << std::endl;
-        for (auto entry : clusters) {
-            auto cluster = entry.second;
-            auto parent = entry.first;
-            std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
-            bool in_map = false;
-            for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-            if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+TEST(UFOTreeSuite, random_performance_test) {
+    int num_trials = 1000;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 1000000;
+        QueryType qt = PATH;
+        auto f = [](int x, int y)->int{return x + y;};
+        UFOTree<int> tree(n, qt, f, 0, 0);
+        std::pair<vertex_t, vertex_t> edges[n-1];
+
+        auto seed = seeds[trial];
+        srand(seed);
+        std::cout << "Trial " << trial << ", Seed: " << seed << std::endl;
+        int links = 0;
+        while (links < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v && !tree.connected(u,v)) {
+                tree.link(u,v);
+                edges[links++] = {u,v};
+            }
         }
-        clusters.swap(next_clusters);
-        next_clusters.clear();
+        for (auto edge : edges) {
+            auto u = edge.first;
+            auto v = edge.second;
+            tree.cut(u,v);
+        }
     }
 }
