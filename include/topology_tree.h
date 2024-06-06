@@ -36,6 +36,7 @@ template<typename aug_t>
 class TopologyTree {
 FRIEND_TEST(TopologyTreeSuite, incremental_random_correctness_test);
 FRIEND_TEST(TopologyTreeSuite, decremental_random_correctness_test);
+FRIEND_TEST(TopologyTreeSuite, random_performance_test);
 public:
     // Topology tree interface
     TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = 
@@ -389,6 +390,13 @@ template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
+        // Update root cluster stats if we are collecting them
+        #ifdef COLLECT_ROOT_CLUSTER_STATS
+            if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
+                root_clusters_histogram[root_clusters[level].size()] = 1;
+            else
+                root_clusters_histogram[root_clusters[level].size()] += 1;
+        #endif
         // Combine deg 3 root clusters with deg 1 root  or non-root clusters
         for (auto cluster : root_clusters[level]) {
             if (cluster->get_degree() == 3) {
