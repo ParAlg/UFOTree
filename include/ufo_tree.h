@@ -3,11 +3,11 @@
 #include "types.h"
 #include "util.h"
 
-#define COLLECT_ROOT_CLUSTER_STATS
+// #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::map<int, int> root_clusters_histogram;
 #endif
-#define COLLECT_HEIGHT_STATS
+// #define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
 #endif
@@ -68,7 +68,7 @@ UFOTree<aug_t>::UFOTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_
 query_type(q), f(f), identity(id), default_value(d) {
     leaves.resize(n, d);
     root_clusters.resize(max_tree_height(n));
-    contractions.reserve(6);
+    contractions.reserve(12);
 }
 
 template<typename aug_t>

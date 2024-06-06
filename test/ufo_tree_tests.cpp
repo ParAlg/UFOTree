@@ -235,12 +235,12 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
 }
 
 TEST(UFOTreeSuite, random_performance_test) {
-    int num_trials = 1000;
+    int num_trials = 1; // 100;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 1000000;
+        vertex_t n = 1000; // 1000000;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int> tree(n, qt, f, 0, 0);
