@@ -26,8 +26,8 @@ class EulerTourTree {
   EulerTourTree& operator=(EulerTourTree&&) = delete;
 
   bool IsConnected(int u, int v);
-  void Link(int u, int v);
-  void Cut(int u, int v);
+  void link(int u, int v);
+  void cut(int u, int v);
 
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.

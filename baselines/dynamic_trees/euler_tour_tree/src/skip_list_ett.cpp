@@ -37,7 +37,7 @@ bool EulerTourTree::IsConnected(int u, int v) {
   return verts[u].FindRepresentative() == verts[v].FindRepresentative();
 }
 
-void EulerTourTree::Link(int u, int v) {
+void EulerTourTree::link(int u, int v) {
   Element* uv = node_pool.back();
   node_pool.pop_back();
   Element* vu = node_pool.back();
@@ -54,7 +54,7 @@ void EulerTourTree::Link(int u, int v) {
   Element::Join(vu, u_right);
 }
 
-void EulerTourTree::Cut(int u, int v) {
+void EulerTourTree::cut(int u, int v) {
   auto uv_it = edges.find(std::make_pair(u, v));
   auto vu_it = edges.find(std::make_pair(v, u));
   Element* uv = uv_it->second;
@@ -83,13 +83,13 @@ bool* EulerTourTree::BatchConnected(pair<int, int>* queries, int len) {
 
 void EulerTourTree::BatchLink(pair<int, int>* links, int len) {
   for (int i = 0; i < len; i++) {
-    Link(links[i].first, links[i].second);
+    link(links[i].first, links[i].second);
   }
 }
 
 void EulerTourTree::BatchCut(pair<int, int>* cuts, int len) {
   for (int i = 0; i < len; i++) {
-    Cut(cuts[i].first, cuts[i].second);
+    cut(cuts[i].first, cuts[i].second);
   }
 }
 
