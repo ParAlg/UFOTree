@@ -34,9 +34,6 @@ struct TopologyCluster {
 
 template<typename aug_t>
 class TopologyTree {
-FRIEND_TEST(TopologyTreeSuite, incremental_random_correctness_test);
-FRIEND_TEST(TopologyTreeSuite, decremental_random_correctness_test);
-FRIEND_TEST(TopologyTreeSuite, random_performance_test);
 public:
     // Topology tree interface
     TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = 
