@@ -4,11 +4,11 @@
 #include "types.h"
 #include "util.h"
 
-#define COLLECT_ROOT_CLUSTER_STATS
+// #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::map<int, int> root_clusters_histogram;
 #endif
-#define COLLECT_HEIGHT_STATS
+// #define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
 #endif
@@ -34,12 +34,9 @@ struct TopologyCluster {
 
 template<typename aug_t>
 class TopologyTree {
-FRIEND_TEST(TopologyTreeSuite, incremental_random_correctness_test);
-FRIEND_TEST(TopologyTreeSuite, decremental_random_correctness_test);
-FRIEND_TEST(TopologyTreeSuite, random_performance_test);
 public:
     // Topology tree interface
-    TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t dval);
+    TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, aug_t id = 0, aug_t dval = 0);
     ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);

@@ -16,8 +16,7 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-FetchContent_Declare(
-  googletest
+FetchContent_Declare(googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 FetchContent_MakeAvailable(googletest)
@@ -29,3 +28,11 @@ add_executable(dynamic_tree_tests
   test/ufo_tree_tests.cpp
 )
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+
+add_executable(benchmark_dynamic_trees
+  benchmark/benchmark_runner.cpp
+  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+)
+target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
+target_include_directories(benchmark_dynamic_trees PRIVATE baselines)

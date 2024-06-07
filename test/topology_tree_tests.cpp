@@ -121,15 +121,18 @@ TEST(TopologyTreeSuite, incremental_random_correctness_test) {
         auto seed = seeds[trial];
         srand(seed);
         int links = 0;
+        std::vector<int> vertex_degrees(n,0);
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
-            if (tree.leaves[u].get_degree() >= 3) continue;
-            if (tree.leaves[v].get_degree() >= 3) continue;
+            if (vertex_degrees[u] >= 3) continue;
+            if (vertex_degrees[v] >= 3) continue;
             if (u != v && !tree.connected(u,v)) {
                 tree.link(u,v);
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << u << " and " << v << ".";
                 links++;
+                vertex_degrees[u]++;
+                vertex_degrees[v]++;
             }
         }
     }
@@ -185,14 +188,17 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
         auto seed = seeds[trial];
         srand(seed);
         int links = 0;
+        std::vector<int> vertex_degrees(n,0);
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
-            if (tree.leaves[u].get_degree() >= 3) continue;
-            if (tree.leaves[v].get_degree() >= 3) continue;
+            if (vertex_degrees[u] >= 3) continue;
+            if (vertex_degrees[v] >= 3) continue;
             if (u != v && !tree.connected(u,v)) {
                 tree.link(u,v);
                 edges[links++] = {u,v};
+                vertex_degrees[u]++;
+                vertex_degrees[v]++;
             }
         }
         for (auto edge : edges) {
@@ -221,14 +227,17 @@ TEST(TopologyTreeSuite, random_performance_test) {
         srand(seed);
         std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
         int links = 0;
+        std::vector<int> vertex_degrees(n,0);
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
-            if (tree.leaves[u].get_degree() >= 3) continue;
-            if (tree.leaves[v].get_degree() >= 3) continue;
+            if (vertex_degrees[u] >= 3) continue;
+            if (vertex_degrees[v] >= 3) continue;
             if (u != v && !tree.connected(u,v)) {
                 tree.link(u,v);
                 edges[links++] = {u,v};
+                vertex_degrees[u]++;
+                vertex_degrees[v]++;
             }
         }
         for (auto edge : edges) {
