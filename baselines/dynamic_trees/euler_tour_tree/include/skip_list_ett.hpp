@@ -25,7 +25,7 @@ class EulerTourTree {
   EulerTourTree& operator=(const EulerTourTree&) = delete;
   EulerTourTree& operator=(EulerTourTree&&) = delete;
 
-  bool IsConnected(int u, int v);
+  bool connected(int u, int v);
   void link(int u, int v);
   void cut(int u, int v);
 

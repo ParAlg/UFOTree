@@ -33,7 +33,7 @@ EulerTourTree::~EulerTourTree() {
   pbbs::delete_array(verts, num_verts);
 }
 
-bool EulerTourTree::IsConnected(int u, int v) {
+bool EulerTourTree::connected(int u, int v) {
   return verts[u].FindRepresentative() == verts[v].FindRepresentative();
 }
 
@@ -76,7 +76,7 @@ void EulerTourTree::cut(int u, int v) {
 bool* EulerTourTree::BatchConnected(pair<int, int>* queries, int len) {
   bool* ans = pbbs::new_array_no_init<bool>(len);
   for (int i = 0; i < len; i++) {
-    ans[i] = IsConnected(queries[i].first, queries[i].second);
+    ans[i] = connected(queries[i].first, queries[i].second);
   }
   return ans;
 }

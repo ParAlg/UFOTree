@@ -6,11 +6,49 @@
 
 
 int main(int argc, char** argv) {
+    // Run each test case using each data structure
+    auto test_case = "";
+    auto data_structure = "";
     vertex_t n = 1000000;
-    std::cout << std::endl << "RUNNING: [ " << "UFOTree" << " " << "incremental-linked-list" << " n=" << n << " ]" << std::endl;
-    dynamic_tree_benchmark::run_sequential_benchmark<UFOTree<int>>(n);
-    std::cout << std::endl << "RUNNING: [ " << "TopologyTree" << " " << "incremental-linked-list" << " n=" << n << " ]" << std::endl;
-    dynamic_tree_benchmark::run_sequential_benchmark<TopologyTree<int>>(n);
-    std::cout << std::endl << "RUNNING: [ " << "EulerTourTree" << " " << "incremental-linked-list" << " n=" << n << " ]" << std::endl;
-    dynamic_tree_benchmark::run_sequential_benchmark<skip_list_ett::EulerTourTree>(n);
+
+
+    test_case = "incremental-linked-list";
+
+    data_structure = "UFOTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::incremental_linked_list_benchmark<UFOTree<int>>(n);
+
+    data_structure = "TopologyTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::incremental_linked_list_benchmark<TopologyTree<int>>(n);
+
+    data_structure = "EulerTourTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::incremental_linked_list_benchmark<skip_list_ett::EulerTourTree>(n);
+
+
+    test_case = "random-degree3";
+
+    data_structure = "UFOTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::random_degree3_benchmark<UFOTree<int>>(n);
+
+    data_structure = "TopologyTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::random_degree3_benchmark<TopologyTree<int>>(n);
+
+    data_structure = "EulerTourTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::random_degree3_benchmark<skip_list_ett::EulerTourTree>(n);
+
+
+    test_case = "random-unbounded";
+
+    data_structure = "UFOTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
+
+    data_structure = "EulerTourTree";
+    std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    dynamic_tree_benchmark::random_unbounded_benchmark<skip_list_ett::EulerTourTree>(n);
 }
