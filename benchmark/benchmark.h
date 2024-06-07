@@ -23,7 +23,7 @@ void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) 
             std::abort();
         }
     }
-    timer.next("Time for all updates: ");
+    timer.next("Time for all updates");
 }
 
 template <typename DynamicTree>

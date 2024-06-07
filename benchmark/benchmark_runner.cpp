@@ -2,6 +2,7 @@
 #include "../include/ufo_tree.h"
 #include "../include/topology_tree.h"
 #include "../include/rc_tree.h"
+#include "../include/ternarized_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 
 
@@ -47,6 +48,10 @@ int main(int argc, char** argv) {
     data_structure = "UFOTree";
     std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
     dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
+
+    // data_structure = "TernarizedTopologyTree";
+    // std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
+    // dynamic_tree_benchmark::random_degree3_benchmark<TernarizedTree<TopologyTree<int>, int>>(n);
 
     data_structure = "EulerTourTree";
     std::cout << std::endl << "RUNNING: [ " << data_structure << " " << test_case << " n=" << n << " ]" << std::endl;
