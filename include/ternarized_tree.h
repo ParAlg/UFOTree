@@ -1,5 +1,6 @@
 #include <vector>
 #include "types.h"
+#include "util.h"
 
 
 template<typename DynamicTree, typename aug_t>
@@ -37,11 +38,15 @@ void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v, aug_t weig
 
   if(tree.get_degree(u) < 3 && tree.get_degree(v) < 3) 
     tree.link(u,v, weight); return;
+
   if(tree.get_degree(u) == 3){
-    auto neighbors = tree.get_neighbors();
-    for(auto neighbor : neighbors){
-      // For topology trees, how do you know what vertex a leaf cluster represents?
-    }  
+    auto u_neighbors = tree.get_neighbors(u);
+    auto ternary_neighbor = nullptr;
+    for(auto neighbor_c : u_neighbors){
+      auto neighbor = neighbor_c->v;
+      if(neighbor> n) ternary_neighbor = neighbor_c; break;
+    }
+    
   }
 }
 
