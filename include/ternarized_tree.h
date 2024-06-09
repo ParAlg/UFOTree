@@ -6,7 +6,10 @@ template<typename DynamicTree, typename aug_t>
 class TernarizedTree {
 public:
     // Ternarized tree interface
-    TernarizedTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, aug_t id = 0, aug_t dval = 0);
+    TernarizedTree(vertex_t n, QueryType q = PATH, 
+                   std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, 
+                   aug_t id = 0, aug_t dval = 0);
+
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
     bool connected(vertex_t u, vertex_t v);
@@ -16,7 +19,8 @@ private:
     // Ternarization book-keeping
     vertex_t n;
     std::vector<vertex_t> free_vertex_ids;
-    std::vector<vertex_t> vertex_id_map;
+    // Store the head of the ternarized vertices linked list for each ternarized vertex.
+    std::vector<vertex_t> vertex_head_map;  
 };
 
 template<typename DynamicTree, typename aug_t>
@@ -24,14 +28,28 @@ TernarizedTree<DynamicTree, aug_t>::TernarizedTree(vertex_t n, QueryType q, std:
     tree(2*n, q, f, id, d), n(n) {}
 
 template<typename DynamicTree, typename aug_t>
-void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
-    // TODO: replace this with appropriate logic
-    tree.link(u, v, value);
+void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
+  // If vertex degree <= 3, proceed with normal link, otherwise ternarize vertex
+  // and add new vertex to head.
+  
+  //TODO: Change get_degree method of RCTree to have default value for round=0
+  //TODO: Add a get_neighbors method to both Topology and RC trees.
+
+  if(tree.get_degree(u) < 3 && tree.get_degree(v) < 3) 
+    tree.link(u,v, weight); return;
+  if(tree.get_degree(u) == 3){
+    auto neighbors = tree.get_neighbors();
+    for(auto neighbor : neighbors){
+      // For topology trees, how do you know what vertex a leaf cluster represents?
+    }  
+  }
 }
 
 template<typename DynamicTree, typename aug_t>
 void TernarizedTree<DynamicTree, aug_t>::cut(vertex_t u, vertex_t v) {
-    // TODO: replace this with appropriate logic
+  // Find vertex on ternarized path that points to v and u
+  // Remove this from the ternarized path. 
+  
     tree.cut(u, v);
 }
 
