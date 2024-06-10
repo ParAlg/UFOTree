@@ -51,7 +51,7 @@ public:
     bool is_valid();
     int get_height(vertex_t v);
     void print_tree();
-    TopologyCluster<aug_t>* get_neighbors(vertex_t v);
+    TopologyCluster<aug_t>* get_neighbors(vertex_t u);
 private:
     // Class data and parameters
     parlay::sequence<TopologyCluster<aug_t>> leaves;
