@@ -3,7 +3,5 @@ build/
 .vscode/
 tags
 .cache/
-.cache/clangd/index/rc_tree.h.BF50B51E432E34DA.idx
-.cache/clangd/index/test_rc_tree.cpp.BCD463F91BB489BF.idx
 .cmake/
 .DS_Store
