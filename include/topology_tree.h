@@ -36,8 +36,12 @@ template<typename aug_t>
 class TopologyTree {
 public:
     // Topology tree interface
+<<<<<<< HEAD
     TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = 
                 [](aug_t x, aug_t y) -> aug_t { return x + y; }, aug_t id = 0, aug_t dval = 0);
+=======
+    TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, aug_t id = 0, aug_t dval = 0);
+>>>>>>> 6226ca27d9ff499dc5b0b2076e578ef34acd799a
     ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
