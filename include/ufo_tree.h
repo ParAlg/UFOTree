@@ -1,8 +1,7 @@
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
-#include "types.h"
 #include "util.h"
-
+#include "types.h"
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::map<int, int> root_clusters_histogram;

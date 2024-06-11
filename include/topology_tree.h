@@ -1,3 +1,4 @@
+#pragma once
 #include <unordered_set>
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
@@ -21,10 +22,9 @@ struct TopologyCluster {
     aug_t edge_values[3];   // Only for path queries
     aug_t value;            // Stores subtree values or cluster path values
     TopologyCluster<aug_t>* parent;
-    vertex_t v;
     // Constructor
     TopologyCluster(aug_t value, vertex_t _v = MAX_VERTEX_T) : 
-      neighbors(), edge_values(), parent(), value(value), v(_v){};
+      neighbors(), edge_values(), parent(), value(value) {};
     // Helper functions
     int get_degree();
     bool contracts();
@@ -47,6 +47,7 @@ public:
     bool connected(vertex_t u, vertex_t v);
     aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
     aug_t path_query(vertex_t u, vertex_t v);
+    TopologyCluster<aug_t>* get_leaf_cluster(vertex_t v);
     // Testing helpers
     bool is_valid();
     int get_height(vertex_t v);
@@ -69,7 +70,7 @@ private:
 template<typename aug_t>
 TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d) :
 query_type(q), f(f), identity(id), default_value(d) {
-    for(int i = 0; i < n; i++) leaves.push_back(TopologyCluster<aug_t>(d, i));
+  leaves.resize(n, d);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
@@ -356,6 +357,11 @@ bool TopologyTree<aug_t>::connected(vertex_t u, vertex_t v) {
 template<typename aug_t>
 TopologyCluster<aug_t>* TopologyTree<aug_t>::get_neighbors(vertex_t v){
   return leaves[v]->neighbors;
+}
+
+template<typename aug_t>
+TopologyCluster<aug_t>* TopologyTree<aug_t>::get_leaf_cluster(vertex_t v){
+  return &leaves[v]; 
 }
 /* Returns the value of the associative function f applied over
 the augmented values for all the vertices in the subtree rooted
