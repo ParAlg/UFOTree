@@ -2,3 +2,6 @@ build/
 *.swp
 .vscode/
 tags
+.cache/
+.cmake/
+.DS_Store
