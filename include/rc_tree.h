@@ -10,10 +10,8 @@
 #include <tuple>
 #include <unordered_set>
 #include<vector>
-#include<parlay/monoid.h>
+#include "types.h"
 
-
-typedef int32_t vertex_t;
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 
@@ -46,7 +44,10 @@ template<typename aug_t>
 class RCTree {
 public:
   // Data structure fields.
-  int degree_bound, n; //n is number of vertices in the tree.
+  int degree_bound;
+  vertex_t n; //n is number of vertices in the tree.
+  aug_t id, d_val; //identity element, default value
+  std::function<aug_t(aug_t, aug_t)> f; // Associative function
   std::vector<vertex_t> roots; //for debugging purposes only.
   std::unordered_set<vertex_t> affected;
   parlay::sequence<parlay::sequence<RCCluster<aug_t>**>> contraction_tree; 
@@ -76,17 +77,20 @@ public:
   bool edge_exists(vertex_t u, vertex_t v);
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   // These are only ones that should really be public.
-  RCTree(int _n);
+  RCTree(int _n, QueryType q = PATH, 
+         std::function<aug_t(aug_t, aug_t)> f = [] (aug_t x, aug_t y) {return x + y;}, 
+         aug_t id = 0, aug_t d_val = 0);
   void link(int u, int v, int weight);
   void cut(int u, int v);
 };
 
 template<typename aug_t>
 // Constructor. 
-RCTree<aug_t>::RCTree(int _n) { 
-  degree_bound = DEGREE_BOUND;
-  n = _n;
+RCTree<aug_t>::RCTree(int _n, QueryType _q, 
+                      std::function<aug_t(aug_t, aug_t)> _f,
+                      aug_t _id, aug_t _d_val) { 
 
+  degree_bound = DEGREE_BOUND; n = _n; f = _f; id = _id; d_val = _d_val; 
   // Initialize round 0 adjacency list for each vertex in the tree.
   for(int i = 0; i < _n; i++){
     contraction_tree.push_back(parlay::sequence<RCCluster<aug_t>**>());
@@ -95,7 +99,7 @@ RCTree<aug_t>::RCTree(int _n) {
   round_contracted.resize(n); 
   for(int i = 0; i < n; i++){ 
     contraction_tree[i].push_back(new RCCluster<aug_t>*[degree_bound]{nullptr});
-    representative_clusters[i] = (RCCluster<aug_t>*) new RCCluster<aug_t>(0);
+    representative_clusters[i] = (RCCluster<aug_t>*) new RCCluster<aug_t>(d_val);
     representative_clusters[i]->rep_vertex = i;
     round_contracted[i] = 0;
   }
@@ -395,7 +399,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   for(int i = 0; i < degree_bound; i++){
     if(neighbors[i] == nullptr) continue;
     auto neighboring_cluster = *neighbors[i];
-    new_cluster->aug_val += neighbors[i]->aug_val; // Needs to be a associative binary op passed in by the user.
+    new_cluster->aug_val = f(new_cluster->aug_val, neighbors[i]->aug_val); // Needs to be a associative binary op passed in by the user.
     neighbors[i]->parent = vertex;
     if(is_edge(neighbors[i])){
       neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
@@ -438,7 +442,7 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
   for(int i = 0; i < degree_bound; i++){
     if(neighbors[i] == nullptr) continue;
     auto neighboring_cluster = *neighbors[i];
-    new_cluster->aug_val += neighbors[i]->aug_val; // Needs to be a associative binary op passed in by the user.
+    new_cluster->aug_val = f(new_cluster->aug_val, neighbors[i]->aug_val); // Needs to be a associative binary op passed in by the user.
     neighbors[i]->parent = vertex;
     if(neighboring_cluster.boundary_vertexes.size() == 2){
       auto neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
@@ -475,7 +479,7 @@ void RCTree<aug_t>::finalize(vertex_t vertex, int round){
   RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(0, -1);  
   for(int i = 0; i < degree_bound; i++){
     if(neighbors[i] == nullptr) continue;
-    new_cluster->aug_val += neighbors[i]->aug_val; // Needs to be a associative binary op passed in by the user.
+    new_cluster->aug_val = f(new_cluster->aug_val, neighbors[i]->aug_val); // Needs to be a associative binary op passed in by the user.
     neighbors[i]->parent = vertex;
   }
   new_cluster->rep_vertex = vertex;
@@ -508,9 +512,7 @@ void RCTree<aug_t>::update() {
     MIS(round);
     //is_valid_MIS(round);
     
-    for(auto vertex: affected){
-      to_delete.insert(representative_clusters[vertex]);
-    }
+    for(auto vertex: affected){to_delete.insert(representative_clusters[vertex]);}
 
     //Insert new neighbor list for next round for each affected vertex if it does not already
     //have a list inserted into the sequence to allow for insertions in its next round, as these are presently
