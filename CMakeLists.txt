@@ -25,7 +25,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
-  test/rc_tree_tests.cpp
+  test/test_rc_tree.cpp
   test/topology_tree_tests.cpp
   test/ufo_tree_tests.cpp
 )
