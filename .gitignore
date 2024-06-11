@@ -3,5 +3,6 @@ build/
 .vscode/
 tags
 .cache/
+.cache/clangd
 .cmake/
 .DS_Store
