@@ -36,7 +36,8 @@ template<typename aug_t>
 class TopologyTree {
 public:
     // Topology tree interface
-    TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, aug_t id = 0, aug_t dval = 0);
+    TopologyTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = 
+                [](aug_t x, aug_t y) -> aug_t { return x + y; }, aug_t id = 0, aug_t dval = 0);
     ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
@@ -59,6 +60,7 @@ private:
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
+    void recompute_parent_value(TopologyCluster<aug_t>* c1, TopologyCluster<aug_t>* c2);
 };
 
 template<typename aug_t>
@@ -141,8 +143,8 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
             }
             if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         }
-        delete prev; // Remove cluster prev
         root_clusters[level].erase(prev);
+        delete prev; // Remove cluster prev
     }
 }
 
@@ -168,9 +170,9 @@ void TopologyTree<aug_t>::recluster_tree() {
                             parent = new TopologyCluster<aug_t>(default_value);
                             root_clusters[level+1].insert(parent);
                         }
-                        if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        recompute_parent_value(cluster, neighbor);
                         contractions.push_back({{cluster,neighbor},new_parent});
                         break;
                     }
@@ -184,11 +186,9 @@ void TopologyTree<aug_t>::recluster_tree() {
                     auto neighbor = cluster->neighbors[i];
                     if (neighbor && !neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
                         auto parent = new TopologyCluster<aug_t>(default_value);
-                        if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        if (query_type == PATH && neighbor->get_degree() == 2)
-                            parent->value = f(f(cluster->value, neighbor->value), cluster->edge_values[i]);
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        recompute_parent_value(cluster, neighbor);
                         root_clusters[level+1].insert(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
@@ -205,11 +205,9 @@ void TopologyTree<aug_t>::recluster_tree() {
                         if (neighbor->contracts()) continue;
                         auto parent = neighbor->parent;
                         if (!parent) parent = new TopologyCluster<aug_t>(default_value);
-                        if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
-                        if (query_type == PATH && neighbor->get_degree() == 2)
-                            parent->value = f(f(cluster->value, neighbor->value), cluster->edge_values[i]);
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        recompute_parent_value(cluster, neighbor);
                         contractions.push_back({{cluster,neighbor},false});
                         break;
                     }
@@ -222,9 +220,9 @@ void TopologyTree<aug_t>::recluster_tree() {
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->get_degree() == 1) {
                         auto parent = new TopologyCluster<aug_t>(default_value);
-                        if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        recompute_parent_value(cluster, neighbor);
                         root_clusters[level+1].insert(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
@@ -240,9 +238,9 @@ void TopologyTree<aug_t>::recluster_tree() {
                         if (neighbor->contracts()) continue;
                         auto parent = neighbor->parent;
                         if (!parent) parent = new TopologyCluster<aug_t>(default_value);
-                        if (query_type == SUBTREE) parent->value = f(cluster->value, neighbor->value);
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        recompute_parent_value(cluster, neighbor);
                         contractions.push_back({{cluster,neighbor},false});
                         break;
                     }
@@ -287,12 +285,28 @@ void TopologyTree<aug_t>::recluster_tree() {
 }
 
 template<typename aug_t>
+void TopologyTree<aug_t>::recompute_parent_value(TopologyCluster<aug_t>* c1, TopologyCluster<aug_t>* c2) {
+    assert(c1->parent == c2->parent);
+    auto parent = c1->parent;
+    if (query_type == SUBTREE) {
+        parent->value = f(c1->value, c2->value);
+    }
+    else if (query_type == PATH && c1->get_degree() == 2 && c2->get_degree() == 2) {
+        aug_t edge_val;
+        for (int i = 0; i < 3; i++)
+            if (c1->neighbors[i] == c2) edge_val = c1->edge_values[i];
+        parent->value = f(f(c1->value, c2->value), edge_val);
+    }
+}
+
+template<typename aug_t>
 int TopologyCluster<aug_t>::get_degree() {
     int deg = 0;
     for (auto neighbor : this->neighbors) if (neighbor) deg++;
     return deg;
 }
 
+// Helper function which returns whether this cluster combines with another cluster.
 template<typename aug_t>
 bool TopologyCluster<aug_t>::contracts() {
     bool contracts = false;
@@ -378,6 +392,7 @@ aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
         }
         return total;
     }
+    // If the cluster of v was deg 2 when it combined, only count the clusters on the side of v
     TopologyCluster<aug_t>* curr_u;
     for (auto neighbor : curr_v->neighbors) if (neighbor && neighbor != curr_p)
         curr_u = neighbor; // Find the neighbor of curr_v that is not curr_p
