@@ -242,9 +242,9 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   RCTree<int> tree(4);
 
   RCCluster<int> e1(9);
-  e1.boundary_vertexes = std::vector<int>({1,2});
+  e1.boundary_vertexes = std::vector<vertex_t>({1,2});
   RCCluster<int> e2(2);
-  e2.boundary_vertexes = std::vector<int>({1,3});
+  e2.boundary_vertexes = std::vector<vertex_t>({1,3});
 
   //Degree 1
   tree.round_contracted[1] = 0;
@@ -255,7 +255,7 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   (tree.affected).insert(1);
   tree.spread_affection(0);
 
-  std::unordered_set<int> actual_affected({1,2,3});
+  std::unordered_set<vertex_t> actual_affected({1,2,3});
   ASSERT_EQ((tree.affected), actual_affected);
 
   // Degree 2
@@ -268,13 +268,13 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   tree2.round_contracted[3] = 0;
   tree2.round_contracted[1] = 1;
   tree2.spread_affection(0);
-  std::unordered_set<int> actual_affected2({1,2,3});
+  std::unordered_set<vertex_t> actual_affected2({1,2,3});
   ASSERT_EQ((tree2.affected), actual_affected2);
 
   //Degree 3
   RCTree<int> tree3(5);
   RCCluster<int> e3(2);
-  e3.boundary_vertexes = std::vector<int>({1,0});
+  e3.boundary_vertexes = std::vector<vertex_t>({1,0});
   tree3.add_neighbor(0, &e1, -1);
   tree3.add_neighbor(0, &e2, -1);
   tree3.add_neighbor(0, &e3, -1);
@@ -286,7 +286,7 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   tree3.round_contracted[3] = 0;
   tree3.round_contracted[1] = 1;
   tree3.spread_affection(0); 
-  std::unordered_set<int> actual_affected3({1,2,3,0});
+  std::unordered_set<vertex_t> actual_affected3({1,2,3,0});
   ASSERT_EQ((tree3.affected), actual_affected3);
 }
 
@@ -296,11 +296,11 @@ TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
   RCTree<int> tree(5);
 
   RCCluster<int> e1(9);
-  e1.boundary_vertexes = std::vector<int>({1,2});
+  e1.boundary_vertexes = std::vector<vertex_t>({1,2});
   RCCluster<int> e2(2);
-  e2.boundary_vertexes = std::vector<int>({1,3});
+  e2.boundary_vertexes = std::vector<vertex_t>({1,3});
   RCCluster<int> e3(3);
-  e3.boundary_vertexes = std::vector<int>({0,1});
+  e3.boundary_vertexes = std::vector<vertex_t>({0,1});
 
   //Degree 2
   tree.round_contracted[1] = 0;
@@ -310,7 +310,7 @@ TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
   (tree.affected).insert(2);
   tree.spread_affection(0);
 
-  std::unordered_set<int> actual_affected({2});
+  std::unordered_set<vertex_t> actual_affected({2});
   ASSERT_EQ((tree.affected), actual_affected);
 
   //Degree 3
@@ -356,7 +356,7 @@ TEST(RCTreeSuite, testBadCaseStarGraph){
 }
 
 TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
-  std::unordered_set<int> to_test({2, 10, 100, 1000, 10000});
+  std::unordered_set<vertex_t> to_test({2, 10, 100, 1000, 10000});
   for(auto llist_size : to_test){
     RCTree<int> tree(llist_size);
     for(int i = 0; i < llist_size - 1; i++){
@@ -396,7 +396,7 @@ TEST(RCTreeSuite, testTHETREE){
 }
 
 TEST(RCTreeSuite, testInsertDeleteCompleteBinaryTree){
-  std::unordered_set<int> to_test({1, 3, 31, 1023, 8191});
+  std::unordered_set<vertex_t> to_test({1, 3, 31, 1023, 8191});
   for(auto n : to_test){
     RCTree<int> tree(n);
     for(int i = 0; i < (n/2); i++){ 
