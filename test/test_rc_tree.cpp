@@ -8,7 +8,7 @@ void print_tree(RCTree<int> *tree, int round);
 //RCTree<int> *treeptr = nullptr;
 
 void create_tree1() {
-  RCTree<int> tree(7,3);
+  RCTree<int> tree(7);
   RCCluster<int> edgeAB(9);
   edgeAB.boundary_vertexes.push_back(2);
   edgeAB.boundary_vertexes.push_back(0);
@@ -202,13 +202,13 @@ void print_cluster(RCCluster<aug_t>* cluster){
   } 
 }
 TEST(RCTreeSuite, test_constructor) {
-  RCTree<int> tree1(7, 3);
+  RCTree<int> tree1(7);
   ASSERT_EQ(tree1.degree_bound, 3);
   ASSERT_EQ(tree1.n, 7);
 }
 
 TEST(RCTreeSuite, test_helper_methods){
-  RCTree<int> tree(7,3);
+  RCTree<int> tree(7);
   RCCluster<int> edge1(9);
   RCCluster<int> unary1(13);
   RCCluster<int> unary2(14);
@@ -239,7 +239,7 @@ TEST(RCTreeSuite, test_helper_methods){
 
 TEST(RCTreeSuite, test_spread_affection_contracting_affected){
 
-  RCTree<int> tree(4, 3);
+  RCTree<int> tree(4);
 
   RCCluster<int> e1(9);
   e1.boundary_vertexes = std::vector<int>({1,2});
@@ -259,7 +259,7 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   ASSERT_EQ((tree.affected), actual_affected);
 
   // Degree 2
-  RCTree<int> tree2(4,3);
+  RCTree<int> tree2(4);
   tree2.add_neighbor(0, &e1, -1);
   tree2.add_neighbor(0, &e2, -1);
   (tree2.affected).insert(2);
@@ -272,7 +272,7 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   ASSERT_EQ((tree2.affected), actual_affected2);
 
   //Degree 3
-  RCTree<int> tree3(5, 3);
+  RCTree<int> tree3(5);
   RCCluster<int> e3(2);
   e3.boundary_vertexes = std::vector<int>({1,0});
   tree3.add_neighbor(0, &e1, -1);
@@ -293,7 +293,7 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
 TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
   // Test to make sure no vertices that are not supposed to be affected 
   // are not getting affected.
-  RCTree<int> tree(5,3);
+  RCTree<int> tree(5);
 
   RCCluster<int> e1(9);
   e1.boundary_vertexes = std::vector<int>({1,2});
@@ -330,7 +330,7 @@ TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
  * 4) Test the valid MIS function always returns a valid MIS
  */
 TEST(RCTreeSuite, test_MIS){
-  RCTree<int> linked_list(7, 3);
+  RCTree<int> linked_list(7);
 
   RCCluster<int> e1(7);
   RCCluster<int> e2(6);
@@ -342,7 +342,7 @@ TEST(RCTreeSuite, test_MIS){
 }
 
 TEST(RCTreeSuite, testBadCaseStarGraph){
-  RCTree<int> tree(20,3);
+  RCTree<int> tree(20);
   tree.link(0,1,1);
   tree.link(0,6,6);
   tree.link(0,11,11);
@@ -356,10 +356,9 @@ TEST(RCTreeSuite, testBadCaseStarGraph){
 }
 
 TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
-  GTEST_SKIP();
   std::unordered_set<int> to_test({2, 10, 100, 1000, 10000});
   for(auto llist_size : to_test){
-    RCTree<int> tree(llist_size, 3);
+    RCTree<int> tree(llist_size);
     for(int i = 0; i < llist_size - 1; i++){
       try{
         tree.link(i , i + 1, i + 1);
@@ -380,7 +379,7 @@ TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
 }
 
 TEST(RCTreeSuite, testTHETREE){
-  RCTree<int> tree(12, 3);
+  RCTree<int> tree(12);
   tree.link(0,1,1);
   tree.link(1,2,2);
   tree.link(1,3,3);
@@ -398,9 +397,8 @@ TEST(RCTreeSuite, testTHETREE){
 
 TEST(RCTreeSuite, testInsertDeleteCompleteBinaryTree){
   std::unordered_set<int> to_test({1, 3, 31, 1023, 8191});
-  GTEST_SKIP();
   for(auto n : to_test){
-    RCTree<int> tree(n, 3);
+    RCTree<int> tree(n);
     for(int i = 0; i < (n/2); i++){ 
       tree.link(i, (2*i) + 1, i);
       tree.link(i, (2*i) + 2, i);
@@ -414,9 +412,8 @@ TEST(RCTreeSuite, testInsertDeleteCompleteBinaryTree){
 }
 
 TEST(RCTreeSuite, randomDecrementalTestBinaryTree){
-  GTEST_SKIP();
   int n = 1023; 
-  RCTree<int> tree(n, 3);
+  RCTree<int> tree(n);
   for(int i = 0; i < (n/2); i++){ 
     tree.link(i, (2*i) + 1, i);
     tree.link(i, (2*i) + 2, i);
@@ -431,9 +428,8 @@ TEST(RCTreeSuite, randomDecrementalTestBinaryTree){
 }
 
 TEST(RCTreeSuite, randomIncrementalTestBinaryTree){
-  GTEST_SKIP();
   int n = 1024;
-  RCTree<int> tree(n, 3);
+  RCTree<int> tree(n);
   for(int i = 0; i < 10000; i++){
     int u = std::rand() % n;
     int v = std::rand() % n;
@@ -460,7 +456,7 @@ TEST(RCTreeSuite, randomIncrementalTests){
   for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
   for (int trial = 0; trial < num_trials; trial++) {
     vertex_t n = 1024;
-    RCTree<int> tree(n, 3);
+    RCTree<int> tree(n);
 
     auto seed = seeds[trial];
     srand(seed);
@@ -489,7 +485,7 @@ TEST(RCTreeSuite, decremental_random_correctness_test) {
   for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
   for (int trial = 0; trial < num_trials; trial++) {
     vertex_t n = 256;
-    RCTree<int> tree(n,3);
+    RCTree<int> tree(n);
     std::pair<vertex_t, vertex_t> edges[n-1];
 
     auto seed = seeds[trial];

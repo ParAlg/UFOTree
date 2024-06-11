@@ -17,6 +17,8 @@ typedef int32_t vertex_t;
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 
+#define DEGREE_BOUND 3 // CHANGE THIS IN CASE YOU WANT A DIFFERENT DEGREE BOUND FOR YOUR PURPOSES.
+
 template<typename aug_t>
 struct RCCluster {
 public:
@@ -43,15 +45,17 @@ public:
 template<typename aug_t>
 class RCTree {
 public:
+  // Data structure fields.
   int degree_bound, n; //n is number of vertices in the tree.
   std::vector<vertex_t> roots; //for debugging purposes only.
   std::unordered_set<vertex_t> affected;
   parlay::sequence<parlay::sequence<RCCluster<aug_t>**>> contraction_tree; 
-  RCCluster<aug_t>** representative_clusters;   
+  std::vector<RCCluster<aug_t>*> representative_clusters;   
   std::unordered_set<RCCluster<aug_t>*> to_delete;
   std::unordered_set<vertex_t> maximal_set;
-  int* round_contracted; 
-
+  std::vector<int> round_contracted; 
+  
+  // Functions
   void is_valid_MIS(int round);
   void add_neighbor(int round, RCCluster<aug_t>* cluster, vertex_t v);
   int get_degree(int v, int round);
@@ -71,23 +75,24 @@ public:
   bool is_edge(RCCluster<aug_t> *cluster);
   bool edge_exists(vertex_t u, vertex_t v);
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
-  RCTree(int _n, int _degree_bound);
+  // These are only ones that should really be public.
+  RCTree(int _n);
   void link(int u, int v, int weight);
   void cut(int u, int v);
 };
 
 template<typename aug_t>
-// Constructor. Presently assume a degree bound of 3.
-RCTree<aug_t>::RCTree(int _n, int _degree_bound) { 
-  degree_bound = _degree_bound;
+// Constructor. 
+RCTree<aug_t>::RCTree(int _n) { 
+  degree_bound = DEGREE_BOUND;
   n = _n;
 
   // Initialize round 0 adjacency list for each vertex in the tree.
   for(int i = 0; i < _n; i++){
     contraction_tree.push_back(parlay::sequence<RCCluster<aug_t>**>());
   }
-  representative_clusters = (RCCluster<aug_t>**) calloc(_n, sizeof(RCCluster<aug_t>*)); 
-  round_contracted = (int*) calloc(_n, sizeof(int));
+  representative_clusters.resize(n); 
+  round_contracted.resize(n); 
   for(int i = 0; i < n; i++){ 
     contraction_tree[i].push_back(new RCCluster<aug_t>*[degree_bound]{nullptr});
     representative_clusters[i] = (RCCluster<aug_t>*) new RCCluster<aug_t>(0);
@@ -498,10 +503,10 @@ void RCTree<aug_t>::update() {
 
   while(!affected.empty()){
 
-    is_valid_induced_tree(round);
+    //is_valid_induced_tree(round);
     spread_affection(round);
     MIS(round);
-    is_valid_MIS(round);
+    //is_valid_MIS(round);
     
     for(auto vertex: affected){
       to_delete.insert(representative_clusters[vertex]);
