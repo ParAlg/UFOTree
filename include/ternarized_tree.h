@@ -4,6 +4,12 @@
 #include "util.h"
 #include "topology_tree.h"
 
+struct pair_hash{ 
+  template<typename U, typename V>
+  std::size_t operator()(const std::pair<U,V>& p) const{
+    return ((p.first * p.first) + (3 * p.first) + (2 * p.first * p.second) + p.second + (p.second * p.second))/2;
+  }
+};
 template<typename DynamicTree, typename TreeCluster, typename aug_t>
 class TernarizedTree {
 public:
@@ -15,7 +21,7 @@ public:
   void link(vertex_t u, vertex_t v, aug_t value = 1);
   void cut(vertex_t u, vertex_t v);
   bool connected(vertex_t u, vertex_t v);
-private:
+//private: - Making public for testing
   vertex_t determine_link_v(vertex_t u);
   void ternarize_vertex(vertex_t u);
   void delete_ternarized_vertex(vertex_t v);
@@ -28,8 +34,7 @@ private:
   vertex_t n;
   aug_t id;
   TopologyTree<aug_t> top_tree; // For finding type info.
-  std::unordered_map<TreeCluster*, vertex_t> id_map;
-  std::unordered_map<std::pair<vertex_t, vertex_t>, std::pair<vertex_t, vertex_t>> edge_map;
+  std::unordered_map<std::pair<vertex_t, vertex_t>, std::pair<vertex_t, vertex_t>, pair_hash> edge_map;
   std::queue<vertex_t> free_ids;
 };
 
@@ -38,7 +43,6 @@ TernarizedTree<DynamicTree, TreeCluster, aug_t>::TernarizedTree(vertex_t n, Quer
                                                                 std::function<aug_t(aug_t, aug_t)> f, 
                                                                 aug_t id, aug_t d) : 
   tree(2*n, q, f, id, d), n(n), top_tree(1) {
-  if(typeid(tree) == typeid(top_tree)) for(int i = 0; i < (2*n); i++){id_map[tree.get_leaf_cluster(i)] = i;}
 }
 
 
@@ -94,9 +98,8 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::delete_ternarized_vertex(v
 
 template<typename DynamicTree, typename TreeCluster, typename aug_t>
 vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::get_id(TreeCluster* cluster, vertex_t src){
-  if(typeid(DynamicTree) == typeid(top_tree)) return id_map[cluster];
   
-  return cluster->boundary_vertexes[0] != src ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+  return tree.get_vertex_id(cluster, src);
 }
 
 template<typename DynamicTree, typename TreeCluster, typename aug_t>
