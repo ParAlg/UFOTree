@@ -35,6 +35,35 @@ void incremental_linked_list_benchmark(vertex_t n) {
 }
 
 template <typename DynamicTree>
+void incremental_binary_tree_benchmark(vertex_t n) {
+    DynamicTree tree(n);
+    std::vector<Update> updates;
+    for (vertex_t i = 0; i < (n-1)/2; i++) {
+        updates.push_back({INSERT,{i,2*i+1}});
+        updates.push_back({INSERT,{i,2*i+2}});
+    }
+    perform_sequential_updates<DynamicTree>(&tree, updates);
+}
+
+template <typename DynamicTree>
+void incremental_64ary_tree_benchmark(vertex_t n) {
+    DynamicTree tree(n);
+    std::vector<Update> updates;
+    for (vertex_t i = 1; i < n; i++)
+        updates.push_back({INSERT,{i,(i-1)/64}});
+    perform_sequential_updates<DynamicTree>(&tree, updates);
+}
+
+template <typename DynamicTree>
+void incremental_star_benchmark(vertex_t n) {
+    DynamicTree tree(n);
+    std::vector<Update> updates;
+    for (vertex_t i = 1; i < n; i++)
+        updates.push_back({INSERT,{0,i}});
+    perform_sequential_updates<DynamicTree>(&tree, updates);
+}
+
+template <typename DynamicTree>
 void random_degree3_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
