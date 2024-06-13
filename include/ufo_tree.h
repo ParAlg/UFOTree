@@ -12,6 +12,9 @@
     int max_height = 0;
 #endif
 
+long ufo_remove_ancestor_time = 0;
+long ufo_recluster_tree_time = 0;
+
 
 template<typename aug_t>
 struct UFOCluster {
@@ -84,6 +87,9 @@ UFOTree<aug_t>::~UFOTree() {
     #ifdef COLLECT_HEIGHT_STATS
         std::cout << "Maximum height of the tree: " << max_height << std::endl;
     #endif
+    std::cout << "[ TIME BREAK DOWN ]" << std::endl;
+    std::cout << "REMOVE_ANCESTORS TIME (ms):   " << ufo_remove_ancestor_time/1000000 << std::endl;
+    std::cout << "RECLUSTER_TREE TIME (ms):     " << ufo_recluster_tree_time/1000000 << std::endl;
     return;
 }
 
@@ -94,10 +100,16 @@ template<typename aug_t>
 void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
+    auto begin = std::chrono::high_resolution_clock::now();
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
+    auto end = std::chrono::high_resolution_clock::now();
+    ufo_remove_ancestor_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
     insert_adjacency(&leaves[u], &leaves[v], value);
+    begin = std::chrono::high_resolution_clock::now();
     recluster_tree();
+    end = std::chrono::high_resolution_clock::now();
+    ufo_recluster_tree_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
     // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
@@ -118,11 +130,17 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
         curr_u = curr_u->parent;
         curr_v = curr_v->parent;
     }
+    auto begin = std::chrono::high_resolution_clock::now();
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
+    auto end = std::chrono::high_resolution_clock::now();
+    ufo_remove_ancestor_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
     changed_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
+    begin = std::chrono::high_resolution_clock::now();
     recluster_tree();
+    end = std::chrono::high_resolution_clock::now();
+    ufo_recluster_tree_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
     // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
