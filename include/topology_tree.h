@@ -15,6 +15,7 @@
 
 long remove_ancestor_time = 0;
 long recluster_tree_time = 0;
+long test_timer = 0;
 
 
 template<typename aug_t>
@@ -58,7 +59,7 @@ private:
     std::function<aug_t(aug_t, aug_t)> f;
     aug_t identity;
     aug_t default_value;
-    parlay::sequence<std::unordered_set<TopologyCluster<aug_t>*>> root_clusters;
+    parlay::sequence<std::vector<TopologyCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,bool>> contractions;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
@@ -87,6 +88,7 @@ TopologyTree<aug_t>::~TopologyTree() {
     std::cout << "[ TIME BREAK DOWN ]" << std::endl;
     std::cout << "REMOVE_ANCESTORS TIME (ms):   " << remove_ancestor_time/1000000 << std::endl;
     std::cout << "RECLUSTER_TREE TIME (ms):     " << recluster_tree_time/1000000 << std::endl;
+    std::cout << "TEST_TIMER TIME (ms):     " << test_timer/1000000 << std::endl;
     return;
 }
 
@@ -144,12 +146,13 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
     for (auto neighbor : c->neighbors) {
         if (neighbor && neighbor->parent == c->parent) {
             neighbor->parent = nullptr; // Set sibling parent pointer to null
-            root_clusters[level].insert(neighbor); // Keep track of parentless cluster
+            root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
         }
     }
     auto curr = c->parent;
     c->parent = nullptr;
-    root_clusters[level].insert(c);
+    root_clusters[level].push_back(c);
+    auto begin = std::chrono::high_resolution_clock::now();
     while (curr) {
         auto prev = curr;
         curr = prev->parent;
@@ -157,13 +160,16 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
         for (auto neighbor : prev->neighbors) {
             if (neighbor && neighbor->parent == prev->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].insert(neighbor); // Keep track of parentless cluster
+                root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
             }
             if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         }
-        root_clusters[level].erase(prev);
+        auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
+        if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         delete prev; // Remove cluster prev
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    test_timer += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
 }
 
 template<typename aug_t>
@@ -186,7 +192,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                         bool new_parent = (parent == nullptr);
                         if (new_parent) { // If neighbor is a root cluster
                             parent = new TopologyCluster<aug_t>(default_value);
-                            root_clusters[level+1].insert(parent);
+                            root_clusters[level+1].push_back(parent);
                         }
                         cluster->parent = parent;
                         neighbor->parent = parent;
@@ -205,7 +211,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
-                        root_clusters[level+1].insert(parent);
+                        root_clusters[level+1].push_back(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
                     }
@@ -234,7 +240,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
-                        root_clusters[level+1].insert(parent);
+                        root_clusters[level+1].push_back(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
                     }
@@ -259,7 +265,7 @@ void TopologyTree<aug_t>::recluster_tree() {
                 auto parent = new TopologyCluster<aug_t>(default_value);
                 parent->value = cluster->value;
                 cluster->parent = parent;
-                root_clusters[level+1].insert(parent);
+                root_clusters[level+1].push_back(parent);
                 contractions.push_back({{cluster,cluster},true});
             }
         }
