@@ -53,7 +53,8 @@ public:
     bool is_valid();
     int get_height(vertex_t v);
     void print_tree();
-    TopologyCluster<aug_t>* get_neighbors(vertex_t u);
+    TopologyCluster<aug_t>** get_neighbors(vertex_t u);
+    int get_first_edge_val(vertex_t v){return leaves[v].edge_values[0];}
 private:
     // Class data and parameters
     parlay::sequence<TopologyCluster<aug_t>> leaves;
@@ -356,8 +357,8 @@ bool TopologyTree<aug_t>::connected(vertex_t u, vertex_t v) {
 }
 
 template<typename aug_t>
-TopologyCluster<aug_t>* TopologyTree<aug_t>::get_neighbors(vertex_t v){
-  return leaves[v]->neighbors;
+TopologyCluster<aug_t>** TopologyTree<aug_t>::get_neighbors(vertex_t v){
+  return leaves[v].neighbors;
 }
 
 /* Returns the value of the associative function f applied over

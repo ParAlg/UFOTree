@@ -71,10 +71,12 @@ public:
   bool connected(vertex_t u, vertex_t v);
   bool is_edge(RCCluster<aug_t> *cluster);
   bool edge_exists(vertex_t u, vertex_t v);
-  RCTree<aug_t>** get_neighbors(vertex_t v);
+  RCCluster<aug_t>** get_neighbors(vertex_t v);
   vertex_t get_vertex_id(RCCluster<aug_t>* cluster, vertex_t src){
     return cluster->boundary_vertexes[0] != src ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
   }
+  int get_first_edge_val(vertex_t v){return contraction_tree[v][0][0]->aug_val;}
+
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   // These are only ones that should really be public.
   RCTree(int _n, QueryType q = PATH, 
@@ -231,7 +233,7 @@ void RCTree<aug_t>::clear_deleted_clusters(vertex_t vertex, int round){
   }
 }
 template<typename aug_t>
-RCTree<aug_t>** RCTree<aug_t>::get_neighbors(vertex_t v){
+RCCluster<aug_t>** RCTree<aug_t>::get_neighbors(vertex_t v){
   return contraction_tree[v][0];
 }
 /* ------------------------------- */
