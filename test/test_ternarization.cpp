@@ -52,24 +52,22 @@ TEST(TernarizationSuite, test_determine_link_v){
   t.link(0, 1, 1);
   t.link(0, 2, 2);
   t.link(0, 3, 3);  
-  ASSERT_TRUE(t.determine_link_v(0) >= 5);
+  ASSERT_TRUE(t.determine_link_v(0) == 6);
   
   // Case where vertex was already ternarized and now we have to add to head.
   TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t2(10);
   t2.link(0,1,1);
   t2.link(0,2,2);
   t2.link(0,3,3);
-  t2.link(0,4,4);
-  
-  ASSERT_TRUE(t2.determine_link_v(0) == 11);
-
+  t2.link(0,4,4); 
+  ASSERT_TRUE(t2.determine_link_v(0) == 12);
 
   // Same cases as above but with RCTrees
   TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(5);
   rt.link(0, 1, 1);
   rt.link(0, 2, 2);
   rt.link(0, 3, 3);  
-  ASSERT_TRUE(rt.determine_link_v(0) >= 5);
+  ASSERT_TRUE(rt.determine_link_v(0) == 6);
 
   // Case where vertex was already ternarized and now we have to add to head.
   TernarizedTree<RCTree<int>, RCCluster<int>, int> rt2(10);
@@ -77,11 +75,12 @@ TEST(TernarizationSuite, test_determine_link_v){
   rt2.link(0,2,2);
   rt2.link(0,3,3);
   rt2.link(0,4,4);
-
-  ASSERT_TRUE(rt2.determine_link_v(0) == 11);
+  
+  ASSERT_TRUE(rt2.determine_link_v(0) == 12);
 }
 
-TEST(TernarizationSuite, test_link_cases){
+// 3 different test functions for link, all test 2 possible cases to consider.
+TEST(TernarizationSuite, test_link_cases_1){
   // Case 1, neither u nor v is degree 3, so normal link should take place.
   TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(10);
   TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(10);
@@ -116,6 +115,28 @@ TEST(TernarizationSuite, test_link_cases){
   ASSERT_TRUE(ternarized_v_found_top && ternarized_v_found_rc);
 }
 
+TEST(TernarizationSuite, test_link_cases_2){
+  // Link between 2 degree 3 vertices, (both should become connected via a new ternarized path.)
+  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(20);
+  TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(20);
+
+  t.link(0,1,1); rt.link(0,1,1);
+  t.link(0,2,2); rt.link(0,2,2);
+  t.link(0,3,3); rt.link(0,3,3);
+
+  t.link(4,5,5); rt.link(4,5,5);
+  t.link(4,6,6); rt.link(4,6,6);
+  t.link(4,7,7); rt.link(4,7,7);
+
+  t.link(0,4,4); rt.link(0,4,4);
+
+  ASSERT_TRUE(t.connected(0,4) && rt.connected(0,4));
+  ASSERT_TRUE(t.edge_map[std::pair(0,4)].first >= 20 && t.edge_map[std::pair(0,4)].second >= 20);
+  ASSERT_TRUE(rt.edge_map[std::pair(0,4)].first >= 20 && rt.edge_map[std::pair(0,4)].second >= 20);
+
+  // Link between 2 previously ternarized vertices
+
+}
 TEST(TernarizationSuite, test_delete_ternarized_vertex){
 
 }
