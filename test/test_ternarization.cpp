@@ -1,13 +1,27 @@
 #include <gtest/gtest.h>
 #include "../include/ternarized_tree.h"
 #include "../include/rc_tree.h"
+#include "../include/topology_tree.h"
 
 template<typename DynamicTree, typename TreeCluster, typename aug_t>
 bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::is_valid_ternarized_tree(){
   // To write function:
-  // 1) Call is_valid_tree methods from Topology Tree classes.
+  // 1) Call is_valid_tree methods from Topology Tree and RCTree classes.
   // 2) Verify high degree vertices are ternarized.
+  // 3) Verify length of ternarized chain.
+  // 4) Verify chain contains vertex we expect it to.
 }
+
+template<typename DynamicTree, typename TreeCluster, typename aug_t>
+int TernarizedTree<DynamicTree, TreeCluster, aug_t>::get_length_of_chain(vertex_t v){
+
+}
+
+template<typename DynamicTree, typename TreeCluster, typename aug_t>
+bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::vertex_on_chain(vertex_t start, vertex_t to_find){
+
+}
+
 TEST(TernarizationSuite, constructor_test){
   
   TernarizedTree<RCTree<int>, RCCluster<int>, int> tree(5);
@@ -135,7 +149,7 @@ TEST(TernarizationSuite, test_link_cases_2){
   ASSERT_TRUE(rt.edge_map[std::pair(0,4)].first >= 20 && rt.edge_map[std::pair(0,4)].second >= 20);
 
   // Link between 2 previously ternarized vertices
-
+  
 }
 TEST(TernarizationSuite, test_delete_ternarized_vertex){
 

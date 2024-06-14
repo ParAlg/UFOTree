@@ -1,9 +1,8 @@
-#include <ostream>
+#include <iostream>
 #include <unordered_map>
 #include <queue>
 #include <cassert>
 #include "util.h"
-#include "topology_tree.h"
 
 struct pair_hash{ 
   template<typename U, typename V>
@@ -36,8 +35,8 @@ public:
   // Ternarization book-keeping
   vertex_t n;
   aug_t id;
-  TopologyTree<aug_t> top_tree; // For finding type info.
   std::unordered_map<std::pair<vertex_t, vertex_t>, std::pair<vertex_t, vertex_t>, pair_hash> edge_map;
+  std::unordered_map<vertex_t, std::pair<vertex_t, vertex_t>> chain_map; // For testing purposes only.
   std::queue<vertex_t> free_ids;
 };
 
@@ -45,7 +44,7 @@ template<typename DynamicTree, typename TreeCluster, typename aug_t>
 TernarizedTree<DynamicTree, TreeCluster, aug_t>::TernarizedTree(vertex_t n, QueryType q, 
                                                                 std::function<aug_t(aug_t, aug_t)> f, 
                                                                 aug_t id, aug_t d) : 
-  tree(2*n, q, f, id, d), n(n), top_tree(1) {
+  tree(2*n, q, f, id, d), n(n) {
   for(int i = n; i < (2*n); i++) free_ids.push(i);
 }
 
@@ -72,8 +71,11 @@ vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::determine_link_v(verte
   vertex_t new_ternarized_n = free_ids.front(); free_ids.pop();
   tree.link(v, new_ternarized_n, id);
   tree.link(prev_ternary_neighbor, new_ternarized_n, id);
+  // Adjustments to the chain.
+  chain_map[v].second = new_ternarized_n; 
+  chain_map[new_ternarized_n].first = v; chain_map[new_ternarized_n].second = prev_ternary_neighbor;
+  chain_map[prev_ternary_neighbor].first = new_ternarized_n;
   return new_ternarized_n;
-
 }
 
 /* Given a degree 3 vertex, ternarize the vertex by replacing one of its edges to a
@@ -96,6 +98,8 @@ vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::ternarize_vertex(verte
   tree.cut(u, to_cut);
   vertex_t new_ternarized_n = free_ids.front(); free_ids.pop();
   tree.link(new_ternarized_n, to_cut, edge_val);
+  chain_map[u] = std::pair(MAX_VERTEX_T, new_ternarized_n); // Head of new ternarized chain.
+  chain_map[new_ternarized_n] = std::pair(u, MAX_VERTEX_T); // Add as tail of ternarized chain. 
   return new_ternarized_n;
 }
 
@@ -105,6 +109,8 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::delete_ternarized_vertex(v
     vertex_t neighbor = MAX_VERTEX_T;
     for(int i = 0; i < 3; i++){if(tree.get_neighbors(v)[i] != nullptr) get_id(tree.get_neighbors(v)[i], v);}
     tree.cut(v, neighbor);
+    chain_map.erase(v);
+    chain_map[neighbor].second = MAX_VERTEX_T;
   } else {
     vertex_t n1 = MAX_VERTEX_T, n2 = MAX_VERTEX_T;
     for(int i = 0; i < 3; i++){
@@ -115,13 +121,15 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::delete_ternarized_vertex(v
     }
     tree.cut(v, n1);
     tree.cut(v, n2);
+    chain_map.erase(v);
+    if(chain_map[n1].first == v) {chain_map[n1].first = n2;} else {chain_map[n1].second = n2;}
+    if(chain_map[n2].first == v){chain_map[n2].first = n1;} else {chain_map[n2].second = n1;}
     tree.link(n1, n2, id);
   }
 }
 
 template<typename DynamicTree, typename TreeCluster, typename aug_t>
 vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::get_id(TreeCluster* cluster, vertex_t src){
-
   return tree.get_vertex_id(cluster, src);
 }
 
@@ -158,7 +166,6 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::link(vertex_t u, vertex_t 
   vertex_t to_link_v = v;
   if(get_degree(u) == 3) to_link_u = determine_link_v(u); 
   if(get_degree(v) == 3) to_link_v = determine_link_v(v); 
-
   tree.link(to_link_u, to_link_v, weight);
   edge_map[std::pair<vertex_t, vertex_t>(u,v)] = std::pair<vertex_t, vertex_t>(to_link_u, to_link_v);
 }
@@ -183,7 +190,6 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::cut(vertex_t u, vertex_t v
   auto edge_pair = edge_map[std::pair(u,v)];
   vertex_t v1 = edge_pair.first, v2 = edge_pair.second;
   tree.cut(v1, v2);
-
   if(v1 >= n){
     delete_ternarized_vertex(v1);
     free_ids.push(v1);
