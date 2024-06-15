@@ -4,6 +4,7 @@
 #include <parlay/primitives.h>
 #include "types.h"
 #include "util.h"
+#include "ternarizable_interface.h"
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -36,7 +37,7 @@ struct TopologyCluster {
 };
 
 template<typename aug_t>
-class TopologyTree {
+class TopologyTree : ITernarizable {
 public:
     // Topology tree interface
     TopologyTree(vertex_t n, QueryType q = PATH, 
@@ -48,16 +49,20 @@ public:
     bool connected(vertex_t u, vertex_t v);
     aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
     aug_t path_query(vertex_t u, vertex_t v);
-    vertex_t get_vertex_id(TopologyCluster<aug_t>* cluster, vertex_t src){return cluster->v;}
+    
+    //Interface methods overriden.
+    short get_degree(vertex_t v) override {return leaves[v].get_degree();}
+    std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+      return std::pair(cluster_to_leaf[leaves[v].neighbors[0]], leaves[v].edge_values[0]); 
+    }
     // Testing helpers
     bool is_valid();
     int get_height(vertex_t v);
     void print_tree();
-    TopologyCluster<aug_t>** get_neighbors(vertex_t u);
-    int get_first_edge_val(vertex_t v){return leaves[v].edge_values[0];}
 private:
     // Class data and parameters
     parlay::sequence<TopologyCluster<aug_t>> leaves;
+    std::unordered_map<TopologyCluster<aug_t>*, vertex_t> cluster_to_leaf;
     QueryType query_type;
     std::function<aug_t(aug_t, aug_t)> f;
     aug_t identity;
@@ -72,7 +77,10 @@ private:
 template<typename aug_t>
 TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d) :
 query_type(q), f(f), identity(id), default_value(d) {
-    for(int i = 0; i < n; i++) leaves.push_back(TopologyCluster<aug_t>(d, i));
+    leaves.resize(n, d);
+    for(int i = 0; i < n; i++) {
+      cluster_to_leaf[&leaves[i]] = i;
+    }
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
@@ -354,11 +362,6 @@ vertex v in the tree. */
 template<typename aug_t>
 bool TopologyTree<aug_t>::connected(vertex_t u, vertex_t v) {
     return leaves[u].get_root() == leaves[v].get_root();
-}
-
-template<typename aug_t>
-TopologyCluster<aug_t>** TopologyTree<aug_t>::get_neighbors(vertex_t v){
-  return leaves[v].neighbors;
 }
 
 /* Returns the value of the associative function f applied over

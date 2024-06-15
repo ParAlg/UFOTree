@@ -1,6 +1,5 @@
+#pragma once  
 #include <algorithm>
-#include <cstdio>
-#include <cstdlib>
 #include <iostream>
 #include <parlay/sequence.h>
 #include <stdexcept>
@@ -8,6 +7,7 @@
 #include<vector>
 #include "types.h"
 #include "util.h"
+#include "ternarizable_interface.h" 
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 
@@ -37,7 +37,7 @@ public:
 };
 
 template<typename aug_t>
-class RCTree {
+class RCTree : ITernarizable{
 public:
   // Data structure fields.
   int degree_bound;
@@ -71,12 +71,11 @@ public:
   bool connected(vertex_t u, vertex_t v);
   bool is_edge(RCCluster<aug_t> *cluster);
   bool edge_exists(vertex_t u, vertex_t v);
-  RCCluster<aug_t>** get_neighbors(vertex_t v);
-  vertex_t get_vertex_id(RCCluster<aug_t>* cluster, vertex_t src){
-    return cluster->boundary_vertexes[0] != src ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+  // Overrides for ternarizable_interface methods
+  short get_degree(vertex_t v) override {return get_degree(v, 0);}
+  std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+    return std::pair(GET_NEIGHBOR(v, (*contraction_tree[v][0][0])), contraction_tree[v][0][0]->aug_val);
   }
-  int get_first_edge_val(vertex_t v){return contraction_tree[v][0][0]->aug_val;}
-
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   // These are only ones that should really be public.
   RCTree(int _n, QueryType q = PATH, 
@@ -231,10 +230,6 @@ void RCTree<aug_t>::clear_deleted_clusters(vertex_t vertex, int round){
       }
     }
   }
-}
-template<typename aug_t>
-RCCluster<aug_t>** RCTree<aug_t>::get_neighbors(vertex_t v){
-  return contraction_tree[v][0];
 }
 /* ------------------------------- */
 
