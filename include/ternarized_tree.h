@@ -32,6 +32,7 @@ public:
   bool is_valid_ternarized_tree();
   int get_length_of_chain(vertex_t v);
   bool vertex_on_chain(vertex_t start, vertex_t to_find);
+  bool test_vertex_deleted(vertex_t u, vertex_t v);
   // Underlying dynamic tree data structure
   DynamicTree tree;
   // Ternarization book-keeping

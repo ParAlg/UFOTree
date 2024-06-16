@@ -30,8 +30,8 @@ bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::vertex_on_chain(vertex_t s
   if(edge_map.find(std::pair(start, to_find)) == edge_map.end()) return false;
   auto pair = edge_map[std::pair(start, to_find)];
   
-  auto curr1 = chain_map.find(pair.first) != chain_map.end() ? chain_map[pair.first].first : pair.first;
-  auto curr2 = chain_map.find(pair.second) != chain_map.end() ? chain_map[pair.second].first : pair.second;
+  auto curr1 = chain_map.find(pair.first) != chain_map.end() && pair.first != start ? chain_map[pair.first].first : pair.first;
+  auto curr2 = chain_map.find(pair.second) != chain_map.end() && pair.second != to_find ? chain_map[pair.second].first : pair.second;
   
   while(curr1 != start && chain_map[curr1].first != MAX_VERTEX_T){
     curr1 = chain_map[curr1].first;
@@ -39,9 +39,30 @@ bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::vertex_on_chain(vertex_t s
   while(curr2 != to_find && chain_map[curr2].first != MAX_VERTEX_T){
     curr2 = chain_map[curr2].first;
   }
-  return curr1 == start && curr2 == to_find;
+  return curr1 == start && curr2 == to_find && tree.connected(start, to_find);
 }
 
+template<typename DynamicTree, typename TreeCluster, typename aug_t>
+bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::test_vertex_deleted(vertex_t u, vertex_t v){
+  if(u > v) std::swap(u,v);
+  if(edge_map.find(std::pair(u,v)) != edge_map.end()) return false;
+  if(tree.connected(u,v)) return false;
+  if(chain_map.find(u) != chain_map.end()){
+    auto curr1 = u;
+    while(chain_map[curr1].second != MAX_VERTEX_T){
+      curr1 = chain_map[curr1].second;
+      if(tree.connected(curr1, v)) return false;
+    }
+  }
+  if(chain_map.find(v) != chain_map.end()){
+    auto curr2 = v;
+    while(chain_map[curr2].second != MAX_VERTEX_T){
+      curr2 = chain_map[curr2].second;
+      if(tree.connected(curr2, u)) return false;
+    }
+  }
+  return true;
+}
 TEST(TernarizationSuite, constructor_test){
   
   TernarizedTree<RCTree<int>, RCCluster<int>, int> tree(5);
@@ -193,8 +214,52 @@ TEST(TernarizationSuite, test_cut_cases_1){
   ASSERT_EQ(t.edge_map.find(std::pair(0,6)), t.edge_map.end());
 }
 
-TEST(TernarizationSuite, test_maximal_star_graphs){
+TEST(TernarizationSuite, test_random_maximal_star_graphs){
+  int num_trials = 10, max_n = 1024;
+  int seeds[num_trials];
+  srand(time(NULL));
+  for(int i = 0; i < num_trials; i++){seeds[i] = rand();}
+  for(int trial = 0; trial < num_trials; trial++){ 
+    srand(seeds[trial]);
+    auto t_size = rand() % max_n;
+    int max_degree = rand() % t_size + 1;
+    std::vector<std::pair<vertex_t,vertex_t>> links;
+    TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(t_size);
+    TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(t_size);
+    for(int i = 0; i < t_size; i += (max_degree - 1)){
+      if(i == max_degree - 1) i++;
+      for(int j = i + 1; j < std::min(i + (max_degree - 1), t_size); j++){
+        t.link(i,j,j);
+        rt.link(i,j,j);
+        links.push_back(std::pair(i,j));
+      }
+    }
+    t.link(0, max_degree, max_degree); rt.link(0,max_degree,max_degree);
+    links.push_back(std::pair(0,max_degree));
 
+    for(auto pair : links){
+      ASSERT_TRUE(t.vertex_on_chain(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " not found in topology tree" <<", Seed: " << seeds[trial];
+      ASSERT_TRUE(rt.vertex_on_chain(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " not found in RC tree" << ", Seed: " << seeds[trial];
+    }
+
+    for(auto pair: links){
+      t.cut(pair.first, pair.second); rt.cut(pair.first, pair.second);
+      ASSERT_TRUE(t.test_vertex_deleted(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " still connected in topology tree" << ", Seed: " << seeds[trial];
+      ASSERT_TRUE(rt.test_vertex_deleted(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " still connected in RC tree" << ", Seed: " << seeds[trial];
+    }
+    
+    // Make sure no vertices are still connected.
+    for(int i = 0; i < t_size; i++){
+      ASSERT_EQ(t.tree.get_degree(i), 0);
+      ASSERT_EQ(t.get_length_of_chain(i), 0);
+      ASSERT_EQ(rt.tree.get_degree(i), 0);
+      ASSERT_EQ(rt.get_length_of_chain(i), 0);
+    }
+  }
 }
 
 TEST(TernarizationSuite, incremental_test_random_trees){
