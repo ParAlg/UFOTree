@@ -3,8 +3,8 @@
 #include "../include/rc_tree.h"
 #include "../include/topology_tree.h"
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::is_valid_ternarized_tree(){
+template<typename DynamicTree, typename aug_t>
+bool TernarizedTree<DynamicTree, aug_t>::is_valid_ternarized_tree(){
   // To write function:
   // 1) Call is_valid_tree methods from Topology Tree and RCTree classes.
   // 2) Verify high degree vertices are ternarized.
@@ -12,8 +12,8 @@ bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::is_valid_ternarized_tree()
   // 4) Verify chain contains vertex we expect it to.
 }
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-int TernarizedTree<DynamicTree, TreeCluster, aug_t>::get_length_of_chain(vertex_t v){
+template<typename DynamicTree, typename aug_t>
+int TernarizedTree<DynamicTree, aug_t>::get_length_of_chain(vertex_t v){
   int length = 0;
   if(chain_map.find(v) == chain_map.end()) return length;
   auto curr = chain_map[v].second;
@@ -24,8 +24,8 @@ int TernarizedTree<DynamicTree, TreeCluster, aug_t>::get_length_of_chain(vertex_
   return length;
 }
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::vertex_on_chain(vertex_t start, vertex_t to_find){
+template<typename DynamicTree, typename aug_t>
+bool TernarizedTree<DynamicTree, aug_t>::vertex_on_chain(vertex_t start, vertex_t to_find){
   if(start > to_find) std::swap(start, to_find);
   if(edge_map.find(std::pair(start, to_find)) == edge_map.end()) return false;
   auto pair = edge_map[std::pair(start, to_find)];
@@ -42,8 +42,8 @@ bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::vertex_on_chain(vertex_t s
   return curr1 == start && curr2 == to_find && tree.connected(start, to_find);
 }
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::test_vertex_deleted(vertex_t u, vertex_t v){
+template<typename DynamicTree, typename aug_t>
+bool TernarizedTree<DynamicTree, aug_t>::test_vertex_deleted(vertex_t u, vertex_t v){
   if(u > v) std::swap(u,v);
   if(edge_map.find(std::pair(u,v)) != edge_map.end()) return false;
   if(tree.connected(u,v)) return false;
@@ -65,8 +65,8 @@ bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::test_vertex_deleted(vertex
 }
 TEST(TernarizationSuite, constructor_test){
   
-  TernarizedTree<RCTree<int>, RCCluster<int>, int> tree(5);
-  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> tree2(5);
+  TernarizedTree<RCTree<int>, int> tree(5);
+  TernarizedTree<TopologyTree<int>, int> tree2(5);
 
   ASSERT_EQ(tree.n, 5);
   ASSERT_EQ(tree.tree.n, 10);
@@ -75,14 +75,14 @@ TEST(TernarizationSuite, constructor_test){
 
 TEST(TernarizationSuite, test_determine_link_v){ 
   // Case where vertex is unternarized.
-  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(5);
+  TernarizedTree<TopologyTree<int>, int> t(5);
   t.link(0, 1, 1);
   t.link(0, 2, 2);
   t.link(0, 3, 3);  
   ASSERT_TRUE(t.determine_link_v(0) == 6);
   
   // Case where vertex was already ternarized and now we have to add to head.
-  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t2(10);
+  TernarizedTree<TopologyTree<int>, int> t2(10);
   t2.link(0,1,1);
   t2.link(0,2,2);
   t2.link(0,3,3);
@@ -90,14 +90,14 @@ TEST(TernarizationSuite, test_determine_link_v){
   ASSERT_EQ(t2.determine_link_v(0), 12);
 
   // Same cases as above but with RCTrees
-  TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(5);
+  TernarizedTree<RCTree<int>, int> rt(5);
   rt.link(0, 1, 1);
   rt.link(0, 2, 2);
   rt.link(0, 3, 3);  
   ASSERT_TRUE(rt.determine_link_v(0) == 6);
 
   // Case where vertex was already ternarized and now we have to add to head.
-  TernarizedTree<RCTree<int>, RCCluster<int>, int> rt2(10);
+  TernarizedTree<RCTree<int>, int> rt2(10);
   rt2.link(0,1,1);
   rt2.link(0,2,2);
   rt2.link(0,3,3);
@@ -109,8 +109,8 @@ TEST(TernarizationSuite, test_determine_link_v){
 // 3 different test functions for link, all test 2 possible cases to consider.
 TEST(TernarizationSuite, test_link_cases_1){
   // Case 1, neither u nor v is degree 3, so normal link should take place.
-  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(10);
-  TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(10);
+  TernarizedTree<TopologyTree<int>, int> t(10);
+  TernarizedTree<RCTree<int>, int> rt(10);
 
   t.link(0,1,1); rt.link(0,1,1);
   t.link(0,2,2); rt.link(0,2,2);
@@ -131,8 +131,8 @@ TEST(TernarizationSuite, test_link_cases_1){
 
 TEST(TernarizationSuite, test_link_cases_2){
   // Link between 2 degree 3 vertices, (both should become connected via a new ternarized path.)
-  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(20);
-  TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(20);
+  TernarizedTree<TopologyTree<int>, int> t(20);
+  TernarizedTree<RCTree<int>, int> rt(20);
 
   t.link(0,1,1); rt.link(0,1,1);
   t.link(0,2,2); rt.link(0,2,2);
@@ -174,8 +174,8 @@ TEST(TernarizationSuite, test_link_cases_2){
   ASSERT_EQ(rt.get_length_of_chain(0), 2);
 }
 TEST(TernarizationSuite, test_cut_cases_1){
-  TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(10);
-  TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(10);
+  TernarizedTree<TopologyTree<int>, int> t(10);
+  TernarizedTree<RCTree<int>, int> rt(10);
   // Cut between 2 unternarized vertices.
   t.link(0,1,1); rt.link(0,1,1);
   t.link(0,2,1); rt.link(0,2,1);
@@ -224,14 +224,16 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
     auto t_size = rand() % max_n;
     int max_degree = rand() % t_size + 1;
     std::vector<std::pair<vertex_t,vertex_t>> links;
-    TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(t_size);
-    TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(t_size);
+    TernarizedTree<TopologyTree<int>, int> t(t_size);
+    TernarizedTree<RCTree<int>, int> rt(t_size);
     for(int i = 0; i < t_size; i += (max_degree - 1)){
       if(i == max_degree - 1) i++;
       for(int j = i + 1; j < std::min(i + (max_degree - 1), t_size); j++){
-        t.link(i,j,j);
-        rt.link(i,j,j);
-        links.push_back(std::pair(i,j));
+        if(!t.connected(i,j)){
+          t.link(i,j,j);
+          rt.link(i,j,j);
+          links.push_back(std::pair(i,j));
+        }
       }
     }
     t.link(0, max_degree, max_degree); rt.link(0,max_degree,max_degree);
@@ -275,8 +277,8 @@ TEST(TernarizationSuite, incremental_decremental_test_random_trees){
     srand(seeds[trial]);
     auto t_size = rand() % max_n;
     std::vector<std::pair<vertex_t,vertex_t>> links;
-    TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(t_size);
-    TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(t_size);
+    TernarizedTree<TopologyTree<int>, int> t(t_size);
+    TernarizedTree<RCTree<int>, int> rt(t_size);
     while(links.size() < t_size - 1){
       vertex_t u = rand() % t_size, v = rand() % t_size;
       if(u!= v && !t.connected(u,v)) {

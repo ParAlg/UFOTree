@@ -12,7 +12,7 @@ struct pair_hash{
   }
 };
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
+template<typename DynamicTree, typename aug_t>
 class TernarizedTree {
 public:
   // Ternarized tree interface
@@ -44,8 +44,8 @@ public:
   std::queue<vertex_t> free_ids;
 };
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-TernarizedTree<DynamicTree, TreeCluster, aug_t>::TernarizedTree(vertex_t n, QueryType q, 
+template<typename DynamicTree, typename aug_t>
+TernarizedTree<DynamicTree, aug_t>::TernarizedTree(vertex_t n, QueryType q, 
                                                                 std::function<aug_t(aug_t, aug_t)> f, 
                                                                 aug_t id, aug_t d) : 
   tree(2*n, q, f, id, d), n(n) {
@@ -56,8 +56,8 @@ TernarizedTree<DynamicTree, TreeCluster, aug_t>::TernarizedTree(vertex_t n, Quer
 
 /*** HELPER METHODS ***/
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::determine_link_v(vertex_t v){
+template<typename DynamicTree, typename aug_t>
+vertex_t TernarizedTree<DynamicTree, aug_t>::determine_link_v(vertex_t v){
   vertex_t prev_ternary_neighbor = MAX_VERTEX_T;
   if(chain_map.find(v) != chain_map.end()) prev_ternary_neighbor = chain_map[v].second;
   if(prev_ternary_neighbor == MAX_VERTEX_T){
@@ -88,8 +88,8 @@ vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::determine_link_v(verte
  *        a-u-b
  *          |
  *          d-c*/
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::ternarize_vertex(vertex_t v){
+template<typename DynamicTree, typename aug_t>
+vertex_t TernarizedTree<DynamicTree, aug_t>::ternarize_vertex(vertex_t v){
   assert(tree.get_degree(v) == 3);
   auto to_cut_pair = tree.retrieve_v_to_del(v); // Retrieve the vertex, edge pair to add as the start of the ternarization chain.
   tree.cut(v, to_cut_pair.first); // cut edge between this vertex to add a dummy ternarization vertex.
@@ -108,8 +108,8 @@ vertex_t TernarizedTree<DynamicTree, TreeCluster, aug_t>::ternarize_vertex(verte
   return new_ternarized_n;
 }
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-void TernarizedTree<DynamicTree, TreeCluster, aug_t>::delete_ternarized_vertex(vertex_t v){
+template<typename DynamicTree, typename aug_t>
+void TernarizedTree<DynamicTree, aug_t>::delete_ternarized_vertex(vertex_t v){
   // If vertex is degree 1, it is at the tail of the ternarization chain.
   if(tree.get_degree(v) == 1){
     vertex_t neighbor = chain_map[v].first; // Get prev reference of vertex.
@@ -132,8 +132,8 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::delete_ternarized_vertex(v
 
 /**********************/
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-void TernarizedTree<DynamicTree, TreeCluster, aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
+template<typename DynamicTree, typename aug_t>
+void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
   // If vertex degree <= 3, proceed with normal link, otherwise ternarize vertex
   // and add new vertex to head.
 
@@ -155,8 +155,8 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::link(vertex_t u, vertex_t 
   edge_map[std::pair<vertex_t, vertex_t>(u,v)] = std::pair<vertex_t, vertex_t>(to_link_u, to_link_v);
 }
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-void TernarizedTree<DynamicTree, TreeCluster, aug_t>::cut(vertex_t u, vertex_t v) {
+template<typename DynamicTree, typename aug_t>
+void TernarizedTree<DynamicTree, aug_t>::cut(vertex_t u, vertex_t v) {
   // Find vertex on ternarized path that points to v and u
   // Remove this from the ternarized path.
   if(u > v){std::swap(u,v);}
@@ -186,7 +186,7 @@ void TernarizedTree<DynamicTree, TreeCluster, aug_t>::cut(vertex_t u, vertex_t v
   edge_map.erase(std::pair(u,v));
 }
 
-template<typename DynamicTree, typename TreeCluster, typename aug_t>
-bool TernarizedTree<DynamicTree, TreeCluster, aug_t>::connected(vertex_t u, vertex_t v) {
+template<typename DynamicTree, typename aug_t>
+bool TernarizedTree<DynamicTree, aug_t>::connected(vertex_t u, vertex_t v) {
   return tree.connected(u,v);
 }
