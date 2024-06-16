@@ -236,14 +236,16 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
     }
     t.link(0, max_degree, max_degree); rt.link(0,max_degree,max_degree);
     links.push_back(std::pair(0,max_degree));
-
+    
+    // Test to see if all vertices are connected via a chain.
     for(auto pair : links){
       ASSERT_TRUE(t.vertex_on_chain(pair.first, pair.second)) 
         << "Vertices " << pair.first << " and " << pair.second << " not found in topology tree" <<", Seed: " << seeds[trial];
       ASSERT_TRUE(rt.vertex_on_chain(pair.first, pair.second)) 
         << "Vertices " << pair.first << " and " << pair.second << " not found in RC tree" << ", Seed: " << seeds[trial];
     }
-
+    
+    // Delete all links.
     for(auto pair: links){
       t.cut(pair.first, pair.second); rt.cut(pair.first, pair.second);
       ASSERT_TRUE(t.test_vertex_deleted(pair.first, pair.second)) 
@@ -262,7 +264,50 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
   }
 }
 
-TEST(TernarizationSuite, incremental_test_random_trees){
+TEST(TernarizationSuite, incremental_decremental_test_random_trees){
   // 1) Store all links in an array, make sure links result in vertices on chain
   // 2) Make sure length of chain is what is expected i.e. degree - 2
+  int num_trials = 10, max_n = 1024;
+  int seeds[num_trials];
+  srand(time(NULL));
+  for(int i = 0; i < num_trials; i++) seeds[i] = rand();
+  for(int trial = 0; trial < num_trials; trial++){
+    srand(seeds[trial]);
+    auto t_size = rand() % max_n;
+    std::vector<std::pair<vertex_t,vertex_t>> links;
+    TernarizedTree<TopologyTree<int>, TopologyCluster<int>, int> t(t_size);
+    TernarizedTree<RCTree<int>, RCCluster<int>, int> rt(t_size);
+    while(links.size() < t_size - 1){
+      vertex_t u = rand() % t_size, v = rand() % t_size;
+      if(u!= v && !t.connected(u,v)) {
+        t.link(u,v,u); rt.link(u,v,u);
+        links.push_back(std::pair(u,v));
+      }
+    }
+
+    for(auto pair : links){
+      ASSERT_TRUE(t.vertex_on_chain(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " not found in topology tree" <<", Seed: " << seeds[trial];
+      ASSERT_TRUE(rt.vertex_on_chain(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " not found in RC tree" << ", Seed: " << seeds[trial];
+    }
+    
+    while(links.size() > 0){ 
+      int link_to_del = rand() % links.size();
+      auto pair = links[link_to_del];
+      t.cut(pair.first, pair.second); rt.cut(pair.first, pair.second);
+      ASSERT_TRUE(t.test_vertex_deleted(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " still connected in topology tree" << ", Seed: " << seeds[trial];
+      ASSERT_TRUE(rt.test_vertex_deleted(pair.first, pair.second)) 
+        << "Vertices " << pair.first << " and " << pair.second << " still connected in RC tree" << ", Seed: " << seeds[trial];
+      links.erase(links.begin() + link_to_del);
+    }
+    // Make sure no vertices are still connected.
+    for(int i = 0; i < t_size; i++){
+      ASSERT_EQ(t.tree.get_degree(i), 0);
+      ASSERT_EQ(t.get_length_of_chain(i), 0);
+      ASSERT_EQ(rt.tree.get_degree(i), 0);
+      ASSERT_EQ(rt.get_length_of_chain(i), 0);
+    }
+  }
 }
