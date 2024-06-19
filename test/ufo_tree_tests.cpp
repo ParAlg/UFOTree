@@ -8,22 +8,22 @@ bool UFOTree<aug_t>::is_valid() {
     std::unordered_set<UFOCluster<aug_t>*> next_clusters;
     for (auto leaf : leaves) // Ensure that every pair of incident vertices are in the same component
         for (auto entry : leaf.neighbors) // This ensures all connectivity is correct by transitivity
-            if (leaf.get_root() != entry.first->get_root()) return false;
+            if (leaf.get_root() != entry->get_root()) return false;
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
             for (auto entry : cluster->neighbors) // Ensure all neighbors also point back
-                if (!entry.first->contains_neighbor(cluster)) return false;
+                if (!entry->contains_neighbor(cluster)) return false;
             if (!cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
-                    if (cluster->neighbors.begin()->first->get_degree() > 2) return false;
-                    else if (!cluster->neighbors.begin()->first->contracts()) return false;
+                    if (cluster->neighbors[0]->get_degree() > 2) return false;
+                    else if (!cluster->neighbors[0]->contracts()) return false;
                 } else if (cluster->get_degree() == 2) {
                     for (auto entry : cluster->neighbors)
-                        if (!entry.first->contracts() && entry.first->get_degree() < 3) return false;
+                        if (!entry->contracts() && entry->get_degree() < 3) return false;
                 } else if (cluster->get_degree() >= 3) {
                     for (auto entry : cluster->neighbors)
-                        if (entry.first->get_degree() < 2) return false;
+                        if (entry->get_degree() < 2) return false;
                 }
             }
             if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
@@ -57,7 +57,7 @@ void UFOTree<aug_t>::print_tree() {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor.first] << " ";
+        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor] << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
