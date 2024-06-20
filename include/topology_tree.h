@@ -13,9 +13,8 @@
     int max_height = 0;
 #endif
 
-long remove_ancestor_time = 0;
-long recluster_tree_time = 0;
-long test_timer = 0;
+long topology_remove_ancestor_time = 0;
+long topology_recluster_tree_time = 0;
 
 
 template<typename aug_t>
@@ -85,10 +84,8 @@ TopologyTree<aug_t>::~TopologyTree() {
     #ifdef COLLECT_HEIGHT_STATS
         std::cout << "Maximum height of the tree: " << max_height << std::endl;
     #endif
-    std::cout << "[ TIME BREAK DOWN ]" << std::endl;
-    std::cout << "REMOVE_ANCESTORS TIME (ms):   " << remove_ancestor_time/1000000 << std::endl;
-    std::cout << "RECLUSTER_TREE TIME (ms):     " << recluster_tree_time/1000000 << std::endl;
-    std::cout << "TEST_TIMER TIME (ms):     " << test_timer/1000000 << std::endl;
+    PRINT_TIMER("REMOVE ANCESTORS TIME", topology_remove_ancestor_time);
+    PRINT_TIMER("RECLUSTER TREE TIME", topology_recluster_tree_time);
     return;
 }
 
@@ -99,17 +96,15 @@ template<typename aug_t>
 void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    auto begin = std::chrono::high_resolution_clock::now();
+    START_TIMER(topology_remove_ancestor_timer);
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
-    auto end = std::chrono::high_resolution_clock::now();
-    remove_ancestor_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
     leaves[u].insert_neighbor(&leaves[v], value);
     leaves[v].insert_neighbor(&leaves[u], value);
-    begin = std::chrono::high_resolution_clock::now();
+    START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
-    end = std::chrono::high_resolution_clock::now();
-    recluster_tree_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
     // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
@@ -122,17 +117,15 @@ template<typename aug_t>
 void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
-    auto begin = std::chrono::high_resolution_clock::now();
+    START_TIMER(topology_remove_ancestor_timer);
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
-    auto end = std::chrono::high_resolution_clock::now();
-    remove_ancestor_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
     leaves[u].remove_neighbor(&leaves[v]);
     leaves[v].remove_neighbor(&leaves[u]);
-    begin = std::chrono::high_resolution_clock::now();
+    START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
-    end = std::chrono::high_resolution_clock::now();
-    recluster_tree_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
     // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
@@ -152,7 +145,6 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
     auto curr = c->parent;
     c->parent = nullptr;
     root_clusters[level].push_back(c);
-    auto begin = std::chrono::high_resolution_clock::now();
     while (curr) {
         auto prev = curr;
         curr = prev->parent;
@@ -168,8 +160,6 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         delete prev; // Remove cluster prev
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    test_timer += std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count();
 }
 
 template<typename aug_t>

@@ -13,45 +13,45 @@ int main(int argc, char** argv) {
 
     for (vertex_t n : n_list) {
 
-        // test_case = "incremental-linked-list";
-        // std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "RCTree        ";
-        // dynamic_tree_benchmark::incremental_linked_list_benchmark<RCTree<int>>(n);
-        // std::cout << "TopologyTree  ";
-        // dynamic_tree_benchmark::incremental_linked_list_benchmark<TopologyTree<int>>(n);
-        // std::cout << "UFOTree       ";
-        // dynamic_tree_benchmark::incremental_linked_list_benchmark<UFOTree<int>>(n);
-        // std::cout << "EulerTourTree ";
-        // dynamic_tree_benchmark::incremental_linked_list_benchmark<skip_list_ett::EulerTourTree>(n);
-        // std::cout << std::endl;
+        test_case = "incremental-linked-list";
+        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::incremental_linked_list_benchmark<RCTree<int>>(n);
+        std::cout << "TopologyTree  ";
+        dynamic_tree_benchmark::incremental_linked_list_benchmark<TopologyTree<int>>(n);
+        std::cout << "UFOTree       ";
+        dynamic_tree_benchmark::incremental_linked_list_benchmark<UFOTree<int>>(n);
+        std::cout << "EulerTourTree ";
+        dynamic_tree_benchmark::incremental_linked_list_benchmark<skip_list_ett::EulerTourTree>(n);
+        std::cout << std::endl;
 
-        // test_case = "incremental-binary-tree";
-        // std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "RCTree        ";
-        // dynamic_tree_benchmark::incremental_binary_tree_benchmark<RCTree<int>>(n);
-        // std::cout << "TopologyTree  ";
-        // dynamic_tree_benchmark::incremental_binary_tree_benchmark<TopologyTree<int>>(n);
-        // std::cout << "UFOTree       ";
-        // dynamic_tree_benchmark::incremental_binary_tree_benchmark<UFOTree<int>>(n);
-        // std::cout << "EulerTourTree ";
-        // dynamic_tree_benchmark::incremental_binary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
-        // std::cout << std::endl;
+        test_case = "incremental-binary-tree";
+        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::incremental_binary_tree_benchmark<RCTree<int>>(n);
+        std::cout << "TopologyTree  ";
+        dynamic_tree_benchmark::incremental_binary_tree_benchmark<TopologyTree<int>>(n);
+        std::cout << "UFOTree       ";
+        dynamic_tree_benchmark::incremental_binary_tree_benchmark<UFOTree<int>>(n);
+        std::cout << "EulerTourTree ";
+        dynamic_tree_benchmark::incremental_binary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
+        std::cout << std::endl;
 
-        // test_case = "incremental-64ary-tree";
-        // std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "UFOTree       ";
-        // dynamic_tree_benchmark::incremental_64ary_tree_benchmark<UFOTree<int>>(n);
-        // std::cout << "EulerTourTree ";
-        // dynamic_tree_benchmark::incremental_64ary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
-        // std::cout << std::endl;
+        test_case = "incremental-64ary-tree";
+        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "UFOTree       ";
+        dynamic_tree_benchmark::incremental_64ary_tree_benchmark<UFOTree<int>>(n);
+        std::cout << "EulerTourTree ";
+        dynamic_tree_benchmark::incremental_64ary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
+        std::cout << std::endl;
 
-        // test_case = "incremental-star";
-        // std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "UFOTree       ";
-        // dynamic_tree_benchmark::incremental_star_benchmark<UFOTree<int>>(n);
-        // std::cout << "EulerTourTree ";
-        // dynamic_tree_benchmark::incremental_star_benchmark<skip_list_ett::EulerTourTree>(n);
-        // std::cout << std::endl;
+        test_case = "incremental-star";
+        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "UFOTree       ";
+        dynamic_tree_benchmark::incremental_star_benchmark<UFOTree<int>>(n);
+        std::cout << "EulerTourTree ";
+        dynamic_tree_benchmark::incremental_star_benchmark<skip_list_ett::EulerTourTree>(n);
+        std::cout << std::endl;
 
         test_case = "random-degree-3";
         std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
@@ -65,20 +65,20 @@ int main(int argc, char** argv) {
         dynamic_tree_benchmark::random_degree3_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
-        // test_case = "random-unbounded";
-        // std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "UFOTree       ";
-        // dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
-        // std::cout << "EulerTourTree ";
-        // dynamic_tree_benchmark::random_unbounded_benchmark<skip_list_ett::EulerTourTree>(n);
-        // std::cout << std::endl;
+        test_case = "random-unbounded";
+        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "UFOTree       ";
+        dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
+        std::cout << "EulerTourTree ";
+        dynamic_tree_benchmark::random_unbounded_benchmark<skip_list_ett::EulerTourTree>(n);
+        std::cout << std::endl;
 
-        // test_case = "preferential-attachment";
-        // std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "UFOTree       ";
-        // dynamic_tree_benchmark::preferential_attachment_benchmark<UFOTree<int>>(n);
-        // std::cout << "EulerTourTree ";
-        // dynamic_tree_benchmark::preferential_attachment_benchmark<skip_list_ett::EulerTourTree>(n);
-        // std::cout << std::endl;
+        test_case = "preferential-attachment";
+        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "UFOTree       ";
+        dynamic_tree_benchmark::preferential_attachment_benchmark<UFOTree<int>>(n);
+        std::cout << "EulerTourTree ";
+        dynamic_tree_benchmark::preferential_attachment_benchmark<skip_list_ett::EulerTourTree>(n);
+        std::cout << std::endl;
     }
 }
