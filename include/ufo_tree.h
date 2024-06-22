@@ -3,6 +3,10 @@
 #include "types.h"
 #include "util.h"
 
+/* This constant determines the maximum size of the vector of neighbors for each UFOCluster.
+Any additional neighbors will be stored in the hash set for efficiency. */
+#define UFO_ADJ_MAX 64
+
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::map<int, int> root_clusters_histogram;
@@ -20,6 +24,7 @@ template<typename aug_t>
 struct UFOCluster {
     // UFO cluster data
     std::vector<UFOCluster<aug_t>*> neighbors;
+    std::unordered_set<UFOCluster<aug_t>*> neighbors_set;
     aug_t value; // Stores subtree values or cluster path values
     UFOCluster<aug_t>* parent = nullptr;
     // Constructor
@@ -331,9 +336,10 @@ void UFOTree<aug_t>::recluster_tree() {
                     }
                 }
             } else {
+                // We ordered contractions so c1 would be the degree 1 cluster
                 if (c1->get_degree() == 1) parent->remove_neighbor(c1->parent);
-                if (c2->get_degree() == 1) parent->remove_neighbor(c2->parent);
-                if (c1->get_degree() == 2) { // We ordered contractions so c2 is the one that had a parent already
+                // We ordered contractions so c2 is the one that had a parent already
+                if (c1->get_degree() == 2) {
                     for (auto entry : c1->neighbors) if (entry != c2)
                         insert_adjacency(parent, entry->parent);
                 }
@@ -398,7 +404,7 @@ void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
 
 template<typename aug_t>
 int UFOCluster<aug_t>::get_degree() {
-    return neighbors.size();
+    return neighbors.size() + neighbors_set.size();
 }
 
 /* Helper function which determines if the parent of a cluster is high fanout. This
@@ -419,6 +425,7 @@ bool UFOCluster<aug_t>::parent_high_fanout() {
 // Helper function which returns whether this cluster combines with another cluster.
 template<typename aug_t>
 bool UFOCluster<aug_t>::contracts() {
+    assert(get_degree() <= 3);
     for (auto neighbor : this->neighbors)
         if (neighbor->parent == this->parent)
             return true;
@@ -427,20 +434,34 @@ bool UFOCluster<aug_t>::contracts() {
 
 template<typename aug_t>
 bool UFOCluster<aug_t>::contains_neighbor(UFOCluster<aug_t>* c) {
-    if (neighbors.size() == 0) return false;
-    return (std::find(neighbors.begin(), neighbors.end(), c) != neighbors.end());
+    assert(get_degree() <= 3);
+    if (std::find(neighbors.begin(), neighbors.end(), c) != neighbors.end()) return true;
+    if (neighbors_set.find(c) != neighbors_set.end()) return true;
+    return false;
 }
 
 template<typename aug_t>
 void UFOCluster<aug_t>::insert_neighbor(UFOCluster<aug_t>* c, aug_t value) {
+    assert(!contains_neighbor(c));
     if (contains_neighbor(c)) return;
-    neighbors.push_back(c);
+    if (neighbors.size() < UFO_ADJ_MAX) neighbors.push_back(c);
+    else neighbors_set.insert(c);
 }
 
 template<typename aug_t>
 void UFOCluster<aug_t>::remove_neighbor(UFOCluster<aug_t>* c) {
+    assert(contains_neighbor(c));
     auto position = std::find(neighbors.begin(), neighbors.end(), c);
-    if (position != neighbors.end()) neighbors.erase(position);
+    if (position != neighbors.end()) {
+        if (neighbors_set.size() > 0) { // Put an element from the set into the vector
+            auto replacement = *neighbors_set.begin();
+            *position = replacement;
+            neighbors_set.erase(replacement);
+        } else { // The vector will decrease in size
+            std::iter_swap(position, neighbors.end()-1);
+            neighbors.pop_back();
+        }
+    } else neighbors_set.erase(c);
 }
 
 template<typename aug_t>

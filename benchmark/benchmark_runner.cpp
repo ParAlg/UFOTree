@@ -55,8 +55,8 @@ int main(int argc, char** argv) {
 
         test_case = "random-degree-3";
         std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        // std::cout << "RCTree        ";
-        // dynamic_tree_benchmark::random_degree3_benchmark<RCTree<int>>(n);
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::random_degree3_benchmark<RCTree<int>>(n);
         std::cout << "TopologyTree  ";
         dynamic_tree_benchmark::random_degree3_benchmark<TopologyTree<int>>(n);
         std::cout << "UFOTree       ";

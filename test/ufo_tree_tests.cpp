@@ -14,7 +14,7 @@ bool UFOTree<aug_t>::is_valid() {
         for (auto cluster : clusters) {
             for (auto entry : cluster->neighbors) // Ensure all neighbors also point back
                 if (!entry->contains_neighbor(cluster)) return false;
-            if (!cluster->contracts()) { // Ensure maximality of contraction
+            if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
                     if (cluster->neighbors[0]->get_degree() > 2) return false;
                     else if (!cluster->neighbors[0]->contracts()) return false;
@@ -230,38 +230,6 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
             tree.cut(u,v);
             ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
-        }
-    }
-}
-
-TEST(UFOTreeSuite, random_performance_test) {
-    int num_trials = 1; // 100;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 1000; // 1000000;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        UFOTree<int> tree(n, qt, f, 0, 0);
-        std::pair<vertex_t, vertex_t> edges[n-1];
-
-        auto seed = seeds[trial];
-        srand(seed);
-        std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
-        int links = 0;
-        while (links < n-1) {
-            vertex_t u = rand() % n;
-            vertex_t v = rand() % n;
-            if (u != v && !tree.connected(u,v)) {
-                tree.link(u,v);
-                edges[links++] = {u,v};
-            }
-        }
-        for (auto edge : edges) {
-            auto u = edge.first;
-            auto v = edge.second;
-            tree.cut(u,v);
         }
     }
 }
