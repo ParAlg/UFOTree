@@ -27,7 +27,7 @@ struct UFOCluster {
     aug_t value; // Stores subtree values or cluster path values
     UFOCluster<aug_t>* parent = nullptr;
     // Constructor
-    UFOCluster(aug_t value) : value(value) {};
+    UFOCluster(aug_t value) : value(value) { neighbors.reserve(4); };
     // Helper functions
     int get_degree();
     bool high_degree();
@@ -61,8 +61,8 @@ private:
     aug_t default_value;
     std::vector<std::vector<UFOCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
-    // changed_deg helps to identify clusters who became low degree during a deletion update
-    std::unordered_map<UFOCluster<aug_t>*,int> changed_deg;
+    // lower_deg helps to identify clusters who became low degree during a deletion update
+    std::vector<std::pair<UFOCluster<aug_t>*,int>> lower_deg;
     // Helper functions
     void remove_ancestors(UFOCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
@@ -125,8 +125,8 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u != curr_v) {
-        changed_deg[curr_u] = curr_u->get_degree()-1;
-        changed_deg[curr_v] = curr_v->get_degree()-1;
+        lower_deg.push_back({curr_u, curr_u->get_degree()-1});
+        lower_deg.push_back({curr_v, curr_v->get_degree()-1});
         curr_u = curr_u->parent;
         curr_v = curr_v->parent;
     }
@@ -134,7 +134,7 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
     STOP_TIMER(ufo_remove_ancestor_timer, ufo_remove_ancestor_time);
-    changed_deg.clear();
+    lower_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     START_TIMER(ufo_recluster_tree_timer);
     recluster_tree();
@@ -162,15 +162,20 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
     auto curr = c->parent;
     bool del = false;
     while (curr) {
-        int degree = (changed_deg.find(curr) == changed_deg.end()) ? curr->get_degree() : changed_deg[curr];
-        int prev_degree = (changed_deg.find(prev) == changed_deg.end()) ? prev->get_degree() : changed_deg[prev];
         // Determine if curr is high degree or high fanout
-        bool high_degree = (degree > 2);
+        int curr_degree = curr->get_degree();
+        int prev_degree = prev->get_degree();
+        for (int i = 0; i < lower_deg.size(); i++) {
+            if (lower_deg[i].first == curr) curr_degree = lower_deg[i].second;
+            if (lower_deg[i].first == prev) prev_degree = lower_deg[i].second;
+        }
+        bool high_degree = (curr_degree > 2);
         bool high_fanout = false;
         if (prev->get_degree() == 1) {
             if (prev->neighbors[0]->parent == curr)
             if (prev->neighbors[0]->get_degree() - curr->get_degree() > 2) high_fanout = true;
         } else if (prev_degree - curr->get_degree() > 2) high_fanout = true;
+        // Different cases for if curr will or will not be deleted later
         if (!high_degree && !high_fanout) { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) { // Possibly delete prev
@@ -384,11 +389,12 @@ should find every cluster that shares a parent with c, disconnect it from their 
 and add it as a root cluster to be processed. */
 template<typename aug_t>
 void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
+    auto parent = c->parent;
     if (c->get_degree() == 1) {
         auto center = c->neighbors[0];
-        if (center->parent != c->parent) return;
+        if (center->parent != parent) return;
         for (auto neighbor : center->neighbors) {
-            if (neighbor->parent == c->parent && neighbor != c) {
+            if (neighbor->parent == parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -397,7 +403,7 @@ void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
         root_clusters[level].push_back(center);
     } else {
         for (auto neighbor : c->neighbors) {
-            if (neighbor->parent == c->parent) {
+            if (neighbor->parent == parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
