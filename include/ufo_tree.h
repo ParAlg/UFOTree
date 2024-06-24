@@ -1,5 +1,3 @@
-#include <parlay/sequence.h>
-#include <parlay/primitives.h>
 #include "types.h"
 #include "util.h"
 
@@ -18,6 +16,7 @@ Any additional neighbors will be stored in the hash set for efficiency. */
 
 long ufo_remove_ancestor_time = 0;
 long ufo_recluster_tree_time = 0;
+long test_time = 0;
 
 
 template<typename aug_t>
@@ -55,14 +54,12 @@ public:
     void print_tree();
 private:
     // Class data and parameters
-    parlay::sequence<UFOCluster<aug_t>> leaves;
+    std::vector<UFOCluster<aug_t>> leaves;
     QueryType query_type;
     std::function<aug_t(aug_t, aug_t)> f;
     aug_t identity;
     aug_t default_value;
-    // root_clusters will be filled in during remove_ancestors and processed during recluster tree
-    parlay::sequence<std::unordered_set<UFOCluster<aug_t>*>> root_clusters;
-    // contractions stores the new combinations at a level and is used to fill in adjacency lists at the next level
+    std::vector<std::vector<UFOCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
     // changed_deg helps to identify clusters who became low degree during a deletion update
     std::unordered_map<UFOCluster<aug_t>*,int> changed_deg;
@@ -94,6 +91,7 @@ UFOTree<aug_t>::~UFOTree() {
     #endif
     PRINT_TIMER("REMOVE ANCESTORS TIME", ufo_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", ufo_recluster_tree_time);
+    PRINT_TIMER("TEST TIME", test_time);
     return;
 }
 
@@ -178,22 +176,24 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
                     entry->remove_neighbor(prev); // Remove prev from adjacency
-                root_clusters[level].erase(prev);
+                auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
+                if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 delete prev;
             } else {
                 prev->parent = nullptr;
-                root_clusters[level].insert(prev);
+                root_clusters[level].push_back(prev);
             }
             del = true;
         } else { // We will not delete curr next round
             if (del) { // Possibly delete prev
                 for (auto entry : prev->neighbors)
                     entry->remove_neighbor(prev); // Remove prev from adjacency
-                root_clusters[level].erase(prev);
+                auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
+                if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 delete prev;
             } else if (prev->get_degree() <= 1) {
                 prev->parent = nullptr;
-                root_clusters[level].insert(prev);
+                root_clusters[level].push_back(prev);
             }
             del = false;
         }
@@ -206,9 +206,10 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
     if (del) { // Possibly delete prev
         for (auto entry : prev->neighbors)
             entry->remove_neighbor(prev); // Remove prev from adjacency
-        root_clusters[level].erase(prev);
+        auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
+        if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         delete prev;
-    } else root_clusters[level].insert(prev);
+    } else root_clusters[level].push_back(prev);
 }
 
 template<typename aug_t>
@@ -227,7 +228,7 @@ void UFOTree<aug_t>::recluster_tree() {
             if (!cluster->parent && cluster->get_degree() == 3) {
                 auto parent = new UFOCluster<aug_t>(default_value);
                 cluster->parent = parent;
-                root_clusters[level+1].insert(parent);
+                root_clusters[level+1].push_back(parent);
                 bool first_contraction = true;
                 for (auto entry : cluster->neighbors)
                     if (entry->get_degree() == 1) {
@@ -237,7 +238,8 @@ void UFOTree<aug_t>::recluster_tree() {
                         while (old_parent) {
                             auto temp = old_parent;
                             old_parent = old_parent->parent;
-                            root_clusters[lev].erase(temp);
+                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
+                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
                             delete temp;
                             lev++;
                         }
@@ -259,7 +261,7 @@ void UFOTree<aug_t>::recluster_tree() {
                     auto parent = new UFOCluster<aug_t>(default_value);
                     cluster->parent = parent;
                     neighbor->parent = parent;
-                    root_clusters[level+1].insert(parent);
+                    root_clusters[level+1].push_back(parent);
                     contractions.push_back({{cluster,neighbor},true});
                 }
                 // For deg exactly 3 neighbor make sure all deg 1 neighbors combine with it
@@ -270,7 +272,8 @@ void UFOTree<aug_t>::recluster_tree() {
                             entry->parent = neighbor->parent;
                             contractions.push_back({{entry, neighbor},false});
                             neighbor->parent->remove_neighbor(old_parent);
-                            root_clusters[level+1].erase(old_parent);
+                            auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
+                            if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
                             if (old_parent) delete old_parent;
                         }
                     }
@@ -285,7 +288,7 @@ void UFOTree<aug_t>::recluster_tree() {
                         auto parent = new UFOCluster<aug_t>(default_value);
                         cluster->parent = parent;
                         neighbor->parent = parent;
-                        root_clusters[level+1].insert(parent);
+                        root_clusters[level+1].push_back(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
                     }
@@ -311,7 +314,7 @@ void UFOTree<aug_t>::recluster_tree() {
                 auto parent = new UFOCluster<aug_t>(default_value);
                 parent->value = cluster->value;
                 cluster->parent = parent;
-                root_clusters[level+1].insert(parent);
+                root_clusters[level+1].push_back(parent);
                 contractions.push_back({{cluster,cluster},true});
             }
         }
@@ -387,16 +390,16 @@ void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
         for (auto neighbor : center->neighbors) {
             if (neighbor->parent == c->parent && neighbor != c) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].insert(neighbor); // Keep track of root clusters
+                root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
         }
         center->parent = nullptr;
-        root_clusters[level].insert(center);
+        root_clusters[level].push_back(center);
     } else {
         for (auto neighbor : c->neighbors) {
             if (neighbor->parent == c->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].insert(neighbor); // Keep track of root clusters
+                root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
         }
     }

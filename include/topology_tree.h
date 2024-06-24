@@ -1,6 +1,3 @@
-#include <unordered_set>
-#include <parlay/sequence.h>
-#include <parlay/primitives.h>
 #include "types.h"
 #include "util.h"
 
@@ -53,12 +50,12 @@ public:
     void print_tree();
 private:
     // Class data and parameters
-    parlay::sequence<TopologyCluster<aug_t>> leaves;
+    std::vector<TopologyCluster<aug_t>> leaves;
     QueryType query_type;
     std::function<aug_t(aug_t, aug_t)> f;
     aug_t identity;
     aug_t default_value;
-    parlay::sequence<std::vector<TopologyCluster<aug_t>*>> root_clusters;
+    std::vector<std::vector<TopologyCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,bool>> contractions;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
