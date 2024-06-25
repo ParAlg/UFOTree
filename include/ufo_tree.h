@@ -16,7 +16,6 @@ Any additional neighbors will be stored in the hash set for efficiency. */
 
 long ufo_remove_ancestor_time = 0;
 long ufo_recluster_tree_time = 0;
-long test_time = 0;
 
 
 template<typename aug_t>
@@ -91,7 +90,6 @@ UFOTree<aug_t>::~UFOTree() {
     #endif
     PRINT_TIMER("REMOVE ANCESTORS TIME", ufo_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", ufo_recluster_tree_time);
-    PRINT_TIMER("TEST TIME", test_time);
     return;
 }
 
@@ -389,21 +387,21 @@ should find every cluster that shares a parent with c, disconnect it from their 
 and add it as a root cluster to be processed. */
 template<typename aug_t>
 void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
-    auto parent = c->parent;
     if (c->get_degree() == 1) {
         auto center = c->neighbors[0];
-        if (center->parent != parent) return;
-        for (auto neighbor : center->neighbors) {
-            if (neighbor->parent == parent) {
-                neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].push_back(neighbor); // Keep track of root clusters
+        if (center->parent == c->parent) {
+            for (auto neighbor : center->neighbors) {
+                if (neighbor->parent == c->parent && neighbor != c) {
+                    neighbor->parent = nullptr; // Set sibling parent pointer to null
+                    root_clusters[level].push_back(neighbor); // Keep track of root clusters
+                }
             }
+            center->parent = nullptr;
+            root_clusters[level].push_back(center);
         }
-        center->parent = nullptr;
-        root_clusters[level].push_back(center);
     } else {
         for (auto neighbor : c->neighbors) {
-            if (neighbor->parent == parent) {
+            if (neighbor->parent == c->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -462,13 +460,13 @@ void UFOCluster<aug_t>::remove_neighbor(UFOCluster<aug_t>* c) {
     assert(contains_neighbor(c));
     auto position = std::find(neighbors.begin(), neighbors.end(), c);
     if (position != neighbors.end()) {
-        if (neighbors_set.size() > 0) { // Put an element from the set into the vector
+        if (neighbors_set.size() == 0) {
+            std::iter_swap(position, neighbors.end()-1);
+            neighbors.pop_back();
+        } else { // Put an element from the set into the vector
             auto replacement = *neighbors_set.begin();
             *position = replacement;
             neighbors_set.erase(replacement);
-        } else { // The vector will decrease in size
-            std::iter_swap(position, neighbors.end()-1);
-            neighbors.pop_back();
         }
     } else neighbors_set.erase(c);
 }
