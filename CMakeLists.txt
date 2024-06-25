@@ -30,6 +30,12 @@ add_executable(dynamic_tree_tests
 )
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
 
+add_executable(parallel_dynamic_tree_tests
+  test/parallel_test_runner.cpp
+  test/parallel_topology_tree_tests.cpp
+)
+target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+
 add_executable(benchmark_dynamic_trees
   benchmark/benchmark_runner.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp

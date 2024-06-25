@@ -1,0 +1,86 @@
+#include <gtest/gtest.h>
+#include <unordered_set>
+#include "../include/parallel_topology_tree.h"
+
+
+template<typename aug_t>
+bool ParallelTopologyTree<aug_t>::is_valid() {
+    std::unordered_set<TopologyCluster<aug_t>*> clusters;
+    std::unordered_set<TopologyCluster<aug_t>*> next_clusters;
+    for (auto leaf : leaves) // Ensure that every pair of incident vertices are in the same component
+        for (auto neighbor : leaf.neighbors) // This ensures all connectivity is correct by transitivity
+            if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
+    while (!clusters.empty()) {
+        for (auto cluster : clusters) {
+            for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
+                if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
+            if (!cluster->contracts()) { // Ensure maximality of contraction
+                if (cluster->get_degree() == 1) {
+                    for (auto neighbor : cluster->neighbors)
+                        if (neighbor && !neighbor->contracts()) return false;
+                } else if (cluster->get_degree() == 2) {
+                    for (auto neighbor : cluster->neighbors)
+                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 3) return false;
+                } else if (cluster->get_degree() == 3) {
+                    for (auto neighbor : cluster->neighbors)
+                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 2) return false;
+                }
+            }
+            if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
+        }
+        clusters.swap(next_clusters);
+        next_clusters.clear();
+    }
+    return true;
+}
+
+template<typename aug_t>
+int ParallelTopologyTree<aug_t>::get_height(vertex_t v) {
+    int height = 0;
+    TopologyCluster<aug_t>* curr = &leaves[v];
+    while (curr) {
+        height++;
+        curr = curr->parent;
+    }
+    return height;
+}
+
+template<typename aug_t>
+void ParallelTopologyTree<aug_t>::print_tree() {
+    std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> clusters;
+    std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> next_clusters;
+    std::cout << "========================= LEAVES =========================" << std::endl;
+    std::unordered_map<TopologyCluster<aug_t>*, vertex_t> vertex_map;
+    for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
+    for (auto entry : clusters) {
+        auto leaf = entry.second;
+        auto parent = entry.first;
+        std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
+        for (auto neighbor : leaf->neighbors) if (neighbor) std::cout << vertex_map[neighbor] << " ";
+        std::cout << std::endl;
+        bool in_map = false;
+        for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+        if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+    }
+    clusters.swap(next_clusters);
+    next_clusters.clear();
+    while (!clusters.empty()) {
+        std::cout << "======================= NEXT LEVEL =======================" << std::endl;
+        for (auto entry : clusters) {
+            auto cluster = entry.second;
+            auto parent = entry.first;
+            std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
+            bool in_map = false;
+            for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+            if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+        }
+        clusters.swap(next_clusters);
+        next_clusters.clear();
+    }
+}
+
+TEST(ParallelTopologyTreeSuite, test) {
+    FAIL();
+}
