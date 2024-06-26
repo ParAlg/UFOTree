@@ -1,4 +1,5 @@
 #pragma once
+#include <stdexcept>
 #include <unordered_set>
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
@@ -334,8 +335,7 @@ void TopologyCluster<aug_t>::insert_neighbor(TopologyCluster<aug_t>* c, aug_t va
             return;
         }
     }
-    std::cerr << "No space to insert neighbor." << std::endl;
-    std::abort();
+    throw std::invalid_argument("No space to insert neighbor"); 
 }
 
 template<typename aug_t>
@@ -346,8 +346,7 @@ void TopologyCluster<aug_t>::remove_neighbor(TopologyCluster<aug_t>* c) {
             return;
         }
     }
-    std::cerr << "Neighbor to delete not found." << std::endl;
-    std::abort();
+    throw std::invalid_argument("Neighbor to delete not found");
 }
 
 template<typename aug_t>

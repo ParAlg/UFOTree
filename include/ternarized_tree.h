@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 #include <unordered_map>
 #include <queue>
 #include <cassert>
@@ -139,8 +140,8 @@ void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v, aug_t weig
 
   //TODO: Change get_degree method of RCTree to have default value for round=0
   //TODO: Add a get_neighbors method to both Topology and RC trees.
-
-  assert(!connected(u, v));
+  
+  assert(!connected(u,v));
   if(u > v) std::swap(u,v);
   if(tree.get_degree(u) < 3 && tree.get_degree(v) < 3) {
     tree.link(u,v, weight); 

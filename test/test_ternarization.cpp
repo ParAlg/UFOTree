@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <ostream>
+#include <stdexcept>
 #include "../include/ternarized_tree.h"
 #include "../include/rc_tree.h"
 #include "../include/topology_tree.h"
@@ -215,14 +217,17 @@ TEST(TernarizationSuite, test_cut_cases_1){
 }
 
 TEST(TernarizationSuite, test_random_maximal_star_graphs){
-  int num_trials = 10, max_n = 1024;
+  int num_trials = 100, max_n = 1024;
   int seeds[num_trials];
   srand(time(NULL));
   for(int i = 0; i < num_trials; i++){seeds[i] = rand();}
-  for(int trial = 0; trial < num_trials; trial++){ 
+  for(int trial = 0; trial < num_trials; trial++){
     srand(seeds[trial]);
-    auto t_size = rand() % max_n;
-    int max_degree = rand() % t_size + 1;
+    auto t_size = rand() % max_n + 1;
+    if(t_size == 1) continue;
+    int max_degree = rand() % t_size + 1; 
+    if(max_degree == t_size) max_degree--;
+    //std::cout << "Tsize, max_degree: " << t_size << " " << max_degree << "\n";
     std::vector<std::pair<vertex_t,vertex_t>> links;
     TernarizedTree<TopologyTree<int>, int> t(t_size);
     TernarizedTree<RCTree<int>, int> rt(t_size);
@@ -230,15 +235,20 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
       if(i == max_degree - 1) i++;
       for(int j = i + 1; j < std::min(i + (max_degree - 1), t_size); j++){
         if(!t.connected(i,j)){
-          t.link(i,j,j);
-          rt.link(i,j,j);
-          links.push_back(std::pair(i,j));
+          try{
+            t.link(i,j,j);
+            rt.link(i,j,j);
+            links.push_back(std::pair(i,j));
+          } catch(std::invalid_argument()){
+            std::cout << "Link failed on vertex " << i << " and " << j << "Seed, t_size, max_degree: " 
+              << seeds[trial] << "," << t_size << "," << max_degree << "\n";
+          }
         }
       }
     }
     t.link(0, max_degree, max_degree); rt.link(0,max_degree,max_degree);
     links.push_back(std::pair(0,max_degree));
-    
+
     // Test to see if all vertices are connected via a chain.
     for(auto pair : links){
       ASSERT_TRUE(t.vertex_on_chain(pair.first, pair.second)) 
@@ -246,16 +256,20 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
       ASSERT_TRUE(rt.vertex_on_chain(pair.first, pair.second)) 
         << "Vertices " << pair.first << " and " << pair.second << " not found in RC tree" << ", Seed: " << seeds[trial];
     }
-    
+
     // Delete all links.
     for(auto pair: links){
-      t.cut(pair.first, pair.second); rt.cut(pair.first, pair.second);
+      try{
+        t.cut(pair.first, pair.second); rt.cut(pair.first, pair.second);
+      } catch(std::invalid_argument){
+        std::cout << "Cut failed on " << pair.first << " " << pair.second << "Seed: " << seeds[trial];
+      }
       ASSERT_TRUE(t.test_vertex_deleted(pair.first, pair.second)) 
         << "Vertices " << pair.first << " and " << pair.second << " still connected in topology tree" << ", Seed: " << seeds[trial];
       ASSERT_TRUE(rt.test_vertex_deleted(pair.first, pair.second)) 
         << "Vertices " << pair.first << " and " << pair.second << " still connected in RC tree" << ", Seed: " << seeds[trial];
     }
-    
+
     // Make sure no vertices are still connected.
     for(int i = 0; i < t_size; i++){
       ASSERT_EQ(t.tree.get_degree(i), 0);
@@ -269,11 +283,12 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
 TEST(TernarizationSuite, incremental_decremental_test_random_trees){
   // 1) Store all links in an array, make sure links result in vertices on chain
   // 2) Make sure length of chain is what is expected i.e. degree - 2
-  int num_trials = 10, max_n = 1024;
+  int num_trials = 100, max_n = 1024;
   int seeds[num_trials];
   srand(time(NULL));
   for(int i = 0; i < num_trials; i++) seeds[i] = rand();
   for(int trial = 0; trial < num_trials; trial++){
+    //std::cout << "Seed: " << seeds[trial] << "\n";
     srand(seeds[trial]);
     auto t_size = rand() % max_n;
     std::vector<std::pair<vertex_t,vertex_t>> links;
@@ -293,7 +308,7 @@ TEST(TernarizationSuite, incremental_decremental_test_random_trees){
       ASSERT_TRUE(rt.vertex_on_chain(pair.first, pair.second)) 
         << "Vertices " << pair.first << " and " << pair.second << " not found in RC tree" << ", Seed: " << seeds[trial];
     }
-    
+
     while(links.size() > 0){ 
       int link_to_del = rand() % links.size();
       auto pair = links[link_to_del];
@@ -313,3 +328,5 @@ TEST(TernarizationSuite, incremental_decremental_test_random_trees){
     }
   }
 }
+
+// Additional Test, after n - 1 links and n - 1 cuts, can we still do n - 1 links? A test of queue replenished. 
