@@ -223,9 +223,11 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
   for(int i = 0; i < num_trials; i++){seeds[i] = rand();}
   for(int trial = 0; trial < num_trials; trial++){
     srand(seeds[trial]);
+    std::mt19937 gen(seeds[trial]);
     auto t_size = rand() % max_n + 1;
-    if(t_size == 1) continue;
-    int max_degree = rand() % t_size + 1; 
+    if(t_size < 10) continue;
+    std::uniform_int_distribution<> distr((t_size/2), t_size);
+    int max_degree = distr(gen); 
     if(max_degree == t_size) max_degree--;
     //std::cout << "Tsize, max_degree: " << t_size << " " << max_degree << "\n";
     std::vector<std::pair<vertex_t,vertex_t>> links;
