@@ -5,8 +5,8 @@
 
 template<typename aug_t>
 bool ParallelTopologyTree<aug_t>::is_valid() {
-    std::unordered_set<TopologyCluster<aug_t>*> clusters;
-    std::unordered_set<TopologyCluster<aug_t>*> next_clusters;
+    std::unordered_set<ParallelTopologyCluster<aug_t>*> clusters;
+    std::unordered_set<ParallelTopologyCluster<aug_t>*> next_clusters;
     for (auto leaf : leaves) // Ensure that every pair of incident vertices are in the same component
         for (auto neighbor : leaf.neighbors) // This ensures all connectivity is correct by transitivity
             if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
@@ -38,7 +38,7 @@ bool ParallelTopologyTree<aug_t>::is_valid() {
 template<typename aug_t>
 int ParallelTopologyTree<aug_t>::get_height(vertex_t v) {
     int height = 0;
-    TopologyCluster<aug_t>* curr = &leaves[v];
+    ParallelTopologyCluster<aug_t>* curr = &leaves[v];
     while (curr) {
         height++;
         curr = curr->parent;
@@ -48,10 +48,10 @@ int ParallelTopologyTree<aug_t>::get_height(vertex_t v) {
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::print_tree() {
-    std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> clusters;
-    std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> next_clusters;
+    std::multimap<ParallelTopologyCluster<aug_t>*, ParallelTopologyCluster<aug_t>*> clusters;
+    std::multimap<ParallelTopologyCluster<aug_t>*, ParallelTopologyCluster<aug_t>*> next_clusters;
     std::cout << "========================= LEAVES =========================" << std::endl;
-    std::unordered_map<TopologyCluster<aug_t>*, vertex_t> vertex_map;
+    std::unordered_map<ParallelTopologyCluster<aug_t>*, vertex_t> vertex_map;
     for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
     for (auto entry : clusters) {
@@ -81,6 +81,14 @@ void ParallelTopologyTree<aug_t>::print_tree() {
     }
 }
 
-TEST(ParallelTopologyTreeSuite, test) {
-    FAIL();
+TEST(ParallelTopologyTreeSuite, incremental_linkedlist_correctness_test) {
+    vertex_t n = 256;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+    ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
+
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.link(i,i+1);
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
+    }
 }
