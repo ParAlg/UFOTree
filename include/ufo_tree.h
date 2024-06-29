@@ -11,7 +11,11 @@
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
 #endif
-
+// # define COLLECT_REMOVE_ANCESTOR_STATS
+// #ifdef COLLECT_REMOVE_ANCESTOR_STATS
+//     int ra_calls = 0;
+//     int max_ra_calls = 0;
+// #endif
 
 template<typename aug_t>
 struct UFOCluster {
@@ -84,6 +88,9 @@ UFOTree<aug_t>::~UFOTree() {
     #ifdef COLLECT_HEIGHT_STATS
         std::cout << "Maximum height of the tree: " << max_height << std::endl;
     #endif
+    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
+        std::cout << "Maximum calls to remove_ancestors: " << max_ra_calls << std::endl;
+    #endif
     return;
 }
 
@@ -98,10 +105,14 @@ void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     remove_ancestors(&leaves[v]);
     insert_adjacency(&leaves[u], &leaves[v], value);
     recluster_tree();
-    // Collect tree height stats at the end of each update
+    // Collect stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
+    #endif
+    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
+        max_ra_calls = std::max(max_ra_calls, ra_calls);
+        ra_calls = 0;
     #endif
 }
 
@@ -123,10 +134,14 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     changed_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
-    // Collect tree height stats at the end of each update
+    // Collect stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
+    #endif
+    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
+        max_ra_calls = std::max(max_ra_calls, ra_calls);
+        ra_calls = 0;
     #endif
 }
 
@@ -141,6 +156,9 @@ bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
 high fan-out and add them to root_clusters. */
 template<typename aug_t>
 void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
+    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
+        ra_calls += 1;
+    #endif
     int level = start_level;
     auto prev = c;
     auto curr = c->parent;
