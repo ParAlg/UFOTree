@@ -12,7 +12,7 @@
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
 #endif
-# define COLLECT_REMOVE_ANCESTOR_STATS
+// # define COLLECT_REMOVE_ANCESTOR_STATS
 #ifdef COLLECT_REMOVE_ANCESTOR_STATS
     int ra_calls = 0;
     int max_ra_calls = 0;

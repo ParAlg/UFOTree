@@ -12,10 +12,10 @@
     int max_height = 0;
 #endif
 // # define COLLECT_REMOVE_ANCESTOR_STATS
-// #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-//     int ra_calls = 0;
-//     int max_ra_calls = 0;
-// #endif
+#ifdef COLLECT_REMOVE_ANCESTOR_STATS
+    int ra_calls = 0;
+    int max_ra_calls = 0;
+#endif
 
 template<typename aug_t>
 struct UFOCluster {
