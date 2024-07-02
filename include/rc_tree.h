@@ -1,5 +1,7 @@
 #pragma once  
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <parlay/sequence.h>
 #include <stdexcept>
@@ -81,7 +83,7 @@ public:
   RCTree(int _n, QueryType q = PATH, 
          std::function<aug_t(aug_t, aug_t)> f = [] (aug_t x, aug_t y) {return x + y;}, 
          aug_t id = 0, aug_t d_val = 0);
-  void link(vertex_t u, vertex_t v, int weight);
+  void link(vertex_t u, vertex_t v, int weight=1);
   void cut(vertex_t u, vertex_t v);
 };
 

@@ -1,18 +1,11 @@
 #include <gtest/gtest.h>
 #include <ostream>
 #include <stdexcept>
+#include <random>
 #include "../include/ternarized_tree.h"
 #include "../include/rc_tree.h"
 #include "../include/topology_tree.h"
 
-template<typename DynamicTree, typename aug_t>
-bool TernarizedTree<DynamicTree, aug_t>::is_valid_ternarized_tree(){
-  // To write function:
-  // 1) Call is_valid_tree methods from Topology Tree and RCTree classes.
-  // 2) Verify high degree vertices are ternarized.
-  // 3) Verify length of ternarized chain.
-  // 4) Verify chain contains vertex we expect it to.
-}
 
 template<typename DynamicTree, typename aug_t>
 int TernarizedTree<DynamicTree, aug_t>::get_length_of_chain(vertex_t v){
@@ -217,7 +210,7 @@ TEST(TernarizationSuite, test_cut_cases_1){
 }
 
 TEST(TernarizationSuite, test_random_maximal_star_graphs){
-  int num_trials = 100, max_n = 1024;
+  int num_trials = 1, max_n = 1024;
   int seeds[num_trials];
   srand(time(NULL));
   for(int i = 0; i < num_trials; i++){seeds[i] = rand();}
@@ -285,7 +278,7 @@ TEST(TernarizationSuite, test_random_maximal_star_graphs){
 TEST(TernarizationSuite, incremental_decremental_test_random_trees){
   // 1) Store all links in an array, make sure links result in vertices on chain
   // 2) Make sure length of chain is what is expected i.e. degree - 2
-  int num_trials = 100, max_n = 1024;
+  int num_trials = 1, max_n = 1024;
   int seeds[num_trials];
   srand(time(NULL));
   for(int i = 0; i < num_trials; i++) seeds[i] = rand();

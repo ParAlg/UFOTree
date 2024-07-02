@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -171,7 +172,7 @@ void TernarizedTree<DynamicTree, aug_t>::cut(vertex_t u, vertex_t v) {
       std::cerr << pair.first.first << "," << pair.first.second << " : " << pair.second.first << "," << pair.second.second << " ";
       std::cerr << p(pair.first) << " " << (p(pair.first) == p(std::pair(u,v))) << "\n";
     }
-    assert(true == false);
+    assert(false);
   }
   auto edge_pair = edge_map[std::pair(u,v)];
   vertex_t v1 = edge_pair.first, v2 = edge_pair.second;
