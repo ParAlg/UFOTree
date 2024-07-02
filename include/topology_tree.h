@@ -54,7 +54,7 @@ public:
     //Interface methods overriden.
     short get_degree(vertex_t v) override {return leaves[v].get_degree();}
     std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
-      return std::pair(cluster_to_leaf[leaves[v].neighbors[0]], leaves[v].edge_values[0]); 
+      return std::pair(leaves[v].neighbors[0] - &leaves[0], leaves[v].edge_values[0]); 
     }
     // Testing helpers
     bool is_valid();
@@ -63,7 +63,6 @@ public:
 private:
     // Class data and parameters
     parlay::sequence<TopologyCluster<aug_t>> leaves;
-    std::unordered_map<TopologyCluster<aug_t>*, vertex_t> cluster_to_leaf;
     QueryType query_type;
     std::function<aug_t(aug_t, aug_t)> f;
     aug_t identity;
@@ -79,9 +78,6 @@ template<typename aug_t>
 TopologyTree<aug_t>::TopologyTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d) :
 query_type(q), f(f), identity(id), default_value(d) {
     leaves.resize(n, d);
-    for(int i = 0; i < n; i++) {
-      cluster_to_leaf[&leaves[i]] = i;
-    }
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
