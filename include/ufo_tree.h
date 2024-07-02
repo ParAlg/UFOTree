@@ -177,7 +177,7 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
             auto neighbor = prev->get_neighbor();
             if (neighbor->parent == curr)
             if (neighbor->get_degree() - curr->get_degree() > 2) high_fanout = true;
-        } else if (prev_degree - curr->get_degree() > 2) high_fanout = true;
+        } else if (prev_degree - curr_degree > 2) high_fanout = true;
         // Different cases for if curr will or will not be deleted later
         if (!high_degree && !high_fanout) { // We will delete curr next round
             disconnect_siblings(prev, level);
@@ -341,6 +341,12 @@ void UFOTree<aug_t>::recluster_tree() {
                         neighbor->parent->insert_neighbor(parent);
                     }
                 }
+                for (auto neighbor : c1->neighbors_vector) {
+                    if (neighbor != c2 && parent != neighbor->parent) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    }
+                }
                 if (c1 != c2)
                 for (auto neighbor : c2->neighbors) {
                     if (neighbor && neighbor != c1 && parent != neighbor->parent) {
@@ -348,9 +354,13 @@ void UFOTree<aug_t>::recluster_tree() {
                         neighbor->parent->insert_neighbor(parent);
                     }
                 }
+                for (auto neighbor : c2->neighbors_vector) {
+                    if (neighbor != c1 && parent != neighbor->parent) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    }
+                }
             } else {
-                // We ordered contractions so c1 would be the degree 1 cluster
-                // if (c1->get_degree() == 1) parent->remove_neighbor(c1->parent);
                 // We ordered contractions so c2 is the one that had a parent already
                 if (c1->get_degree() == 2) {
                     for (auto neighbor : c1->neighbors) if (neighbor && neighbor != c2)
@@ -396,10 +406,17 @@ template<typename aug_t>
 void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
     if (c->get_degree() == 1) {
         auto center = c->get_neighbor();
-        assert(center->get_degree() <= 3);
+        if (c->parent != center->parent) return;
+        assert(center->get_degree() <= 5);
         if (center->parent == c->parent) {
             for (auto neighbor : center->neighbors) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
+                    neighbor->parent = nullptr; // Set sibling parent pointer to null
+                    root_clusters[level].push_back(neighbor); // Keep track of root clusters
+                }
+            }
+            for (auto neighbor : center->neighbors_vector) {
+                if (neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
@@ -408,9 +425,15 @@ void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
             root_clusters[level].push_back(center);
         }
     } else {
-        assert(c->get_degree() <= 3);
+        assert(c->get_degree() <= 5);
         for (auto neighbor : c->neighbors) {
             if (neighbor && neighbor->parent == c->parent) {
+                neighbor->parent = nullptr; // Set sibling parent pointer to null
+                root_clusters[level].push_back(neighbor); // Keep track of root clusters
+            }
+        }
+        for (auto neighbor : c->neighbors_vector) {
+            if (neighbor->parent == c->parent) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -422,7 +445,6 @@ template<typename aug_t>
 int UFOCluster<aug_t>::get_degree() {
     int deg = 0;
     for (auto neighbor : this->neighbors) if (neighbor) deg++;
-    return deg;
     return deg + neighbors_vector.size() + neighbors_set.size();
 }
 
@@ -453,7 +475,6 @@ bool UFOCluster<aug_t>::contracts() {
 template<typename aug_t>
 bool UFOCluster<aug_t>::contains_neighbor(UFOCluster<aug_t>* c) {
     // This should only be used in testing
-    // assert(get_degree() <= 3);
     for (auto neighbor : neighbors) if (neighbor && neighbor == c) return true;
     for (auto neighbor : neighbors_vector) if (neighbor == c) return true;
     if (neighbors_set.find(c) != neighbors_set.end()) return true;

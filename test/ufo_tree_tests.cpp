@@ -20,13 +20,17 @@ bool UFOTree<aug_t>::is_valid() {
         for (auto cluster : clusters) {
             for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
                 if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
+            for (auto neighbor : cluster->neighbors_vector)
+                if (!neighbor->contains_neighbor(cluster)) return false;
+            for (auto neighbor : cluster->neighbors_set)
+                if (!neighbor->contains_neighbor(cluster)) return false;
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
                     if (cluster->get_neighbor()->get_degree() > 2) return false;
                     else if (!cluster->get_neighbor()->contracts()) return false;
                 } else if (cluster->get_degree() == 2) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 3) return false;
+                        if (neighbor && neighbor->get_degree() < 3 && !neighbor->contracts()) return false;
                 } else if (cluster->get_degree() >= 3) {
                     for (auto neighbor : cluster->neighbors)
                         if (neighbor && neighbor->get_degree() < 2) return false;
@@ -67,7 +71,9 @@ void UFOTree<aug_t>::print_tree() {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors) if (neighbor) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors_vector) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors_set) std::cout << vertex_map[neighbor] << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
