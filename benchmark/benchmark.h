@@ -26,40 +26,72 @@ void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) 
 }
 
 template <typename DynamicTree>
-void incremental_linked_list_benchmark(vertex_t n) {
+void linked_list_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     for (vertex_t i = 0; i < n-1; i++)
-        updates.push_back({INSERT,{i,i+1}});
+        edges.push_back({ids[i],ids[i+1]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
 
 template <typename DynamicTree>
-void incremental_binary_tree_benchmark(vertex_t n) {
+void binary_tree_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     for (vertex_t i = 0; i < (n-1)/2; i++) {
-        updates.push_back({INSERT,{i,2*i+1}});
-        updates.push_back({INSERT,{i,2*i+2}});
+        edges.push_back({ids[i],ids[2*i+1]});
+        edges.push_back({ids[i],ids[2*i+2]});
     }
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
 
 template <typename DynamicTree>
-void incremental_64ary_tree_benchmark(vertex_t n) {
+void k_ary_tree_benchmark(vertex_t n, vertex_t k = 64) {
     DynamicTree tree(n);
     std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     for (vertex_t i = 1; i < n; i++)
-        updates.push_back({INSERT,{i,(i-1)/64}});
+        edges.push_back({ids[i],ids[(i-1)/k]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
 
 template <typename DynamicTree>
-void incremental_star_benchmark(vertex_t n) {
+void star_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     for (vertex_t i = 1; i < n; i++)
-        updates.push_back({INSERT,{0,i}});
+        edges.push_back({ids[0],ids[i]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
 
@@ -67,21 +99,22 @@ template <typename DynamicTree>
 void random_degree3_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
-    srand(time(NULL));
-    auto seed = rand();
     parlay::sequence<Edge> edges;
     std::vector<int> vertex_degrees(n,0);
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     while (edges.size() < n-1) {
         vertex_t u = edges.size()+1;
         vertex_t v = rand() % u;
         if (vertex_degrees[v] >= 3) continue;
-        edges.push_back({u,v});
+        edges.push_back({ids[u],ids[v]});
         vertex_degrees[u]++;
         vertex_degrees[v]++;
     }
-    edges = parlay::random_shuffle(edges, parlay::random(seed));
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
-    edges = parlay::random_shuffle(edges, parlay::random(seed));
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
@@ -90,17 +123,18 @@ template <typename DynamicTree>
 void random_unbounded_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
-    srand(time(NULL));
-    auto seed = rand();
     parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     while (edges.size() < n-1) {
         vertex_t u = edges.size()+1;
         vertex_t v = rand() % u;
-        edges.push_back({u,v});
+        edges.push_back({ids[u],ids[v]});
     }
-    edges = parlay::random_shuffle(edges, parlay::random(seed));
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
-    edges = parlay::random_shuffle(edges, parlay::random(seed));
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
@@ -109,10 +143,11 @@ template <typename DynamicTree>
 void preferential_attachment_benchmark(vertex_t n) {
     DynamicTree tree(n);
     std::vector<Update> updates;
-    srand(time(NULL));
-    auto seed = rand();
     parlay::sequence<Edge> edges;
     std::vector<int> vertex_degrees(n,0);
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
     while (edges.size() < n-1) {
         vertex_t u = edges.size()+1;
         vertex_t v = 0;
@@ -123,13 +158,13 @@ void preferential_attachment_benchmark(vertex_t n) {
             while (x >= degree_sum)
                 degree_sum += vertex_degrees[++v];
         }
-        edges.push_back({u,v});
+        edges.push_back({ids[u],ids[v]});
         vertex_degrees[u]++;
         vertex_degrees[v]++;
     }
-    edges = parlay::random_shuffle(edges, parlay::random(seed));
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
-    edges = parlay::random_shuffle(edges, parlay::random(seed));
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
     perform_sequential_updates<DynamicTree>(&tree, updates);
 }
