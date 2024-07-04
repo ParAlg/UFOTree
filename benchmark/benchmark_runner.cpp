@@ -40,6 +40,10 @@ int main(int argc, char** argv) {
 
         test_case = "64ary-tree";
         std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<RCTree<int>, int>>(n);
+        std::cout << "TopologyTree  ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<TopologyTree<int>, int>>(n);
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::k_ary_tree_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
@@ -48,6 +52,10 @@ int main(int argc, char** argv) {
 
         test_case = "star";
         std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<RCTree<int>, int>>(n);
+        std::cout << "TopologyTree  ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<TopologyTree<int>, int>>(n);
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::star_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
@@ -68,6 +76,10 @@ int main(int argc, char** argv) {
 
         test_case = "random-unbounded";
         std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<RCTree<int>, int>>(n);
+        std::cout << "TopologyTree  ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<TopologyTree<int>, int>>(n);
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
@@ -76,6 +88,10 @@ int main(int argc, char** argv) {
 
         test_case = "preferential-attachment";
         std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "RCTree        ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<RCTree<int>, int>>(n);
+        std::cout << "TopologyTree  ";
+        dynamic_tree_benchmark::binary_tree_benchmark<TernarizedTree<TopologyTree<int>, int>>(n);
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::preferential_attachment_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";

@@ -324,4 +324,23 @@ TEST(TernarizationSuite, incremental_decremental_test_random_trees){
   }
 }
 
-// Additional Test, after n - 1 links and n - 1 cuts, can we still do n - 1 links? A test of queue replenished. 
+TEST (TernarizationSuite, kary_tree_correctness_test) {
+  vertex_t n = 256;
+  vertex_t k = 10;
+  TernarizedTree<TopologyTree<int>, int> tt(n);
+  TernarizedTree<RCTree<int>, int> rt(n);
+  for (vertex_t i = 1; i < n; i++) {
+    tt.link(i,(i-1)/k);
+    for (vertex_t j = 1; j <= i; j++) ASSERT_TRUE(tt.connected(j,(j-1)/k));
+    rt.link(i,(i-1)/k);
+    for (vertex_t j = 1; j <= i; j++) ASSERT_TRUE(rt.connected(j,(j-1)/k));
+  }
+  for (vertex_t i = 1; i < n; i++) {
+    tt.cut(i,(i-1)/k);
+    for (vertex_t j = 1; j <= i; j++) ASSERT_TRUE(!tt.connected(j,(j-1)/k));
+    for (vertex_t j = i+1; j < n; j++) ASSERT_TRUE(tt.connected(j,(j-1)/k));
+    rt.cut(i,(i-1)/k);
+    for (vertex_t j = 1; j <= i; j++) ASSERT_TRUE(!rt.connected(j,(j-1)/k));
+    for (vertex_t j = i+1; j < n; j++) ASSERT_TRUE(rt.connected(j,(j-1)/k));
+  }
+}
