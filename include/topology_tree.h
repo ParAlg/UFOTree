@@ -154,7 +154,7 @@ template<typename aug_t>
 void TopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
     START_TIMER(topology_remove_ancestor_timer);
     for (int i = 0; i < len; i++) {
-        Edge e = links[i];
+        Edge e = cuts[i];
         vertex_t u = e.src;
         vertex_t v = e.dst;
         remove_ancestors(&leaves[u]);
