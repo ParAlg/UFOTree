@@ -41,6 +41,8 @@ public:
     ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
+    void batch_link(Edge* links, int len);
+    void batch_cut(Edge* cuts, int len);
     bool connected(vertex_t u, vertex_t v);
     aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
     aug_t path_query(vertex_t u, vertex_t v);
@@ -128,6 +130,42 @@ void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
     #endif
+}
+
+template<typename aug_t>
+void TopologyTree<aug_t>::batch_link(Edge* links, int len) {
+    START_TIMER(topology_remove_ancestor_timer);
+    for (int i = 0; i < len; i++) {
+        Edge e = links[i];
+        vertex_t u = e.src;
+        vertex_t v = e.dst;
+        remove_ancestors(&leaves[u]);
+        remove_ancestors(&leaves[v]);
+        leaves[u].insert_neighbor(&leaves[v], default_value);
+        leaves[v].insert_neighbor(&leaves[u], default_value);
+    }
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
+    START_TIMER(topology_recluster_tree_timer);
+    recluster_tree();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
+}
+
+template<typename aug_t>
+void TopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
+    START_TIMER(topology_remove_ancestor_timer);
+    for (int i = 0; i < len; i++) {
+        Edge e = links[i];
+        vertex_t u = e.src;
+        vertex_t v = e.dst;
+        remove_ancestors(&leaves[u]);
+        remove_ancestors(&leaves[v]);
+        leaves[u].remove_neighbor(&leaves[v]);
+        leaves[v].remove_neighbor(&leaves[u]);
+    }
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
+    START_TIMER(topology_recluster_tree_timer);
+    recluster_tree();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
 }
 
 template<typename aug_t>

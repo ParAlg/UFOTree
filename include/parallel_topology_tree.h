@@ -142,22 +142,22 @@ void ParallelTopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::batch_link(Edge* links, int len) {
-    START_TIMER(parallel_topology_remove_ancestor_timer);
-    // parlay::parallel_for(0, len, [&] (size_t i) {
-    for (int i = 0; i < len; i++) {
-        Edge e = links[i];
-        vertex_t u = e.src;
-        vertex_t v = e.dst;
-        remove_ancestors(&leaves[u]);
-        remove_ancestors(&leaves[v]);
-        leaves[u].insert_neighbor(&leaves[v], default_value);
-        leaves[v].insert_neighbor(&leaves[u], default_value);
-    }
+    // START_TIMER(parallel_topology_remove_ancestor_timer);
+    // parlay::parallel_for (0, len, [&] (size_t i) {
+    //     Edge e = links[i];
+    //     vertex_t u = e.src;
+    //     vertex_t v = e.dst;
+    //     parlay::parallel_do (
+    //         { async_remove_ancestors(&leaves[u]); },
+    //         { async_remove_ancestors(&leaves[v]); }
+    //     );
+    //     leaves[u].insert_neighbor(&leaves[v], default_value);
+    //     leaves[v].insert_neighbor(&leaves[u], default_value);
     // });
-    STOP_TIMER(parallel_topology_remove_ancestor_timer, parallel_topology_remove_ancestor_time);
-    START_TIMER(parallel_topology_recluster_tree_timer);
-    recluster_tree();
-    STOP_TIMER(parallel_topology_recluster_tree_timer, parallel_topology_recluster_tree_time);
+    // STOP_TIMER(parallel_topology_remove_ancestor_timer, parallel_topology_remove_ancestor_time);
+    // START_TIMER(parallel_topology_recluster_tree_timer);
+    // recluster_tree();
+    // STOP_TIMER(parallel_topology_recluster_tree_timer, parallel_topology_recluster_tree_time);
 }
 
 template<typename aug_t>
