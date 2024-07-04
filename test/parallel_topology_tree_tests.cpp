@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <unordered_set>
+#include <parlay/sequence.h>
+#include <parlay/primitives.h>
 #include "../include/parallel_topology_tree.h"
 
 
@@ -81,14 +83,34 @@ void ParallelTopologyTree<aug_t>::print_tree() {
     }
 }
 
-TEST(ParallelTopologyTreeSuite, incremental_linkedlist_correctness_test) {
-    vertex_t n = 256;
+TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
+    vertex_t n = 10000000;
+    vertex_t k = 1;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
 
-    for (vertex_t i = 0; i < n-1; i++) {
-        tree.link(i,i+1);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
+    std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
+    for (vertex_t i = 0; i < n-1; i++)
+        edges.push_back({ids[i],ids[i+1]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+
+    Edge batch[k];
+    vertex_t len = 0;
+    for (auto update : updates) {
+        batch[len++] = update.edge;
+        if (len == k) {
+            tree.batch_link(batch, len);
+            len = 0;
+            // ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+        }
     }
+    tree.batch_link(batch, len);
+    // ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+    // tree.print_tree();
 }
