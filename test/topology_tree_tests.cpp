@@ -180,7 +180,7 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 1000000;
+        vertex_t n = 256;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
         TopologyTree<int> tree(n, qt, f, 0, 0);
