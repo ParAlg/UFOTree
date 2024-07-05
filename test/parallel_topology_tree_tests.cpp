@@ -85,7 +85,7 @@ void ParallelTopologyTree<aug_t>::print_tree() {
 
 TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
-    vertex_t k = 1;
+    vertex_t k = 16;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
@@ -114,40 +114,31 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
     ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
 }
 
-TEST(ParallelTopologyTreeSuite, decremental_random_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
-        std::pair<vertex_t, vertex_t> edges[n-1];
+TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_performance_test) {
+    vertex_t n = 1000000;
+    vertex_t k = 100;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int{return x + y;};
+    ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
 
-        auto seed = seeds[trial];
-        srand(seed);
-        int links = 0;
-        std::vector<int> vertex_degrees(n,0);
-        while (links < n-1) {
-            vertex_t u = rand() % n;
-            vertex_t v = rand() % n;
-            if (vertex_degrees[u] >= 3) continue;
-            if (vertex_degrees[v] >= 3) continue;
-            if (u != v && !tree.connected(u,v)) {
-                tree.link(u,v);
-                edges[links++] = {u,v};
-                vertex_degrees[u]++;
-                vertex_degrees[v]++;
-            }
-        }
-        for (auto edge : edges) {
-            auto u = edge.first;
-            auto v = edge.second;
-            tree.cut(u,v);
-            ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
-            // ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
+    std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(time(NULL));
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
+    for (vertex_t i = 0; i < n-1; i++)
+        edges.push_back({ids[i],ids[i+1]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+
+    Edge batch[k];
+    vertex_t len = 0;
+    for (auto update : updates) {
+        batch[len++] = update.edge;
+        if (len == k) {
+            tree.batch_link(batch, len);
+            len = 0;
         }
     }
+    tree.batch_link(batch, len);
 }

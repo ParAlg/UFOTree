@@ -15,9 +15,6 @@
 long parallel_topology_remove_ancestor_time = 0;
 long parallel_topology_recluster_tree_time = 0;
 
-static bool TRUE = true;
-static bool FALSE = false;
-
 
 template<typename aug_t>
 struct ParallelTopologyCluster {
@@ -27,8 +24,9 @@ struct ParallelTopologyCluster {
     aug_t value;            // Stores subtree values or cluster path values
     std::atomic<ParallelTopologyCluster<aug_t>*> parent;
     std::atomic<bool> del;
+    std::atomic<bool> lock;
     // Constructor
-    ParallelTopologyCluster(aug_t value = 1) : neighbors(), edge_values(), value(value), parent(nullptr), del(false) {};
+    ParallelTopologyCluster(aug_t value = 1) : neighbors(), edge_values(), value(value), parent(nullptr), del(false), lock(false) {};
     // Helper functions
     int get_degree();
     bool contracts();
@@ -65,6 +63,7 @@ private:
     aug_t identity;
     aug_t default_value;
     std::vector<std::vector<ParallelTopologyCluster<aug_t>*>> root_clusters;
+    std::mutex* root_clusters_locks;
     std::vector<std::pair<std::pair<ParallelTopologyCluster<aug_t>*,ParallelTopologyCluster<aug_t>*>,bool>> contractions;
     // Helper functions
     void remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
@@ -79,6 +78,7 @@ ParallelTopologyTree<aug_t>::ParallelTopologyTree(vertex_t n, QueryType q, std::
 n(n), query_type(q), f(f), identity(id), default_value(d) {
     leaves = new ParallelTopologyCluster<aug_t>[n];
     root_clusters.resize(max_tree_height(n));
+    root_clusters_locks = new std::mutex[max_tree_height(n)];
     contractions.reserve(12);
 }
 
@@ -207,7 +207,9 @@ template<typename aug_t>
 void ParallelTopologyTree<aug_t>::async_mark_ancestors(ParallelTopologyCluster<aug_t>* c) {
     auto curr = c;
     auto next = curr->parent.load();
-    while (next && CAS(&next->del, &FALSE, &TRUE)) {
+    curr->del = true;
+    bool FALSE = false;
+    while (next && CAS(&next->del, &FALSE, true)) {
         curr = next;
         next = curr->parent.load();
     }
@@ -215,35 +217,45 @@ void ParallelTopologyTree<aug_t>::async_mark_ancestors(ParallelTopologyCluster<a
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::async_remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level) {
-    // int level = start_level;
-    // for (auto neighbor : c->neighbors) {
-    //     if (neighbor && neighbor->parent == c->parent) {
-    //         if (CAS(neighbor->locked, false, true)) {
-    //             neighbor->parent = nullptr;
-    //             root_clusters[level].push_back(neighbor);
-    //             CAS(neighbor->locked, true, false);
-    //         }
-    //     }
-    // }
-    // if (!CAS(c->parent->locked, false, true)) return;
-    // auto curr = c->parent;
-    // c->parent = nullptr;
-    // root_clusters[level].push_back(c);
-    // while (curr) {
-    //     auto prev = curr;
-    //     curr = prev->parent;
-    //     level++;
-    //     for (auto neighbor : prev->neighbors) {
-    //         if (neighbor && neighbor->parent == prev->parent) {
-    //             neighbor->parent = nullptr; // Set sibling parent pointer to null
-    //             root_clusters[level].push_back(neighbor); // Keep track of parentless cluster
-    //         }
-    //         if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
-    //     }
-    //     auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
-    //     if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-    //     delete prev; // Remove cluster prev
-    // }
+    int level = start_level;
+    for (auto neighbor : c->neighbors) {
+        if (neighbor && !neighbor->del && neighbor->parent == c->parent) {
+            auto parent = neighbor->parent.load();
+            if(CAS(&neighbor->parent, &parent, nullptr)) {
+                root_clusters_locks[level].lock();
+                root_clusters[level].push_back(neighbor);
+                root_clusters_locks[level].unlock();
+            }
+        }
+    }
+    auto curr = c->parent.load();
+    c->parent = nullptr;
+    root_clusters_locks[level].lock();
+    root_clusters[level].push_back(c);
+    root_clusters_locks[level].unlock();
+    bool FALSE = false;
+    while (curr && CAS(&curr->lock, &FALSE, true)) {
+        level++;
+        for (auto neighbor : curr->neighbors) {
+            if (neighbor && !neighbor->del && neighbor->parent == curr->parent) {
+                auto parent = neighbor->parent.load();
+                if(CAS(&neighbor->parent, &parent, nullptr)) {
+                    root_clusters_locks[level].lock();
+                    root_clusters[level].push_back(neighbor);
+                    root_clusters_locks[level].unlock();
+                }
+            }
+            if (neighbor && !neighbor->del) neighbor->remove_neighbor(curr); // Remove curr from adjacency
+        }
+        root_clusters_locks[level].lock();
+        auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), curr);
+        if (position != root_clusters[level].end()) root_clusters[level].erase(position);
+        root_clusters_locks[level].unlock();
+        auto next = curr->parent.load();
+        delete curr; // Remove cluster curr
+        curr = next;
+    }
+    c->del = false;
 }
 
 template<typename aug_t>
