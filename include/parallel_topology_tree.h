@@ -15,6 +15,9 @@
 long parallel_topology_remove_ancestor_time = 0;
 long parallel_topology_recluster_tree_time = 0;
 
+static bool TRUE = true;
+static bool FALSE = false;
+
 
 template<typename aug_t>
 struct ParallelTopologyCluster {
@@ -65,7 +68,7 @@ private:
     std::vector<std::pair<std::pair<ParallelTopologyCluster<aug_t>*,ParallelTopologyCluster<aug_t>*>,bool>> contractions;
     // Helper functions
     void remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
-    void async_mark_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
+    void async_mark_ancestors(ParallelTopologyCluster<aug_t>* c);
     void async_remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
     void recompute_parent_value(ParallelTopologyCluster<aug_t>* c1, ParallelTopologyCluster<aug_t>* c2);
@@ -121,7 +124,7 @@ void ParallelTopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < n && v >= 0 && v < n);
-    assert(leaves[u].contains_neighbor(leaves[v]));
+    assert(leaves[u].contains_neighbor(&leaves[v]));
     START_TIMER(parallel_topology_remove_ancestor_timer);
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
@@ -201,8 +204,13 @@ void ParallelTopologyTree<aug_t>::remove_ancestors(ParallelTopologyCluster<aug_t
 }
 
 template<typename aug_t>
-void ParallelTopologyTree<aug_t>::async_mark_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level) {
-
+void ParallelTopologyTree<aug_t>::async_mark_ancestors(ParallelTopologyCluster<aug_t>* c) {
+    auto curr = c;
+    auto next = curr->parent.load();
+    while (next && CAS(&next->del, &FALSE, &TRUE)) {
+        curr = next;
+        next = curr->parent.load();
+    }
 }
 
 template<typename aug_t>
