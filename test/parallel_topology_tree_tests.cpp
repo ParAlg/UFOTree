@@ -88,7 +88,7 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
     vertex_t k = 16;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
+    ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
@@ -119,7 +119,7 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_performance_test) {
     vertex_t k = 100;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    ParallelTopologyTree<int> tree(n, qt, f, 0, 0);
+    ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;

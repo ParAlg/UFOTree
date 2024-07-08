@@ -230,7 +230,7 @@ class sparse_table {
   }
 
   sequence<T> entries() const {
-    auto pred = [&](const T& t) { return std::get<0>(t) != empty_key; };
+    auto pred = [&](const T& t) { return std::get<0>(t) != empty_key && std::get<0>(t) != empty_key-1; };
     return parlay::filter(table, pred);
   }
 
