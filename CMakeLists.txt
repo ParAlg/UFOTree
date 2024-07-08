@@ -35,6 +35,7 @@ add_executable(parallel_dynamic_tree_tests
   test/parallel_topology_tree_tests.cpp
 )
 target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+target_include_directories(parallel_dynamic_tree_tests PRIVATE util)
 
 add_executable(benchmark_dynamic_trees
   benchmark/benchmark_runner.cpp
