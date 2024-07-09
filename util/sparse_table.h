@@ -39,12 +39,15 @@ class sparse_table {
   T empty;
   K empty_key;
 
+  bool table_is_empty = true;
+
   sequence<T> backing;
   slice<T> table;
 
   KeyHash key_hash;
 
   size_t size() const { return m; }
+  bool is_empty() const { return table_is_empty; }
 
   inline size_t hashToRange(size_t h) const { return h & mask; }
   inline size_t firstIndex(K& k) const { return hashToRange(key_hash(k)); }
@@ -96,6 +99,7 @@ class sparse_table {
   }
 
   bool insert(std::tuple<K, V> kv) {
+    table_is_empty = false;
     K k = std::get<0>(kv);
     size_t h = firstIndex(k);
     while (true) {
@@ -270,6 +274,7 @@ class sparse_table {
 
   void clear_table() {
     parallel_for(0, m, [&](size_t i) { table[i] = empty; });
+    table_is_empty = true;
   }
 };
 

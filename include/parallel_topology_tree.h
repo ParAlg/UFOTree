@@ -17,6 +17,7 @@ using namespace gbbs;
 
 long parallel_topology_remove_ancestor_time = 0;
 long parallel_topology_recluster_tree_time = 0;
+long test_time = 0;
 
 
 template<typename aug_t>
@@ -80,7 +81,7 @@ ParallelTopologyTree<aug_t>::ParallelTopologyTree(vertex_t n, vertex_t k, QueryT
 n(n), query_type(q), f(f), identity(id), default_value(d) {
     leaves = new ParallelTopologyCluster<aug_t>[n];
     for (int i = 0; i < max_tree_height(n); ++i)
-        root_clusters.emplace_back(24*k, std::make_pair(nullptr, gbbs::empty{}), std::hash<ParallelTopologyCluster<aug_t>*>{});
+        root_clusters.emplace_back(4*k, std::make_pair(nullptr, gbbs::empty{}), std::hash<ParallelTopologyCluster<aug_t>*>{});
     contractions.reserve(12);
 }
 
@@ -96,6 +97,7 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
     #endif
     PRINT_TIMER("REMOVE ANCESTORS TIME", parallel_topology_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", parallel_topology_recluster_tree_time);
+    PRINT_TIMER("TEST TIME", test_time);
     return;
 }
 
@@ -249,7 +251,7 @@ void ParallelTopologyTree<aug_t>::async_remove_ancestors(ParallelTopologyCluster
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
-        if (root_clusters[level].size() == 0) continue;
+        if (root_clusters[level].is_empty()) continue;
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
             if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
@@ -258,10 +260,11 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 root_clusters_histogram[root_clusters[level].size()] += 1;
         #endif
         // Convert sparse_table to parlay::sequence
-        parlay::sequence<std::tuple<ParallelTopologyCluster<aug_t>*,gbbs::empty>> clusters = root_clusters[level].entries();
+        // parlay::sequence<std::tuple<ParallelTopologyCluster<aug_t>*,gbbs::empty>> clusters = root_clusters[level].entries();
         // Perform clustering of the root clusters
-        for (auto entry : clusters) {
+        for (auto entry : root_clusters[level].table) {
             auto cluster = std::get<0>(entry);
+            if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) continue;
             if (cluster->get_degree() == 3) {
                 // Combine deg 3 root clusters with deg 1 root  or non-root clusters
                 for (auto neighbor : cluster->neighbors) {
