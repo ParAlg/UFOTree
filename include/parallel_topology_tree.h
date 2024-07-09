@@ -312,6 +312,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                         auto parent = neighbor->parent;
                         bool new_parent = (parent == nullptr);
                         if (new_parent) { // If neighbor is a root cluster
+                            if (cluster > neighbor) continue; // The lower address cluster will do the combination
                             parent = new ParallelTopologyCluster<aug_t>(default_value);
                             root_clusters[level+1].insert({parent, gbbs::empty{}});
                         }
