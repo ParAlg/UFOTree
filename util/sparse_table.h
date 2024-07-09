@@ -238,6 +238,14 @@ class sparse_table {
     return parlay::filter(table, pred);
   }
 
+  void print_entries() {
+    parlay::sequence<T> table_sequence = entries();
+    std::cout << "[ ";
+    for (auto entry : table_sequence)
+      std:: cout << std::get<0>(entry) << " ";
+    std::cout << "]" << std::endl;
+  }
+
   // Does not copy elements in the current table; just resize the underlying
   // table.
   // Incoming must be a power of two

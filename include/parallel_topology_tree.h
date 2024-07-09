@@ -252,6 +252,7 @@ template<typename aug_t>
 void ParallelTopologyTree<aug_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].is_empty()) continue;
+        // root_clusters[level].print_entries();
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
             if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
@@ -259,11 +260,10 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             else
                 root_clusters_histogram[root_clusters[level].size()] += 1;
         #endif
-        // Convert sparse_table to parlay::sequence
-        // parlay::sequence<std::tuple<ParallelTopologyCluster<aug_t>*,gbbs::empty>> clusters = root_clusters[level].entries();
         // Perform clustering of the root clusters
-        for (auto entry : root_clusters[level].table) {
-            auto cluster = std::get<0>(entry);
+        // parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
+        for (int i = 0; i < root_clusters[level].size(); i++) {
+            auto cluster = std::get<0>(root_clusters[level].table[i]);
             if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) continue;
             if (cluster->get_degree() == 3) {
                 // Combine deg 3 root clusters with deg 1 root  or non-root clusters
@@ -284,9 +284,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 }
             }
             else if (cluster->get_degree() == 2 && !cluster->parent) {
-                // Combine deg 2 root clusters with deg 1 or 2 root clusters
-                for (int i = 0; i < 3; i++) {
-                    auto neighbor = cluster->neighbors[i];
+                for (auto neighbor : cluster->neighbors) {
+                    // Combine deg 2 root clusters with deg 1 or 2 root clusters
                     if (neighbor && !neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
                         auto parent = new ParallelTopologyCluster<aug_t>(default_value);
                         cluster->parent = parent;
@@ -296,52 +295,49 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                         contractions.push_back({{cluster,neighbor},true});
                         break;
                     }
-                }
-                // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
-                if (!cluster->parent)
-                for (int i = 0; i < 3; i++) {
-                    auto neighbor = cluster->neighbors[i];
+                    // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
                     if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
                         if (neighbor->contracts()) continue;
-                        auto parent = neighbor->parent;
-                        if (!parent) parent = new ParallelTopologyCluster<aug_t>(default_value);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
+                        cluster->parent = neighbor->parent;
                         recompute_parent_value(cluster, neighbor);
                         contractions.push_back({{cluster,neighbor},false});
                         break;
                     }
                 }
             }
-            else if (cluster->get_degree() == 1 && !cluster->parent) {
-                // Combine deg 1 root clusters with deg 1 root clusters
+            else if (cluster->get_degree() == 1) {
                 for (auto neighbor : cluster->neighbors) {
+                    // Combine deg 1 root clusters with deg 1 root or non-root clusters
                     if (neighbor && neighbor->get_degree() == 1) {
-                        auto parent = new ParallelTopologyCluster<aug_t>(default_value);
+                        auto parent = neighbor->parent;
+                        bool new_parent = (parent == nullptr);
+                        if (new_parent) { // If neighbor is a root cluster
+                            parent = new ParallelTopologyCluster<aug_t>(default_value);
+                            root_clusters[level+1].insert({parent, gbbs::empty{}});
+                        }
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
-                        root_clusters[level+1].insert({parent, gbbs::empty{}});
-                        contractions.push_back({{cluster,neighbor},true});
+                        contractions.push_back({{cluster,neighbor},new_parent});
                         break;
                     }
-                }
-                // Combine deg 1 root clusters with deg 2 or 3 non-root clusters
-                if (!cluster->parent)
-                for (auto neighbor : cluster->neighbors) {
+                    // Combine deg 1 root cluster with deg 2 or 3 non-root clusters that don't contract
                     if (neighbor && neighbor->parent && (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
                         if (neighbor->contracts()) continue;
-                        auto parent = neighbor->parent;
-                        if (!parent) parent = new ParallelTopologyCluster<aug_t>(default_value);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
+                        cluster->parent = neighbor->parent;
                         recompute_parent_value(cluster, neighbor);
                         contractions.push_back({{cluster,neighbor},false});
                         break;
                     }
                 }
             }
-            // Add remaining uncombined clusters to the next level
+        }
+        // });
+        // Add remaining uncombined clusters to the next level
+        // parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
+        for (int i = 0; i < root_clusters[level].size(); i++) {
+            auto cluster = std::get<0>(root_clusters[level].table[i]);
+            if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) continue;
             if (!cluster->parent && cluster->get_degree() > 0) {
                 auto parent = new ParallelTopologyCluster<aug_t>(default_value);
                 parent->value = cluster->value;
@@ -350,6 +346,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 contractions.push_back({{cluster,cluster},true});
             }
         }
+        // });
         // Fill in the neighbor lists of the new clusters
         for (auto contraction : contractions) {
             auto c1 = contraction.first.first;
