@@ -34,7 +34,7 @@ struct ParallelTopologyCluster {
     ParallelTopologyCluster<aug_t>* partner;
     // Constructor
     ParallelTopologyCluster(aug_t value = 1)
-    : neighbors(), edge_values(), value(value), parent(nullptr), del(false), lock(false) {
+    : neighbors(), edge_values(), value(value), parent(nullptr), del(false), lock(false), partner(nullptr) {
         priority = parlay::hash64((uint64_t)this);
     };
     // Helper functions
@@ -352,6 +352,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             } else if (!cluster->parent && cluster->get_degree() > 0) { // clusters that don't combine get a new parent
                 auto parent = new ParallelTopologyCluster<aug_t>(default_value);
                 cluster->parent = parent;
+                cluster->partner = cluster;
                 parent->value = cluster->value;
                 root_clusters[level+1].insert({parent, gbbs::empty{}});
             }
@@ -364,8 +365,9 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             if (c1 == root_clusters[level].empty_key || c1 == root_clusters[level].empty_key-1) continue;
             auto c2 = c1->partner;
             auto parent = c1->parent;
-            bool new_parent = (c1->parent->parent == nullptr);
-            if (c2->partner && c1 < c2) continue;
+            if (!c2) continue;
+            bool new_parent = (c2->partner != c1);
+            if (!new_parent && c1 < c2) continue;
             for (int i = 0; i < 3; ++i) parent->neighbors[i] = nullptr;
             for (int i = 0; i < 3; ++i) {
                 if (c1->neighbors[i] && c1->neighbors[i] != c2) { // Don't add c2's parent (itself)
@@ -379,8 +381,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                     c2->neighbors[i]->parent->insert_neighbor(parent, c2->edge_values[i]);
                 }
             }
-            c1->partner = nullptr;
             c2->partner = nullptr;
+            c1->partner = nullptr;
             if (!new_parent) remove_ancestors(parent, level+1);
         }
         // Clear the contents of this level
