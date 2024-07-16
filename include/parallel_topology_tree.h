@@ -33,9 +33,10 @@ struct ParallelTopologyCluster {
     uint64_t priority;
     ParallelTopologyCluster<aug_t>* partner;
     // Constructor
-    ParallelTopologyCluster(aug_t value = 1)
+    ParallelTopologyCluster() {};
+    ParallelTopologyCluster(uint64_t salt, aug_t value = 1)
     : neighbors(), edge_values(), value(value), parent(nullptr), del(false), lock(false), partner(nullptr) {
-        priority = parlay::hash64((uint64_t)this);
+        priority = parlay::hash64(salt);
     };
     // Helper functions
     int get_degree();
@@ -87,8 +88,9 @@ template<typename aug_t>
 ParallelTopologyTree<aug_t>::ParallelTopologyTree(vertex_t n, vertex_t k, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d) :
 n(n), query_type(q), f(f), identity(id), default_value(d) {
     leaves = new ParallelTopologyCluster<aug_t>[n];
+    for (int i = 0; i < n; i++) leaves[i] = ParallelTopologyCluster<aug_t>((uint64_t)i);
     for (int i = 0; i < max_tree_height(n); ++i)
-        root_clusters.emplace_back(4*k, std::make_pair(nullptr, gbbs::empty{}), std::hash<ParallelTopologyCluster<aug_t>*>{});
+        root_clusters.emplace_back(std::min(n,4*k), std::make_pair(nullptr, gbbs::empty{}), std::hash<ParallelTopologyCluster<aug_t>*>{});
 }
 
 template<typename aug_t>
@@ -282,10 +284,10 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 }
             }
             else if (cluster->get_degree() == 2 && !cluster->parent) {
-                // Only local maxima in priority will act
+                // Only local maxima in priority with respect to deg 2 clusters will act
                 bool local_max = true;
                 for (auto neighbor : cluster->neighbors)
-                    if (neighbor && neighbor->priority >= cluster->priority) local_max = false;
+                    if (neighbor && !neighbor->parent && neighbor->get_degree() == 2 && neighbor->priority >= cluster->priority) local_max = false;
                 if (!local_max) continue;
                 for (auto direction : {0,1}) {
                     // Travel left/right and pair clusters until a deg 3, deg 1, non-root, or combined cluster found
@@ -343,14 +345,14 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                     cluster->parent = partner->parent;
                     partner->partner = nullptr;
                 } else if (cluster > partner) { // higher address cluster will do the combination
-                    auto parent = new ParallelTopologyCluster<aug_t>(default_value);
+                    auto parent = new ParallelTopologyCluster<aug_t>(cluster->priority+partner->priority, default_value);
                     partner->parent = parent;
                     cluster->parent = parent;
                     recompute_parent_value(cluster, partner);
                     root_clusters[level+1].insert({parent, gbbs::empty{}});
                 }
             } else if (!cluster->parent && cluster->get_degree() > 0) { // clusters that don't combine get a new parent
-                auto parent = new ParallelTopologyCluster<aug_t>(default_value);
+                auto parent = new ParallelTopologyCluster<aug_t>(cluster->priority, default_value);
                 cluster->parent = parent;
                 cluster->partner = cluster;
                 parent->value = cluster->value;
@@ -366,8 +368,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             auto c2 = c1->partner;
             auto parent = c1->parent;
             if (!c2) continue;
-            bool new_parent = (c2->partner != c1);
-            if (!new_parent && c1 < c2) continue;
+            bool new_parent = (c2->partner == c1);
+            if (new_parent && c1 < c2) continue;
             for (int i = 0; i < 3; ++i) parent->neighbors[i] = nullptr;
             for (int i = 0; i < 3; ++i) {
                 if (c1->neighbors[i] && c1->neighbors[i] != c2) { // Don't add c2's parent (itself)
