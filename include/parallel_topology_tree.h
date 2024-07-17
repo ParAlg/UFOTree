@@ -297,7 +297,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                         curr = cluster->get_neighbor(direction);
                         next = curr->get_other_neighbor(cluster);
                     }
-                    while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && (!next->parent || !next->contracts())) {
+                    while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
                         if (!CAS(&curr->partner, (ParallelTopologyCluster<aug_t>*) nullptr, next)) break;
                         if (next->get_degree() == 1) { // If next deg 1 they can combine
                             next->partner = curr;
@@ -325,6 +325,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                     // Combine deg 1 root cluster with deg 2 or 3 non-root clusters that don't contract
                     if (neighbor && neighbor->parent && (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
                         if (neighbor->contracts()) continue;
+                        if(!CAS(&neighbor->partner, (ParallelTopologyCluster<aug_t>*) nullptr, cluster)) continue;
                         cluster->partner = neighbor;
                         neighbor->partner = cluster;
                         break;
@@ -417,6 +418,7 @@ int ParallelTopologyCluster<aug_t>::get_degree() {
 // Helper function which returns whether this cluster combines with another cluster.
 template<typename aug_t>
 bool ParallelTopologyCluster<aug_t>::contracts() {
+    if (!parent) return false;
     bool contracts = false;
     for (auto neighbor : this->neighbors)
         if (neighbor && neighbor->parent == this->parent)
