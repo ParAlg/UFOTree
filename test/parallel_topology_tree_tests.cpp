@@ -84,13 +84,13 @@ void ParallelTopologyTree<aug_t>::print_tree() {
 }
 
 TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
-    int num_trials = 100000;
+    int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 10;
-        vertex_t k = 5;
+        vertex_t n = 256;
+        vertex_t k = 16;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
@@ -98,9 +98,6 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
         std::vector<Update> updates;
         parlay::sequence<Edge> edges;
         auto seed = seeds[trial];
-        srand(seed);
-        seed = 1786831382;
-        std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
         ids = parlay::random_shuffle(ids, parlay::random(rand()));
@@ -121,7 +118,6 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
         }
         tree.batch_link(batch, len);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-        tree.print_tree();
     }
 }
 

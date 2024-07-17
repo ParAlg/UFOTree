@@ -297,7 +297,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                         curr = cluster->get_neighbor(direction);
                         next = curr->get_other_neighbor(cluster);
                     }
-                    while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3) {
+                    while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && (!next->parent || !next->contracts())) {
                         if (!CAS(&curr->partner, (ParallelTopologyCluster<aug_t>*) nullptr, next)) break;
                         if (next->get_degree() == 1) { // If next deg 1 they can combine
                             next->partner = curr;
