@@ -338,6 +338,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             if (partner) {
                 if (partner->parent && partner->parent != cluster->parent) { // partner is non-root cluster
                     cluster->parent = partner->parent;
+                    for (int i = 0; i < 3; ++i) partner->parent->neighbors[i] = nullptr;
+                    async_mark_ancestors(cluster->parent);
                     partner->partner = nullptr;
                 } else if (cluster > partner) { // higher address cluster will do the combination
                     auto parent = new ParallelTopologyCluster<aug_t>(cluster->priority+partner->priority, default_value);
@@ -355,16 +357,14 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             }
         });
         // Fill in the neighbor lists of the new clusters
-        // parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
-        for (int i = 0; i < root_clusters[level].size(); i++) {
+        parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
             auto c1 = std::get<0>(root_clusters[level].table[i]);
-            if (c1 == root_clusters[level].empty_key || c1 == root_clusters[level].empty_key-1) continue;
+            if (c1 == root_clusters[level].empty_key || c1 == root_clusters[level].empty_key-1) return;
             auto c2 = c1->partner;
             auto parent = c1->parent;
-            if (!c2) continue;
+            if (!c2) return;
             bool new_parent = (c2->partner == c1);
-            if (new_parent && c1 < c2) continue;
-            for (int i = 0; i < 3; ++i) parent->neighbors[i] = nullptr;
+            if (new_parent && c1 < c2) return;
             for (int i = 0; i < 3; ++i) {
                 if (c1->neighbors[i] && c1->neighbors[i] != c2) { // Don't add c2's parent (itself)
                     parent->insert_neighbor(c1->neighbors[i]->parent, c1->edge_values[i]);
@@ -379,9 +379,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             }
             c2->partner = nullptr;
             c1->partner = nullptr;
-            if (!new_parent) remove_ancestors(parent, level+1);
-        }
-        // });
+            if (!new_parent) async_remove_ancestors(parent, level+1);
+        });
         // Clear the contents of this level
         root_clusters[level].clear_table();
     }
@@ -433,7 +432,7 @@ void ParallelTopologyCluster<aug_t>::insert_neighbor(ParallelTopologyCluster<aug
         if (CAS(&this->neighbors[i], (ParallelTopologyCluster<aug_t>*) nullptr, c)) {
             this->edge_values[i] = value;
             return;
-        }
+        } else if (this->neighbors[i] == c) return;
     }
     std::cerr << "No space to insert neighbor." << std::endl;
     std::abort();
