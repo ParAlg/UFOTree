@@ -169,13 +169,10 @@ void ParallelTopologyTree<aug_t>::batch_link(Edge* links, int len) {
             [&] { async_remove_ancestors(&leaves[e.src]); },
             [&] { async_remove_ancestors(&leaves[e.dst]); }
         );
-    });
-    STOP_TIMER(parallel_topology_remove_ancestor_timer, parallel_topology_remove_ancestor_time);
-    for (int i = 0; i < len; i++) {
-        Edge e = links[i];
         leaves[e.src].insert_neighbor(&leaves[e.dst], default_value);
         leaves[e.dst].insert_neighbor(&leaves[e.src], default_value);
-    }
+    });
+    STOP_TIMER(parallel_topology_remove_ancestor_timer, parallel_topology_remove_ancestor_time);
     START_TIMER(parallel_topology_recluster_tree_timer);
     recluster_tree();
     STOP_TIMER(parallel_topology_recluster_tree_timer, parallel_topology_recluster_tree_time);
@@ -433,8 +430,7 @@ template<typename aug_t>
 void ParallelTopologyCluster<aug_t>::insert_neighbor(ParallelTopologyCluster<aug_t>* c, aug_t value) {
     if (this->contains_neighbor(c)) return;
     for (int i = 0; i < 3; ++i) {
-        if (this->neighbors[i] == nullptr) {
-            this->neighbors[i] = c;
+        if (CAS(&this->neighbors[i], (ParallelTopologyCluster<aug_t>*) nullptr, c)) {
             this->edge_values[i] = value;
             return;
         }
