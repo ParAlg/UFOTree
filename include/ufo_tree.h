@@ -84,7 +84,16 @@ query_type(q), f(f), identity(id), default_value(d) {
 
 template<typename aug_t>
 UFOTree<aug_t>::~UFOTree() {
-    for (auto leaf : leaves) remove_ancestors(&leaf); // Clear all memory
+    // Clear all memory
+    std::unordered_set<UFOCluster<aug_t>*> clusters;
+    for (auto leaf : leaves) {
+        auto curr = leaf.parent;
+        while (curr) {
+            clusters.insert(curr);
+            curr = curr->parent;
+        }
+    }
+    for (auto cluster : clusters) delete cluster;
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
