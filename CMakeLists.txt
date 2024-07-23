@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
+add_compile_options(-fsanitize=undefined)
+add_link_options(-fsanitize=undefined)
+
 FetchContent_Declare(parlaylib
   GIT_REPOSITORY  https://github.com/cmuparlay/parlaylib.git
   GIT_TAG         master

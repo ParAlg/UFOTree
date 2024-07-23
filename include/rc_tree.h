@@ -424,7 +424,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   round_contracted[vertex] = round;
   // Free up extra memory used by sequence of vertex that contracted.
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
   contraction_tree[vertex].resize(round + 1);
   affected.erase(vertex);
@@ -463,7 +463,7 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
   round_contracted[vertex] = round;
 
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
 
   contraction_tree[vertex].resize(round + 1);
@@ -487,7 +487,7 @@ void RCTree<aug_t>::finalize(vertex_t vertex, int round){
   representative_clusters[vertex] = new_cluster;
   round_contracted[vertex] = round;
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
   contraction_tree[vertex].resize(round + 1);
   affected.erase(vertex);

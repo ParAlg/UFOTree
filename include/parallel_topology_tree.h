@@ -4,6 +4,7 @@
 #include "util.h"
 #include "bridge.h"
 #include "sparse_table.h"
+using namespace parlay;
 using namespace gbbs;
 
 // #define COLLECT_ROOT_CLUSTER_STATS
@@ -267,7 +268,8 @@ void ParallelTopologyTree<aug_t>::async_remove_ancestors(ParallelTopologyCluster
         }
         auto next = curr->parent;
         root_clusters[level].mark_seq(curr); // Marks that this is deleted with a tombstone
-        delete curr; // Remove cluster curr
+        // p_free(curr); // Remove cluster curr
+        delete curr;
         curr = next;
     }
     c->del = false;
@@ -363,6 +365,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                     async_mark_ancestors(cluster->parent);
                     partner->partner = nullptr;
                 } else if (cluster > partner) { // higher address cluster will do the combination
+                    // auto parent = (ParallelTopologyCluster<aug_t>*) p_malloc(sizeof(ParallelTopologyCluster<aug_t>));
                     auto parent = new ParallelTopologyCluster<aug_t>(cluster->priority+partner->priority, default_value);
                     partner->parent = parent;
                     cluster->parent = parent;
@@ -370,6 +373,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                     root_clusters[level+1].insert({parent, gbbs::empty{}});
                 }
             } else if (!cluster->parent && cluster->get_degree() > 0) { // clusters that don't combine get a new parent
+                // auto parent = (ParallelTopologyCluster<aug_t>*) p_malloc(sizeof(ParallelTopologyCluster<aug_t>));
                 auto parent = new ParallelTopologyCluster<aug_t>(cluster->priority, default_value);
                 cluster->parent = parent;
                 cluster->partner = cluster;

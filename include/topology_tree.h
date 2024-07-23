@@ -75,6 +75,7 @@ query_type(q), f(f), identity(id), default_value(d) {
 
 template<typename aug_t>
 TopologyTree<aug_t>::~TopologyTree() {
+    for (auto leaf : leaves) remove_ancestors(&leaf); // Clear all memory
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
