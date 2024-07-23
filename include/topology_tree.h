@@ -259,15 +259,19 @@ void TopologyTree<aug_t>::recluster_tree() {
                 }
             }
             else if (cluster->get_degree() == 1 && !cluster->parent) {
-                // Combine deg 1 root clusters with deg 1 root clusters
+                // Combine deg 1 root clusters with deg 1 root or non-root clusters
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->get_degree() == 1) {
-                        auto parent = new TopologyCluster<aug_t>(default_value);
+                        auto parent = neighbor->parent;
+                        bool new_parent = (parent == nullptr);
+                        if (new_parent) { // If neighbor is a root cluster
+                            parent = new TopologyCluster<aug_t>(default_value);
+                            root_clusters[level+1].push_back(parent);
+                        }
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
-                        root_clusters[level+1].push_back(parent);
-                        contractions.push_back({{cluster,neighbor},true});
+                        contractions.push_back({{cluster,neighbor},new_parent});
                         break;
                     }
                 }

@@ -207,7 +207,7 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
             auto v = edge.second;
             tree.cut(u,v);
             ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
-            // ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
         }
     }
 }
