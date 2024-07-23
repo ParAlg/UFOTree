@@ -7,24 +7,37 @@ template<typename aug_t>
 bool UFOTree<aug_t>::is_valid() {
     std::unordered_set<UFOCluster<aug_t>*> clusters;
     std::unordered_set<UFOCluster<aug_t>*> next_clusters;
-    for (auto leaf : leaves) // Ensure that every pair of incident vertices are in the same component
-        for (auto entry : leaf.neighbors) // This ensures all connectivity is correct by transitivity
-            if (leaf.get_root() != entry->get_root()) return false;
+    for (auto leaf : leaves) { // Ensure that every pair of incident vertices are in the same component
+        for (auto neighbor : leaf.neighbors) // This ensures all connectivity is correct by transitivity
+            if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
+        for (auto neighbor : leaf.neighbors_vector)
+            if (leaf.get_root() != neighbor->get_root()) return false;
+        for (auto neighbor : leaf.neighbors_set)
+            if (leaf.get_root() != neighbor->get_root()) return false;
+    }
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
-            for (auto entry : cluster->neighbors) // Ensure all neighbors also point back
-                if (!entry->contains_neighbor(cluster)) return false;
+            for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
+                if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
+            for (auto neighbor : cluster->neighbors_vector)
+                if (!neighbor->contains_neighbor(cluster)) return false;
+            for (auto neighbor : cluster->neighbors_set)
+                if (!neighbor->contains_neighbor(cluster)) return false;
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
-                    if (cluster->neighbors[0]->get_degree() > 2) return false;
-                    else if (!cluster->neighbors[0]->contracts()) return false;
+                    if (cluster->get_neighbor()->get_degree() > 2) return false;
+                    else if (!cluster->get_neighbor()->contracts()) return false;
                 } else if (cluster->get_degree() == 2) {
-                    for (auto entry : cluster->neighbors)
-                        if (!entry->contracts() && entry->get_degree() < 3) return false;
+                    for (auto neighbor : cluster->neighbors)
+                        if (neighbor && neighbor->get_degree() < 3 && !neighbor->contracts()) return false;
                 } else if (cluster->get_degree() >= 3) {
-                    for (auto entry : cluster->neighbors)
-                        if (entry->get_degree() < 2) return false;
+                    for (auto neighbor : cluster->neighbors)
+                        if (neighbor && neighbor->get_degree() < 2) return false;
+                    for (auto neighbor : cluster->neighbors_vector)
+                        if (neighbor->get_degree() < 2) return false;
+                    for (auto neighbor : cluster->neighbors_set)
+                        if (neighbor->get_degree() < 2) return false;
                 }
             }
             if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
@@ -58,7 +71,9 @@ void UFOTree<aug_t>::print_tree() {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors) if (neighbor) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors_vector) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors_set) std::cout << vertex_map[neighbor] << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
