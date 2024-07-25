@@ -29,14 +29,13 @@ struct ParallelTopologyCluster {
     aug_t value;            // Stores subtree values or cluster path values
     ParallelTopologyCluster<aug_t>* parent;
     // Some fields for asynchronous operations
-    bool del;
-    bool lock;
+    int del;
     uint64_t priority;
     ParallelTopologyCluster<aug_t>* partner;
     // Constructor
     ParallelTopologyCluster() {};
     ParallelTopologyCluster(uint64_t salt, aug_t value = 1)
-    : neighbors(), edge_values(), value(value), parent(nullptr), del(false), lock(false), partner(nullptr) {
+    : neighbors(), edge_values(), value(value), parent(nullptr), del(0), partner(nullptr) {
         priority = parlay::hash64(salt);
     };
     // Helper functions
@@ -96,6 +95,16 @@ n(n), query_type(q), f(f), identity(id), default_value(d) {
 
 template<typename aug_t>
 ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
+    // Clear all memory
+    std::unordered_set<ParallelTopologyCluster<aug_t>*> clusters;
+    for (int i = 0; i < n; i++) {
+        auto curr = leaves[i].parent;
+        while (curr) {
+            clusters.insert(curr);
+            curr = curr->parent;
+        }
+    }
+    for (auto cluster : clusters) delete cluster;
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
@@ -236,11 +245,12 @@ template<typename aug_t>
 void ParallelTopologyTree<aug_t>::async_mark_ancestors(ParallelTopologyCluster<aug_t>* c) {
     auto curr = c;
     auto next = curr->parent;
-    curr->del = true;
-    while (next && CAS(&next->del, false, true)) {
+    if (!CAS(&curr->del, 0, 1)) return;
+    while (next && CAS(&next->del, 0, 1)) {
         curr = next;
         next = curr->parent;
     }
+    curr->del = 2;
 }
 
 template<typename aug_t>
@@ -254,9 +264,13 @@ void ParallelTopologyTree<aug_t>::async_remove_ancestors(ParallelTopologyCluster
         }
     }
     auto curr = c->parent;
+    // If del is 2 then other threads are responsible for deleting your ancestors
+    if (c->del == 2) curr = nullptr;
+    // Only remove ancestors if you are the thread that changes del from 1->3
+    else if (!CAS(&c->del, 1, 3)) return;
     c->parent = nullptr;
     root_clusters[level].insert({c, gbbs::empty{}});
-    while (curr && CAS(&curr->lock, false, true)) {
+    while (curr) {
         level++;
         for (auto neighbor : curr->neighbors) {
             if (neighbor && !neighbor->del && neighbor->parent == curr->parent) {
@@ -267,12 +281,13 @@ void ParallelTopologyTree<aug_t>::async_remove_ancestors(ParallelTopologyCluster
             if (neighbor && !neighbor->del) neighbor->remove_neighbor(curr); // Remove curr from adjacency
         }
         auto next = curr->parent;
+        if (curr->del == 2) next = nullptr;
         root_clusters[level].mark_seq(curr); // Marks that this is deleted with a tombstone
         // p_free(curr); // Remove cluster curr
         delete curr;
         curr = next;
     }
-    c->del = false;
+    c->del = 0;
 }
 
 template<typename aug_t>
