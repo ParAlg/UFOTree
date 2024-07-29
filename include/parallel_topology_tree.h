@@ -149,17 +149,13 @@ void ParallelTopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
     START_TIMER(parallel_topology_remove_ancestor_timer);
     parlay::parallel_for (0, len, [&] (size_t i) {
         Edge e = cuts[i];
-        parlay::parallel_do (
-            [&] { async_mark_ancestors(&leaves[e.src]); },
-            [&] { async_mark_ancestors(&leaves[e.dst]); }
-        );
+        async_mark_ancestors(&leaves[e.src]);
+        async_mark_ancestors(&leaves[e.dst]);
     });
     parlay::parallel_for (0, len, [&] (size_t i) {
         Edge e = cuts[i];
-        parlay::parallel_do (
-            [&] { async_remove_ancestors(&leaves[e.src]); },
-            [&] { async_remove_ancestors(&leaves[e.dst]); }
-        );
+        async_remove_ancestors(&leaves[e.src]);
+        async_remove_ancestors(&leaves[e.dst]);
         leaves[e.src].remove_neighbor(&leaves[e.dst]);
         leaves[e.dst].remove_neighbor(&leaves[e.src]);
     });
@@ -225,6 +221,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 root_clusters_histogram[root_clusters[level].size()] += 1;
         #endif
         // Perform clustering of the root clusters
+        START_TIMER(test_timer);
         parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
             auto cluster = std::get<0>(root_clusters[level].table[i]);
             if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) return;
@@ -288,8 +285,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 }
             }
         });
+        STOP_TIMER(test_timer, test_time);
         // Create new clusters for each new combination
-        START_TIMER(test_timer);
         parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
             auto cluster = std::get<0>(root_clusters[level].table[i]);
             if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) return;
@@ -315,7 +312,6 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 root_clusters[level+1].insert({parent, gbbs::empty{}});
             }
         });
-        STOP_TIMER(test_timer, test_time);
         // Fill in the neighbor lists of the new clusters
         parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
             auto c1 = std::get<0>(root_clusters[level].table[i]);
