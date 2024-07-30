@@ -30,14 +30,14 @@ struct ParallelTopologyCluster {
     aug_t value;            // Stores subtree values or cluster path values
     ParallelTopologyCluster<aug_t>* parent;
     // Some fields for asynchronous operations
-    int del;
+    bool del;
     uint64_t priority;
     ParallelTopologyCluster<aug_t>* partner;
     // Constructor
     ParallelTopologyCluster() {};
     ParallelTopologyCluster(uint64_t salt, aug_t value = 1)
-    : neighbors(), edge_values(), value(value), parent(nullptr), del(0), partner(nullptr) {
-        priority = parlay::hash64(salt);
+    : neighbors(), edge_values(), value(value), parent(nullptr), del(false), partner(nullptr) {
+        priority = hash64(salt);
     };
     // Helper functions
     int get_degree();
@@ -74,11 +74,9 @@ private:
     std::function<aug_t(aug_t, aug_t)> f;
     aug_t identity;
     aug_t default_value;
-    std::vector<sparse_table<ParallelTopologyCluster<aug_t>*, gbbs::empty, std::hash<ParallelTopologyCluster<aug_t>*>>> root_clusters;
+    parlay::sequence<ParallelTopologyCluster<aug_t>*> root_clusters;
+    parlay::sequence<ParallelTopologyCluster<aug_t>*> del_clusters;
     // Helper functions
-    void remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
-    void async_mark_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
-    void async_remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
     void recompute_parent_value(ParallelTopologyCluster<aug_t>* c1, ParallelTopologyCluster<aug_t>* c2);
 };
@@ -88,8 +86,6 @@ ParallelTopologyTree<aug_t>::ParallelTopologyTree(vertex_t n, vertex_t k, QueryT
 n(n), query_type(q), f(f), identity(id), default_value(d) {
     leaves = new ParallelTopologyCluster<aug_t>[n];
     for (int i = 0; i < n; i++) leaves[i] = ParallelTopologyCluster<aug_t>((uint64_t)i);
-    for (int i = 0; i < max_tree_height(n); ++i)
-        root_clusters.emplace_back(std::max(12,(int)std::min(n,4*k)), std::make_pair(nullptr, gbbs::empty{}), std::hash<ParallelTopologyCluster<aug_t>*>{});
 }
 
 template<typename aug_t>
@@ -121,110 +117,57 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::batch_link(Edge* links, int len) {
-    START_TIMER(parallel_topology_remove_ancestor_timer);
-    parlay::parallel_for (0, len, [&] (size_t i) {
-        Edge e = links[i];
-        parlay::parallel_do (
-            [&] { async_mark_ancestors(&leaves[e.src]); },
-            [&] { async_mark_ancestors(&leaves[e.dst]); }
-        );
+    root_clusters = remove_duplicates(tabulate(2*len, [&] (size_t i) { return (i%2 ? &leaves[links[i/2].src] : &leaves[links[i/2].dst]); }));
+    auto parents = remove_duplicates(tabulate(root_clusters.size(), [&] (size_t i) { return root_clusters[i]->parent; }));
+    del_clusters = filter(parents, [&] (auto cluster) { return cluster != nullptr; });
+    parallel_for (0, len, [&] (size_t i) {
+        leaves[links[i].src].insert_neighbor(&leaves[links[i].dst], default_value);
+        leaves[links[i].dst].insert_neighbor(&leaves[links[i].src], default_value);
+        for (auto neighbor : leaves[links[i].src].neighbors) if (neighbor && neighbor->parent == leaves[links[i].src].parent) neighbor->parent = nullptr;
+        leaves[links[i].src].parent = nullptr;
+        for (auto neighbor : leaves[links[i].dst].neighbors) if (neighbor && neighbor->parent == leaves[links[i].dst].parent) neighbor->parent = nullptr;
+        leaves[links[i].dst].parent = nullptr;
     });
-    parlay::parallel_for (0, len, [&] (size_t i) {
-        Edge e = links[i];
-        parlay::parallel_do (
-            [&] { async_remove_ancestors(&leaves[e.src]); },
-            [&] { async_remove_ancestors(&leaves[e.dst]); }
-        );
-        leaves[e.src].insert_neighbor(&leaves[e.dst], default_value);
-        leaves[e.dst].insert_neighbor(&leaves[e.src], default_value);
-    });
-    STOP_TIMER(parallel_topology_remove_ancestor_timer, parallel_topology_remove_ancestor_time);
-    START_TIMER(parallel_topology_recluster_tree_timer);
     recluster_tree();
-    STOP_TIMER(parallel_topology_recluster_tree_timer, parallel_topology_recluster_tree_time);
 }
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
     START_TIMER(parallel_topology_remove_ancestor_timer);
-    parlay::parallel_for (0, len, [&] (size_t i) {
-        Edge e = cuts[i];
-        async_mark_ancestors(&leaves[e.src]);
-        async_mark_ancestors(&leaves[e.dst]);
+    root_clusters = remove_duplicates(tabulate(2*len, [&] (size_t i) { return (i%2 ? &leaves[cuts[i/2].src] : &leaves[cuts[i/2].dst]); }));
+    auto parents = remove_duplicates(tabulate(root_clusters.size(), [&] (size_t i) { return root_clusters[i]->parent; }));
+    del_clusters = filter(parents, [&] (auto cluster) { return cluster != nullptr; });
+    parallel_for (0, len, [&] (size_t i) {
+        leaves[cuts[i].src].remove_neighbor(&leaves[cuts[i].dst]);
+        leaves[cuts[i].dst].remove_neighbor(&leaves[cuts[i].src]);
+        leaves[cuts[i].src].parent = nullptr;
+        leaves[cuts[i].dst].parent = nullptr;
     });
-    parlay::parallel_for (0, len, [&] (size_t i) {
-        Edge e = cuts[i];
-        async_remove_ancestors(&leaves[e.src]);
-        async_remove_ancestors(&leaves[e.dst]);
-        leaves[e.src].remove_neighbor(&leaves[e.dst]);
-        leaves[e.dst].remove_neighbor(&leaves[e.src]);
-    });
-    STOP_TIMER(parallel_topology_remove_ancestor_timer, parallel_topology_remove_ancestor_time);
-    START_TIMER(parallel_topology_recluster_tree_timer);
     recluster_tree();
-    STOP_TIMER(parallel_topology_recluster_tree_timer, parallel_topology_recluster_tree_time);
-}
-
-template<typename aug_t>
-void ParallelTopologyTree<aug_t>::async_mark_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level) {
-    int level = start_level;
-    auto curr = c;
-    auto next = curr->parent;
-    if (!CAS(&curr->del, 0, 1)) return;
-    while (next && CAS(&next->del, 0, 1)) {
-        for (auto neighbor : curr->neighbors) {
-            if (neighbor && neighbor->parent == curr->parent) {
-                neighbor->parent = nullptr;
-                root_clusters[level].insert({neighbor, gbbs::empty{}});
-            }
-            if (neighbor && curr != c) neighbor->remove_neighbor(curr);
-        }
-        curr = next;
-        next = curr->parent;
-        level++;
-    }
-    for (auto neighbor : curr->neighbors) if (neighbor && curr != c) neighbor->remove_neighbor(curr);
-    curr->del = 2;
-}
-
-template<typename aug_t>
-void ParallelTopologyTree<aug_t>::async_remove_ancestors(ParallelTopologyCluster<aug_t>* c, int start_level) {
-    int level = start_level;
-    auto curr = c->parent;
-    // If del is 2 then other threads are responsible for deleting your ancestors
-    if (c->del == 2) curr = nullptr;
-    // Only remove ancestors if you are the thread that changes del from 1->3
-    else if (!CAS(&c->del, 1, 3)) return;
-    root_clusters[level].insert({c, gbbs::empty{}});
-    while (curr) {
-        level++;
-        auto next = curr->parent;
-        if (curr->del == 2) next = nullptr;
-        root_clusters[level].mark_seq(curr); // Marks that this is deleted with a tombstone
-        type_allocator<ParallelTopologyCluster<aug_t>>::destroy(curr); // Free cluster curr
-        curr = next;
-    }
-    c->parent = nullptr;
-    c->del = 0;
 }
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::recluster_tree() {
-    for (int level = 0; level < root_clusters.size(); level++) {
-        if (root_clusters[level].is_empty()) continue;
-        // root_clusters[level].print_entries();
+    while (root_clusters.size() > 0) {
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
-            if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
-                root_clusters_histogram[root_clusters[level].size()] = 1;
+            if (root_clusters_histogram.find(root_clusters.size()) == root_clusters_histogram.end())
+                root_clusters_histogram[root_clusters.size()] = 1;
             else
-                root_clusters_histogram[root_clusters[level].size()] += 1;
+                root_clusters_histogram[root_clusters.size()] += 1;
         #endif
+        // Get the next set of clusters to delete and delete the current ones
+        auto new_del_clusters = remove_duplicates(tabulate(del_clusters.size(), [&] (size_t i) { return del_clusters[i]->parent; }));
+        new_del_clusters = filter(new_del_clusters, [&] (auto cluster) { return cluster != nullptr; });
+        parallel_for (0, del_clusters.size(), [&] (size_t i) { del_clusters[i]->del = true; });
+        parallel_for (0, del_clusters.size(), [&] (size_t i) {
+            auto cluster = del_clusters[i];
+            for (auto neighbor : cluster->neighbors) if (neighbor && !neighbor->del) neighbor->remove_neighbor(cluster);
+            type_allocator<ParallelTopologyCluster<aug_t>>::destroy(cluster);
+        });
         // Perform clustering of the root clusters
-        START_TIMER(test_timer);
-        parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
-            auto cluster = std::get<0>(root_clusters[level].table[i]);
-            if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) return;
+        parallel_for (0, root_clusters.size(), [&] (size_t i) {
+            auto cluster = root_clusters[i];
             // Combine deg 3 root clusters with deg 1 root  or non-root clusters
             if (cluster->get_degree() == 3) {
                 for (auto neighbor : cluster->neighbors) {
@@ -285,37 +228,35 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
                 }
             }
         });
-        STOP_TIMER(test_timer, test_time);
         // Create new clusters for each new combination
-        parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
-            auto cluster = std::get<0>(root_clusters[level].table[i]);
-            if (cluster == root_clusters[level].empty_key || cluster == root_clusters[level].empty_key-1) return;
+        auto new_root_clusters = parlay::sequence<ParallelTopologyCluster<aug_t>*>(root_clusters.size());
+        parallel_for (0, root_clusters.size(), [&] (size_t i) {
+            auto cluster = root_clusters[i];
             // Make new parent clusters for all new combinations
             auto partner = cluster->partner;
             if (partner) {
                 if (partner->parent && partner->parent != cluster->parent) { // partner is non-root cluster
                     cluster->parent = partner->parent;
-                    async_mark_ancestors(cluster->parent, level+1);
                     partner->partner = nullptr;
+                    recompute_parent_value(cluster, partner);
                 } else if (cluster > partner) { // higher address cluster will do the combination
                     auto parent = type_allocator<ParallelTopologyCluster<aug_t>>::create(cluster->priority+partner->priority, default_value);
                     partner->parent = parent;
                     cluster->parent = parent;
                     recompute_parent_value(cluster, partner);
-                    root_clusters[level+1].insert({parent, gbbs::empty{}});
                 }
             } else if (!cluster->parent && cluster->get_degree() > 0) { // clusters that don't combine get a new parent
                 auto parent = type_allocator<ParallelTopologyCluster<aug_t>>::create(cluster->priority, default_value);
                 cluster->parent = parent;
                 cluster->partner = cluster;
                 parent->value = cluster->value;
-                root_clusters[level+1].insert({parent, gbbs::empty{}});
             }
+            // Collect the new set of root clusters
+            new_root_clusters[i] = cluster->parent;
         });
         // Fill in the neighbor lists of the new clusters
-        parlay::parallel_for (0, root_clusters[level].size(), [&] (size_t i) {
-            auto c1 = std::get<0>(root_clusters[level].table[i]);
-            if (c1 == root_clusters[level].empty_key || c1 == root_clusters[level].empty_key-1) return;
+        parallel_for (0, root_clusters.size(), [&] (size_t i) {
+            auto c1 = root_clusters[i];
             auto c2 = c1->partner;
             auto parent = c1->parent;
             if (!c2) return;
@@ -335,10 +276,20 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             }
             c2->partner = nullptr;
             c1->partner = nullptr;
-            if (!new_parent) async_remove_ancestors(parent, level+1);
         });
-        // Clear the contents of this level
-        root_clusters[level].clear_table();
+        // Finalize the new root clusters and new list of clusters to be deleted
+        new_root_clusters = filter(new_root_clusters, [&](auto cluster) { return cluster != nullptr; });
+        auto additional_del_clusters = map_maybe(new_root_clusters, [&](auto cluster)->std::optional<ParallelTopologyCluster<aug_t>*> {
+            if (cluster->parent) return cluster->parent;
+            return std::nullopt;
+        });
+        auto additional_root_clusters = map_maybe(new_root_clusters, [&](auto cluster)->std::optional<ParallelTopologyCluster<aug_t>*> {
+            if (cluster->parent)
+                for (auto neighbor : cluster->neighbors) if (neighbor && neighbor->parent == cluster->parent) return neighbor;
+            return std::nullopt;
+        });
+        root_clusters = remove_duplicates(append(new_root_clusters, additional_root_clusters));
+        del_clusters = remove_duplicates(append(new_del_clusters, additional_del_clusters));
     }
 }
 
