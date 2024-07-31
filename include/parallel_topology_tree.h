@@ -85,14 +85,14 @@ template<typename aug_t>
 ParallelTopologyTree<aug_t>::ParallelTopologyTree(vertex_t n, vertex_t k, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d) :
 n(n), query_type(q), f(f), identity(id), default_value(d) {
     leaves = new ParallelTopologyCluster<aug_t>[n];
-    for (int i = 0; i < n; i++) leaves[i] = ParallelTopologyCluster<aug_t>((uint64_t)i);
+    for (int i = 0; i < n; ++i) leaves[i] = ParallelTopologyCluster<aug_t>((uint64_t)i);
 }
 
 template<typename aug_t>
 ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
     // Clear all memory
     std::unordered_set<ParallelTopologyCluster<aug_t>*> clusters;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; ++i) {
         auto curr = leaves[i].parent;
         while (curr) {
             clusters.insert(curr);
@@ -117,31 +117,34 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::batch_link(Edge* links, int len) {
-    root_clusters = remove_duplicates(tabulate(2*len, [&] (size_t i) { return (i%2 ? &leaves[links[i/2].src] : &leaves[links[i/2].dst]); }));
+    root_clusters = tabulate(2*len, [&] (size_t i) { return (i%2 ? &leaves[links[i/2].src] : &leaves[links[i/2].dst]); });
     auto parents = remove_duplicates(tabulate(root_clusters.size(), [&] (size_t i) { return root_clusters[i]->parent; }));
     del_clusters = filter(parents, [&] (auto cluster) { return cluster != nullptr; });
+    auto additional_root_clusters = map_maybe(root_clusters, [&](auto cluster)->std::optional<ParallelTopologyCluster<aug_t>*> {
+        if (cluster->parent) for (auto neighbor : cluster->neighbors) if (neighbor && neighbor->parent == cluster->parent) { return neighbor; }
+        return std::nullopt;
+    });
+    root_clusters = remove_duplicates(append(root_clusters, additional_root_clusters));
     parallel_for (0, len, [&] (size_t i) {
         leaves[links[i].src].insert_neighbor(&leaves[links[i].dst], default_value);
         leaves[links[i].dst].insert_neighbor(&leaves[links[i].src], default_value);
-        for (auto neighbor : leaves[links[i].src].neighbors) if (neighbor && neighbor->parent == leaves[links[i].src].parent) neighbor->parent = nullptr;
-        leaves[links[i].src].parent = nullptr;
-        for (auto neighbor : leaves[links[i].dst].neighbors) if (neighbor && neighbor->parent == leaves[links[i].dst].parent) neighbor->parent = nullptr;
-        leaves[links[i].dst].parent = nullptr;
     });
     recluster_tree();
 }
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
-    START_TIMER(parallel_topology_remove_ancestor_timer);
-    root_clusters = remove_duplicates(tabulate(2*len, [&] (size_t i) { return (i%2 ? &leaves[cuts[i/2].src] : &leaves[cuts[i/2].dst]); }));
+    root_clusters = tabulate(2*len, [&] (size_t i) { return (i%2 ? &leaves[cuts[i/2].src] : &leaves[cuts[i/2].dst]); });
     auto parents = remove_duplicates(tabulate(root_clusters.size(), [&] (size_t i) { return root_clusters[i]->parent; }));
     del_clusters = filter(parents, [&] (auto cluster) { return cluster != nullptr; });
+    auto additional_root_clusters = map_maybe(root_clusters, [&](auto cluster)->std::optional<ParallelTopologyCluster<aug_t>*> {
+        if (cluster->parent) for (auto neighbor : cluster->neighbors) if (neighbor && neighbor->parent == cluster->parent) { return neighbor; }
+        return std::nullopt;
+    });
+    root_clusters = remove_duplicates(append(root_clusters, additional_root_clusters));
     parallel_for (0, len, [&] (size_t i) {
         leaves[cuts[i].src].remove_neighbor(&leaves[cuts[i].dst]);
         leaves[cuts[i].dst].remove_neighbor(&leaves[cuts[i].src]);
-        leaves[cuts[i].src].parent = nullptr;
-        leaves[cuts[i].dst].parent = nullptr;
     });
     recluster_tree();
 }
@@ -156,16 +159,23 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             else
                 root_clusters_histogram[root_clusters.size()] += 1;
         #endif
-        // Get the next set of clusters to delete and delete the current ones
+        // Get the next set of clusters to delete
         auto new_del_clusters = remove_duplicates(tabulate(del_clusters.size(), [&] (size_t i) { return del_clusters[i]->parent; }));
         new_del_clusters = filter(new_del_clusters, [&] (auto cluster) { return cluster != nullptr; });
+        // Determine the next level additional root clusters neighboring clusters we are currently deleting
         parallel_for (0, del_clusters.size(), [&] (size_t i) { del_clusters[i]->del = true; });
+        auto next_additional_root_clusters = map_maybe(del_clusters, [&](auto cluster)->std::optional<ParallelTopologyCluster<aug_t>*> {
+            if (cluster->parent) for (auto neighbor : cluster->neighbors) if (neighbor && !neighbor->del && neighbor->parent == cluster->parent) { return neighbor; }
+            return std::nullopt;
+        });
+        // Delete the current set of clusters to delete
         parallel_for (0, del_clusters.size(), [&] (size_t i) {
             auto cluster = del_clusters[i];
             for (auto neighbor : cluster->neighbors) if (neighbor && !neighbor->del) neighbor->remove_neighbor(cluster);
             type_allocator<ParallelTopologyCluster<aug_t>>::destroy(cluster);
         });
         // Perform clustering of the root clusters
+        parallel_for (0, root_clusters.size(), [&] (size_t i) { root_clusters[i]->parent = nullptr; });
         parallel_for (0, root_clusters.size(), [&] (size_t i) {
             auto cluster = root_clusters[i];
             // Combine deg 3 root clusters with deg 1 root  or non-root clusters
@@ -283,13 +293,12 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             if (cluster->parent) return cluster->parent;
             return std::nullopt;
         });
+        del_clusters = remove_duplicates(append(new_del_clusters, additional_del_clusters));
         auto additional_root_clusters = map_maybe(new_root_clusters, [&](auto cluster)->std::optional<ParallelTopologyCluster<aug_t>*> {
-            if (cluster->parent)
-                for (auto neighbor : cluster->neighbors) if (neighbor && neighbor->parent == cluster->parent) return neighbor;
+            if (cluster->parent) for (auto neighbor : cluster->neighbors) if (neighbor && neighbor->parent == cluster->parent) { return neighbor; }
             return std::nullopt;
         });
-        root_clusters = remove_duplicates(append(new_root_clusters, additional_root_clusters));
-        del_clusters = remove_duplicates(append(new_del_clusters, additional_del_clusters));
+        root_clusters = remove_duplicates(append(append(new_root_clusters, additional_root_clusters), next_additional_root_clusters));
     }
 }
 
@@ -302,7 +311,7 @@ void ParallelTopologyTree<aug_t>::recompute_parent_value(ParallelTopologyCluster
     }
     else if (query_type == PATH && c1->get_degree() == 2 && c2->get_degree() == 2) {
         aug_t edge_val;
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 3; ++i)
             if (c1->neighbors[i] == c2) edge_val = c1->edge_values[i];
         parent->value = f(f(c1->value, c2->value), edge_val);
     }
@@ -473,7 +482,7 @@ aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u->parent != curr_v->parent) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; ++i) {
             auto neighbor = curr_u->neighbors[i];
             if (neighbor && neighbor->parent == curr_u->parent) {
                 if (curr_u->get_degree() == 2) {
@@ -482,13 +491,13 @@ aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
                         if (neighbor == bdry_u1) {
                             path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
                             bdry_u2 = bdry_u2->parent;
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < 3; ++i)
                                 if(curr_u->parent->neighbors[i] && curr_u->parent->neighbors[i] != bdry_u2)
                                     bdry_u1 = curr_u->parent->neighbors[i];
                         } else {
                             path_u2 = f(path_u2, f(curr_u->edge_values[i], neighbor->value));
                             bdry_u1 = bdry_u1->parent;
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < 3; ++i)
                                 if(curr_u->parent->neighbors[i] && curr_u->parent->neighbors[i] != bdry_u1)
                                     bdry_u2 = curr_u->parent->neighbors[i];
                         }
@@ -515,7 +524,7 @@ aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
             if (bdry_u2) bdry_u2 = bdry_u2->parent;
         }
         curr_u = curr_u->parent;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; ++i) {
             auto neighbor = curr_v->neighbors[i];
             if (neighbor && neighbor->parent == curr_v->parent) {
                 if (curr_v->get_degree() == 2) {
@@ -524,13 +533,13 @@ aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
                         if (neighbor == bdry_v1) {
                             path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
                             bdry_v2 = bdry_v2->parent;
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < 3; ++i)
                                 if(curr_v->parent->neighbors[i] && curr_v->parent->neighbors[i] != bdry_v2)
                                     bdry_v1 = curr_v->parent->neighbors[i];
                         } else {
                             path_v2 = f(path_v2, f(curr_v->edge_values[i], neighbor->value));
                             bdry_v1 = bdry_v1->parent;
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < 3; ++i)
                                 if(curr_v->parent->neighbors[i] && curr_v->parent->neighbors[i] != bdry_v1)
                                     bdry_v2 = curr_v->parent->neighbors[i];
                         }
@@ -569,7 +578,7 @@ aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     else
         total = f(total, path_v1);
     // Add the value of the last edge
-    for (int i = 0; i < 3; i++) if (curr_u->neighbors[i] == curr_v)
+    for (int i = 0; i < 3; ++i) if (curr_u->neighbors[i] == curr_v)
         total = f(total, curr_u->edge_values[i]);
     return total;
 }
