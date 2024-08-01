@@ -155,7 +155,7 @@ void ParallelTopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
 
 template<typename aug_t>
 void ParallelTopologyTree<aug_t>::recluster_tree() {
-    while (root_clusters.size() > 0) {
+    while (root_clusters.size() > 0 || del_clusters.size() > 0) {
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
             if (root_clusters_histogram.find(root_clusters.size()) == root_clusters_histogram.end())
