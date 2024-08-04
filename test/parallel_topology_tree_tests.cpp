@@ -372,7 +372,7 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_random_correctness_test) {
 
 TEST(ParallelTopologyTreeSuite, batch_linkedlist_performance_test) {
     vertex_t n = 1000000;
-    vertex_t k = 1000;
+    vertex_t k = 1;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
     ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);

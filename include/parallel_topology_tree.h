@@ -21,27 +21,31 @@ long parallel_topology_remove_ancestor_time = 0;
 long parallel_topology_recluster_tree_time = 0;
 long test_time = 0;
 
+// Ligra-like interface:
+// given subset of vertices, get parents, siblings, etc.
+
 template <typename aug_t>
 struct ParallelTopologyCluster {
   // Topology cluster data
   ParallelTopologyCluster<aug_t>* neighbors[3];
+  ParallelTopologyCluster<aug_t>* parent;
+  ParallelTopologyCluster<aug_t>* partner;
+
   aug_t edge_values[3];   // Only for path queries
   aug_t value;            // Stores subtree values or cluster path values
-  ParallelTopologyCluster<aug_t>* parent;
   // Some fields for asynchronous operations
+  uint32_t priority;
   bool del;
-  uint64_t priority;
-  ParallelTopologyCluster<aug_t>* partner;
   // Constructor
   ParallelTopologyCluster(){};
-  ParallelTopologyCluster(uint64_t salt, aug_t value = 1)
+  ParallelTopologyCluster(uint32_t salt, aug_t value = 1)
       : neighbors(),
         edge_values(),
         value(value),
         parent(nullptr),
         del(false),
         partner(nullptr) {
-    priority = hash64(salt);
+    priority = hash32(salt);
   };
   // Helper functions
   int get_degree();
@@ -99,7 +103,7 @@ ParallelTopologyTree<aug_t>::ParallelTopologyTree(
     : n(n), query_type(q), f(f), identity(id), default_value(d) {
   leaves = new ParallelTopologyCluster<aug_t>[n];
   for (int i = 0; i < n; ++i)
-    leaves[i] = ParallelTopologyCluster<aug_t>((uint64_t)i);
+    leaves[i] = ParallelTopologyCluster<aug_t>((uint32_t)i);
 }
 
 template <typename aug_t>
