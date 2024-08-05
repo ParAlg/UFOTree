@@ -483,14 +483,12 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
       auto additional_del_clusters = map_maybe(
          new_root_clusters,
          [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
-           if (cluster->parent) {
-             cluster->parent->del = true;
+           if (cluster->parent && cluster->parent->try_del_atomic()) {
              return cluster->parent;
            }
            return std::nullopt;
          });
-      del_clusters =
-         remove_duplicates(append(new_del_clusters, additional_del_clusters));
+      del_clusters = append(new_del_clusters, additional_del_clusters);
     }
     STOP_TIMER(ra_timer2, parallel_topology_remove_ancestor_time);
   }
