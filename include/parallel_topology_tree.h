@@ -192,7 +192,7 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(Edge* links, int len) {
         }
       });
       return parlay::delayed::map_maybe(ds, [&] (auto cluster) -> std::optional<Cluster*>{
-        if (cluster && !cluster->del && CAS(&cluster->del, false, true)) {
+        if (cluster && cluster->try_del_atomic()) {
           return cluster;
         }
         return std::nullopt;
@@ -203,8 +203,7 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(Edge* links, int len) {
     del_clusters = map_maybe(
        root_clusters,
        [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
-         if (cluster->parent && !cluster->parent->del &&
-             CAS(&cluster->parent->del, false, true))
+         if (cluster->parent && cluster->parent->try_del_atomic())
            return cluster->parent;
          return std::nullopt;
        });
@@ -268,8 +267,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
       new_del_clusters = map_maybe(
          del_clusters,
          [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
-           if (cluster->parent && !cluster->parent->del &&
-               CAS(&cluster->parent->del, false, true))
+           if (cluster->parent && !cluster->parent->try_del_atomic())
              return cluster->parent;
            return std::nullopt;
          });
@@ -465,8 +463,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
       auto new_root_clusters = map_maybe(
          root_clusters,
          [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
-           if (cluster->parent && !cluster->parent->del &&
-               CAS(&cluster->parent->del, false, true))
+           if (cluster->parent && cluster->parent->try_del_atomic())
              return cluster->parent;
            return std::nullopt;
          });
