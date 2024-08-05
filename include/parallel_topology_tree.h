@@ -287,11 +287,19 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
          });
       // Delete the current set of clusters to delete
     }
+
+    // Remove links from nodes that are still live to nodes that will
+    // be deleted.
     parallel_for(0, del_clusters.size(), [&](size_t i) {
       auto cluster = del_clusters[i];
       for (auto neighbor : cluster->neighbors)
-        if (neighbor && !neighbor->del)
+        if (neighbor && !neighbor->del) {
           neighbor->remove_neighbor(cluster);
+        }
+    });
+    // Destroy all nodes to be deleted.
+    parallel_for(0, del_clusters.size(), [&](size_t i) {
+      auto cluster = del_clusters[i];
       type_allocator<ParallelTopologyCluster<aug_t>>::destroy(cluster);
     });
     STOP_TIMER(ra_timer1, parallel_topology_remove_ancestor_time);
