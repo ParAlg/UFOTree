@@ -249,7 +249,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
     // Get the next set of clusters to delete
     parlay::sequence<Cluster*> new_del_clusters;
     parlay::sequence<Cluster*> next_additional_root_clusters;
-    if (del_clusters.size() <  5000) {
+    if (del_clusters.size() < 5000) {
       for (size_t i=0; i < del_clusters.size(); ++i) {
         auto cluster = del_clusters[i];
         if (cluster->parent && cluster->parent->try_del()) {
@@ -267,7 +267,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
       new_del_clusters = map_maybe(
          del_clusters,
          [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
-           if (cluster->parent && !cluster->parent->try_del_atomic())
+           if (cluster->parent && cluster->parent->try_del_atomic())
              return cluster->parent;
            return std::nullopt;
          });
