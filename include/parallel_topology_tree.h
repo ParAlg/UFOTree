@@ -257,7 +257,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
         }
         if (cluster->parent) {
           for (auto neighbor : cluster->neighbors) {
-            if (neighbor && !neighbor->del && neighbor->parent == cluster->parent) {
+            if (neighbor && !neighbor->del && neighbor->parent == cluster->parent && neighbor->try_del()) {
               next_additional_root_clusters.push_back(neighbor);
             }
           }
@@ -279,7 +279,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
            if (cluster->parent)
              for (auto neighbor : cluster->neighbors)
                if (neighbor && !neighbor->del &&
-                   neighbor->parent == cluster->parent)
+                   neighbor->parent == cluster->parent && neighbor->try_del_atomic())
                  return neighbor;
            return std::nullopt;
          });
@@ -291,7 +291,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
     parallel_for(0, del_clusters.size(), [&](size_t i) {
       auto cluster = del_clusters[i];
       for (auto neighbor : cluster->neighbors)
-        if (neighbor && !neighbor->del) {
+        if (neighbor) {
           neighbor->remove_neighbor(cluster);
         }
     });
@@ -451,14 +451,29 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
     // Finalize the new root clusters and new list of clusters to be deleted
     START_TIMER(ra_timer2);
     parlay::sequence<Cluster*> new_root_clusters;
-    if (false) {
+    if (root_clusters.size() < 5000) {
       for (size_t i=0; i < root_clusters.size(); ++i) {
         auto cluster = root_clusters[i];
         if (cluster->parent && cluster->parent->try_del()) {
-          new_root_clusters.push_back(cluster->parent);
+          auto new_cluster = cluster->parent;
+
+          // Try to add the parent to the next set of del clusters.
+          if (new_cluster->parent && new_cluster->parent->try_del()) {
+            new_del_clusters.push_back(new_cluster->parent);
+          }
+
+          new_root_clusters.push_back(new_cluster);
+          for (auto neighbor : new_cluster->neighbors) {
+            if (neighbor && neighbor->parent == new_cluster->parent && neighbor->try_del()) {
+              new_root_clusters.push_back(neighbor);
+            }
+          }
+
         }
       }
-
+      root_clusters = std::move(next_additional_root_clusters);
+      root_clusters = parlay::append(root_clusters, new_root_clusters);
+      del_clusters = std::move(new_del_clusters);
     } else {
       auto new_root_clusters = map_maybe(
          root_clusters,
@@ -472,14 +487,13 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
          [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
            if (cluster->parent)
              for (auto neighbor : cluster->neighbors)
-               if (neighbor && neighbor->parent == cluster->parent) {
+               if (neighbor && neighbor->parent == cluster->parent && neighbor->try_del_atomic()) {
                  return neighbor;
                }
            return std::nullopt;
          });
-      root_clusters = remove_duplicates(
-         append(append(new_root_clusters, additional_root_clusters),
-                next_additional_root_clusters));
+      root_clusters = append(append(new_root_clusters, additional_root_clusters),
+                next_additional_root_clusters);
       auto additional_del_clusters = map_maybe(
          new_root_clusters,
          [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
