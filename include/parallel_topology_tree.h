@@ -449,8 +449,8 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
     STOP_TIMER(recluster_timer, parallel_topology_recluster_tree_time);
 
     // Finalize the new root clusters and new list of clusters to be deleted
-    START_TIMER(ra_timer2);
     parlay::sequence<Cluster*> new_root_clusters;
+      START_TIMER(ra_timer2);
     if (root_clusters.size() < 5000) {
       for (size_t i=0; i < root_clusters.size(); ++i) {
         auto cluster = root_clusters[i];
@@ -462,17 +462,15 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             new_del_clusters.push_back(new_cluster->parent);
           }
 
-          new_root_clusters.push_back(new_cluster);
+          next_additional_root_clusters.push_back(new_cluster);
           for (auto neighbor : new_cluster->neighbors) {
             if (neighbor && neighbor->parent == new_cluster->parent && neighbor->try_del()) {
-              new_root_clusters.push_back(neighbor);
+              next_additional_root_clusters.push_back(neighbor);
             }
           }
-
         }
       }
       root_clusters = std::move(next_additional_root_clusters);
-      root_clusters = parlay::append(root_clusters, new_root_clusters);
       del_clusters = std::move(new_del_clusters);
     } else {
       auto new_root_clusters = map_maybe(
@@ -504,7 +502,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
          });
       del_clusters = append(new_del_clusters, additional_del_clusters);
     }
-    STOP_TIMER(ra_timer2, parallel_topology_remove_ancestor_time);
+    STOP_TIMER(ra_timer2, parallel_topology_remove_ancestor_time_2);
   }
 }
 
