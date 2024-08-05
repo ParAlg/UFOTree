@@ -11,22 +11,37 @@ bool ParallelTopologyTree<aug_t>::is_valid() {
     std::unordered_set<ParallelTopologyCluster<aug_t>*> next_clusters;
     for (int i = 0; i < n; i++) // Ensure that every pair of incident vertices are in the same component
         for (auto neighbor : leaves[i].neighbors) // This ensures all connectivity is correct by transitivity
-            if (neighbor && leaves[i].get_root() != neighbor->get_root()) return false;
+            if (neighbor && leaves[i].get_root() != neighbor->get_root()) {
+                std::cerr << "INCORRECT CONNECTIVITY." << std::endl;
+                return false;
+            }
     for (int i = 0; i < n; i++) clusters.insert(&leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
             for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
-                if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
+                if (neighbor && !neighbor->contains_neighbor(cluster)) {
+                    std::cerr << "INCORRECT ADJACENCY." << std::endl;
+                    return false;
+                }
             if (!cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && !neighbor->contracts()) return false;
+                        if (neighbor && !neighbor->contracts()) {
+                            std::cerr << "CONTRACTIONS NOT MAXIMAL." << std::endl;
+                            return false;
+                        }
                 } else if (cluster->get_degree() == 2) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 3) return false;
+                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 3) {
+                            std::cerr << "CONTRACTIONS NOT MAXIMAL." << std::endl;
+                            return false;
+                        }
                 } else if (cluster->get_degree() == 3) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 2) return false;
+                        if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 2) {
+                            std::cerr << "CONTRACTIONS NOT MAXIMAL." << std::endl;
+                            return false;
+                        }
                 }
             }
             if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
@@ -387,7 +402,7 @@ TEST(ParallelTopologyTreeSuite, batch_linkedlist_performance_test) {
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
 
-    Edge batch[k];
+    Edge* batch = (Edge*) malloc(k*sizeof(Edge));
     vertex_t len = 0;
     for (auto update : updates) {
         batch[len++] = update.edge;
@@ -410,4 +425,5 @@ TEST(ParallelTopologyTreeSuite, batch_linkedlist_performance_test) {
         }
     }
     tree.batch_cut(batch, len);
+    free(batch);
 }
