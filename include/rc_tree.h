@@ -51,7 +51,8 @@ public:
   std::unordered_set<RCCluster<aug_t>*> to_delete;
   std::unordered_set<vertex_t> maximal_set;
   std::vector<int> round_contracted; 
-   
+  size_t max_space; // For space benchmarks.
+
   // Functions
   void is_valid_MIS(int round);
   void add_neighbor(int round, RCCluster<aug_t>* cluster, vertex_t v);
@@ -72,6 +73,7 @@ public:
   bool is_edge(RCCluster<aug_t> *cluster);
   bool edge_exists(vertex_t u, vertex_t v);
   RCTree<aug_t>** get_neighbors(vertex_t v);
+  size_t space();
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   // These are only ones that should really be public.
   RCTree(int _n, QueryType q = PATH, 

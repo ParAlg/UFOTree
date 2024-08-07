@@ -1,5 +1,6 @@
 #include "types.h"
 #include "util.h"
+#include <unordered_set>
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -53,6 +54,8 @@ public:
     bool is_valid();
     int get_height(vertex_t v);
     void print_tree();
+    size_t space();
+    size_t max_space;
 private:
     // Class data and parameters
     std::vector<TopologyCluster<aug_t>> leaves;
@@ -66,6 +69,7 @@ private:
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
     void recompute_parent_value(TopologyCluster<aug_t>* c1, TopologyCluster<aug_t>* c2);
+    size_t calculate_bookkeeping_space();
 };
 
 template<typename aug_t>
@@ -92,6 +96,31 @@ TopologyTree<aug_t>::~TopologyTree() {
     PRINT_TIMER("REMOVE ANCESTORS TIME", topology_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", topology_recluster_tree_time);
     return;
+}
+
+template<typename aug_t>
+size_t TopologyTree<aug_t>::space(){
+  std::unordered_set<TopologyCluster<aug_t>> visited;
+  size_t overall_size;
+  // Calculate the size of the overall tree.
+  for(auto cluster : leaves){
+    auto parent = cluster.parent;
+    overall_size += sizeof(cluster);
+    while(parent != nullptr && visited.find(*(parent)) != visited.end()){
+      overall_size += sizeof((*parent));
+      visited.insert((*parent));
+      parent = parent->parent;
+    }
+  } 
+  overall_size += root_clusters.capacity();
+  for(int i = 0; i < root_clusters.size(); i++){
+    overall_size += root_clusters[i].capacity();
+  } 
+  overall_size += contractions.capacity();
+  for(auto pair : contractions){
+    overall_size += sizeof(pair);
+  }
+  max_space = std::max(overall_size, max_space);
 }
 
 /* Link vertex u and vertex v in the tree. Optionally include an

@@ -42,6 +42,7 @@ void linked_list_benchmark(vertex_t n) {
     timer.start();
     perform_sequential_updates<DynamicTree>(&tree, updates);
     timer.next("");
+    std::cout << tree.max_space;
 }
 
 template <typename DynamicTree>

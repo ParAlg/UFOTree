@@ -60,6 +60,8 @@ public:
     bool is_valid();
     int get_height(vertex_t v);
     void print_tree();
+    size_t space();
+    size_t max_space;
 private:
     // Class data and parameters
     std::vector<UFOCluster<aug_t>> leaves;
@@ -71,6 +73,7 @@ private:
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
     // lower_deg helps to identify clusters who became low degree during a deletion update
     std::vector<std::pair<UFOCluster<aug_t>*,int>> lower_deg;
+    size_t memory;
     // Helper functions
     void remove_ancestors(UFOCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
