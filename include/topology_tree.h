@@ -98,6 +98,7 @@ TopologyTree<aug_t>::~TopologyTree() {
     return;
 }
 
+
 template<typename aug_t>
 size_t TopologyTree<aug_t>::space(){
   std::unordered_set<TopologyCluster<aug_t>> visited;
@@ -209,6 +210,7 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
 
 template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
+    space();
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
         // Update root cluster stats if we are collecting them
@@ -329,6 +331,7 @@ void TopologyTree<aug_t>::recluster_tree() {
         root_clusters[level].clear();
         contractions.clear();
     }
+    space();
 }
 
 template<typename aug_t>
