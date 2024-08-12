@@ -51,7 +51,6 @@ public:
   std::unordered_set<RCCluster<aug_t>*> to_delete;
   std::unordered_set<vertex_t> maximal_set;
   std::vector<int> round_contracted; 
-  size_t max_space; // For space benchmarks.
 
   // Functions
   void is_valid_MIS(int round);
@@ -79,6 +78,7 @@ public:
   RCTree(int _n, QueryType q = PATH, 
          std::function<aug_t(aug_t, aug_t)> f = [] (aug_t x, aug_t y) {return x + y;}, 
          aug_t id = 0, aug_t d_val = 0);
+  ~RCTree();
   void link(vertex_t u, vertex_t v, aug_t weight = 1);
   void cut(vertex_t u, vertex_t v);
 };
@@ -104,7 +104,39 @@ RCTree<aug_t>::RCTree(int _n, QueryType _q,
   }
 }
 
+// Destructor
+template<typename aug_t>
+RCTree<aug_t>::~RCTree(){
+  for(int i = 0; i < representative_clusters.size(); i++){
+    delete representative_clusters[i];
+  }
+  for(int i = 0; i < contraction_tree.size(); i++){
+    for(int j = 0; j < contraction_tree[i].size(); j++){
+      delete[] contraction_tree[i][j];
+    }
+  }
+}
 /* ------- HELPER METHODS ------- */
+template<typename aug_t>
+size_t RCTree<aug_t>::space(){
+  size_t memory = sizeof(representative_clusters) + 
+                  (representative_clusters.size() * sizeof(RCCluster<aug_t>*));
+  for(auto ptr : representative_clusters){
+    memory += sizeof(*ptr); 
+  }
+  for(int i = 0; i < contraction_tree.size(); i++){
+    for(int j = 0; j < contraction_tree.size(); j++){
+      for(int k = 0; k < DEGREE_BOUND; k++){
+        memory += sizeof(contraction_tree[i][j][k]);
+      }
+    }
+    memory += (contraction_tree[i].size() * sizeof(RCCluster<aug_t>*));
+  }
+  memory += (contraction_tree.size() * sizeof(parlay::sequence<RCCluster<aug_t>**>));
+  memory += sizeof(round_contracted) + (round_contracted.size() * sizeof(int));
+  return memory;
+}
+
 template<typename aug_t>
 int RCTree<aug_t>::get_degree(vertex_t v, int round) {
   // Get the degree of a vertex at a particular round i.e. no. of binary clusters in the
@@ -413,6 +445,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   //Add to the neighbor this new unary cluster.
 
   add_neighbor(round + 1, new_cluster, vertex);
+  delete representative_clusters[vertex];
   representative_clusters[vertex] = new_cluster; //need to free the old tuple
 
   // Add other vertex I am raking onto into affected set if 
@@ -426,7 +459,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   round_contracted[vertex] = round;
   // Free up extra memory used by sequence of vertex that contracted.
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
   contraction_tree[vertex].resize(round + 1);
   affected.erase(vertex);
@@ -457,6 +490,7 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
   auto neighbor2 = new_cluster->boundary_vertexes[1];
   //Add to the neighbors this new binary cluster.
   add_neighbor(round + 1, new_cluster, vertex);
+  delete representative_clusters[vertex];
   representative_clusters[vertex] = new_cluster; 
 
   affected.insert(neighbor1);
@@ -465,7 +499,7 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
   round_contracted[vertex] = round;
 
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
 
   contraction_tree[vertex].resize(round + 1);
@@ -486,10 +520,11 @@ void RCTree<aug_t>::finalize(vertex_t vertex, int round){
   }
   new_cluster->rep_vertex = vertex;
   roots.push_back(vertex);
+  delete representative_clusters[vertex];
   representative_clusters[vertex] = new_cluster;
   round_contracted[vertex] = round;
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
   contraction_tree[vertex].resize(round + 1);
   affected.erase(vertex);
@@ -505,7 +540,6 @@ void RCTree<aug_t>::update() {
   // vertices.
 
   int round = 0;
-
 
   while(!affected.empty()){
 

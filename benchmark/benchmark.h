@@ -5,11 +5,15 @@
 #include <parlay/internal/get_time.h>
 #include "../include/types.h"
 
-
 namespace dynamic_tree_benchmark {
+
+#define COLLECT_SPACE
+#ifdef COLLECT_SPACE
+#endif
 
 template <typename DynamicTree>
 void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) {
+    size_t max_space = 0; 
     for (Update update : updates) {
         if (update.type == INSERT) {
             tree->link(update.edge.src, update.edge.dst);
@@ -19,7 +23,13 @@ void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) 
             std::cerr << "Invalid update type: " << update.type << std::endl;
             std::abort();
         }
+        #ifdef COLLECT_SPACE
+            max_space = std::max(tree->space(), max_space);
+        #endif
     }
+    #ifdef COLLECT_SPACE
+        std::cout << "Maximum Space Used: " << max_space << " bytes.\n";
+    #endif
 }
 
 template <typename DynamicTree>
@@ -42,7 +52,6 @@ void linked_list_benchmark(vertex_t n) {
     timer.start();
     perform_sequential_updates<DynamicTree>(&tree, updates);
     timer.next("");
-    std::cout << tree.max_space;
 }
 
 template <typename DynamicTree>

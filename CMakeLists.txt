@@ -22,13 +22,18 @@ FetchContent_Declare(googletest
 )
 FetchContent_MakeAvailable(googletest)
 
+add_subdirectory(abseil-cpp)
+
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
   test/rc_tree_tests.cpp
   test/topology_tree_tests.cpp
   test/ufo_tree_tests.cpp
 )
+
+target_link_libraries(dynamic_tree_tests PRIVATE ${JEMALLOC_LIB})
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+target_link_libraries(dynamic_tree_tests PRIVATE absl::container)
 
 add_executable(benchmark_dynamic_trees
   benchmark/benchmark_runner.cpp
@@ -36,4 +41,5 @@ add_executable(benchmark_dynamic_trees
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
+target_link_libraries(benchmark_dynamic_trees PRIVATE absl::container)
 target_include_directories(benchmark_dynamic_trees PRIVATE baselines)

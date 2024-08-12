@@ -1,6 +1,5 @@
 #include "types.h"
 #include "util.h"
-#include <unordered_set>
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -9,11 +8,6 @@
 // #define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
-#endif
-// # define COLLECT_REMOVE_ANCESTOR_STATS
-#ifdef COLLECT_REMOVE_ANCESTOR_STATS
-    int ra_calls = 0;
-    int max_ra_calls = 0;
 #endif
 
 long topology_remove_ancestor_time = 0;
@@ -47,6 +41,8 @@ public:
     ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value = 1);
     void cut(vertex_t u, vertex_t v);
+    void batch_link(Edge* links, int len);
+    void batch_cut(Edge* cuts, int len);
     bool connected(vertex_t u, vertex_t v);
     aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
     aug_t path_query(vertex_t u, vertex_t v);
@@ -55,7 +51,6 @@ public:
     int get_height(vertex_t v);
     void print_tree();
     size_t space();
-    size_t max_space;
 private:
     // Class data and parameters
     std::vector<TopologyCluster<aug_t>> leaves;
@@ -69,7 +64,6 @@ private:
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
     void recompute_parent_value(TopologyCluster<aug_t>* c1, TopologyCluster<aug_t>* c2);
-    size_t calculate_bookkeeping_space();
 };
 
 template<typename aug_t>
@@ -82,6 +76,7 @@ query_type(q), f(f), identity(id), default_value(d) {
 
 template<typename aug_t>
 TopologyTree<aug_t>::~TopologyTree() {
+    for (auto leaf : leaves) remove_ancestors(&leaf); // Clear all memory
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
@@ -90,40 +85,26 @@ TopologyTree<aug_t>::~TopologyTree() {
     #ifdef COLLECT_HEIGHT_STATS
         std::cout << "Maximum height of the tree: " << max_height << std::endl;
     #endif
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        std::cout << "Maximum calls to remove_ancestors: " << max_ra_calls << std::endl;
-    #endif
     PRINT_TIMER("REMOVE ANCESTORS TIME", topology_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", topology_recluster_tree_time);
     return;
 }
 
-
 template<typename aug_t>
 size_t TopologyTree<aug_t>::space(){
-  std::unordered_set<TopologyCluster<aug_t>> visited;
-  size_t overall_size;
-  // Calculate the size of the overall tree.
-  for(auto cluster : leaves){
-    auto parent = cluster.parent;
-    overall_size += sizeof(cluster);
-    while(parent != nullptr && visited.find(*(parent)) != visited.end()){
-      overall_size += sizeof((*parent));
-      visited.insert((*parent));
-      parent = parent->parent;
+    std::unordered_set<TopologyCluster<aug_t>*> visited;
+    size_t memory = 0;
+    for(auto cluster : leaves){
+        memory += sizeof(cluster);
+        auto parent = cluster.parent;
+        while(parent != nullptr && visited.count(parent) == 0){
+            memory += sizeof(*parent);
+            visited.insert(parent);
+            parent = parent->parent;
+        }
     }
-  } 
-  overall_size += root_clusters.capacity();
-  for(int i = 0; i < root_clusters.size(); i++){
-    overall_size += root_clusters[i].capacity();
-  } 
-  overall_size += contractions.capacity();
-  for(auto pair : contractions){
-    overall_size += sizeof(pair);
-  }
-  max_space = std::max(overall_size, max_space);
+    return memory;
 }
-
 /* Link vertex u and vertex v in the tree. Optionally include an
 augmented value for the new edge (u,v). If no augmented value is
 provided, the default value is 1. */
@@ -140,14 +121,10 @@ void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
     STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect stats at the end of each update
+    // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
-    #endif
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        max_ra_calls = std::max(max_ra_calls, ra_calls);
-        ra_calls = 0;
     #endif
 }
 
@@ -165,22 +142,51 @@ void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
     STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect stats at the end of each update
+    // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
     #endif
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        max_ra_calls = std::max(max_ra_calls, ra_calls);
-        ra_calls = 0;
-    #endif
+}
+
+template<typename aug_t>
+void TopologyTree<aug_t>::batch_link(Edge* links, int len) {
+    START_TIMER(topology_remove_ancestor_timer);
+    for (int i = 0; i < len; i++) {
+        Edge e = links[i];
+        vertex_t u = e.src;
+        vertex_t v = e.dst;
+        remove_ancestors(&leaves[u]);
+        remove_ancestors(&leaves[v]);
+        leaves[u].insert_neighbor(&leaves[v], default_value);
+        leaves[v].insert_neighbor(&leaves[u], default_value);
+    }
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
+    START_TIMER(topology_recluster_tree_timer);
+    recluster_tree();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
+}
+
+template<typename aug_t>
+void TopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
+    START_TIMER(topology_remove_ancestor_timer);
+    for (int i = 0; i < len; i++) {
+        Edge e = cuts[i];
+        vertex_t u = e.src;
+        vertex_t v = e.dst;
+        remove_ancestors(&leaves[u]);
+        remove_ancestors(&leaves[v]);
+        leaves[u].remove_neighbor(&leaves[v]);
+        leaves[v].remove_neighbor(&leaves[u]);
+    }
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
+    START_TIMER(topology_recluster_tree_timer);
+    recluster_tree();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
 }
 
 template<typename aug_t>
 void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_level) {
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        ra_calls += 1;
-    #endif
     int level = start_level;
     for (auto neighbor : c->neighbors) {
         if (neighbor && neighbor->parent == c->parent) {
@@ -210,7 +216,6 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
 
 template<typename aug_t>
 void TopologyTree<aug_t>::recluster_tree() {
-    space();
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
         // Update root cluster stats if we are collecting them
@@ -270,15 +275,19 @@ void TopologyTree<aug_t>::recluster_tree() {
                 }
             }
             else if (cluster->get_degree() == 1 && !cluster->parent) {
-                // Combine deg 1 root clusters with deg 1 root clusters
+                // Combine deg 1 root clusters with deg 1 root or non-root clusters
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->get_degree() == 1) {
-                        auto parent = new TopologyCluster<aug_t>(default_value);
+                        auto parent = neighbor->parent;
+                        bool new_parent = (parent == nullptr);
+                        if (new_parent) { // If neighbor is a root cluster
+                            parent = new TopologyCluster<aug_t>(default_value);
+                            root_clusters[level+1].push_back(parent);
+                        }
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
-                        root_clusters[level+1].push_back(parent);
-                        contractions.push_back({{cluster,neighbor},true});
+                        contractions.push_back({{cluster,neighbor},new_parent});
                         break;
                     }
                 }
@@ -325,13 +334,12 @@ void TopologyTree<aug_t>::recluster_tree() {
                     c2->neighbors[i]->parent->insert_neighbor(parent, c2->edge_values[i]);
                 }
             }
-            if (!new_parent && parent->parent) remove_ancestors(parent, level+1);
+            if (!new_parent) remove_ancestors(parent, level+1);
         }
         // Clear the contents of this level
         root_clusters[level].clear();
         contractions.clear();
     }
-    space();
 }
 
 template<typename aug_t>

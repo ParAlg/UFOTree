@@ -1,5 +1,6 @@
 #include "types.h"
 #include "util.h"
+#include <absl/container/flat_hash_set.h>
 
 /* These constants determines the maximum size of array of nieghbors and
 the vector of neighbors for each UFOCluster. Any additional neighbors will
@@ -14,11 +15,6 @@ be stored in the hash set for efficiency. */
 // #define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
     int max_height = 0;
-#endif
-// # define COLLECT_REMOVE_ANCESTOR_STATS
-#ifdef COLLECT_REMOVE_ANCESTOR_STATS
-    int ra_calls = 0;
-    int max_ra_calls = 0;
 #endif
 
 long ufo_remove_ancestor_time = 0;
@@ -45,6 +41,16 @@ struct UFOCluster {
     void remove_neighbor(UFOCluster<aug_t>* c);
     UFOCluster<aug_t>* get_neighbor();
     UFOCluster<aug_t>* get_root();
+
+    size_t calculate_size(){
+        size_t memory = sizeof(this);
+        memory += sizeof(neighbors) + sizeof(neighbors_vector) + 
+                    (neighbors_vector.capacity() * sizeof(UFOCluster<aug_t>*)) +
+                    sizeof(neighbors_set) + (neighbors_set.size() * sizeof(UFOCluster<aug_t>*))
+                    + (neighbors_set.bucket_count() * (sizeof(size_t) + sizeof(void*)));
+
+        return memory;
+    }
 };
 
 template<typename aug_t>
@@ -61,7 +67,6 @@ public:
     int get_height(vertex_t v);
     void print_tree();
     size_t space();
-    size_t max_space;
 private:
     // Class data and parameters
     std::vector<UFOCluster<aug_t>> leaves;
@@ -73,7 +78,6 @@ private:
     std::vector<std::pair<std::pair<UFOCluster<aug_t>*,UFOCluster<aug_t>*>,bool>> contractions;
     // lower_deg helps to identify clusters who became low degree during a deletion update
     std::vector<std::pair<UFOCluster<aug_t>*,int>> lower_deg;
-    size_t memory;
     // Helper functions
     void remove_ancestors(UFOCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
@@ -92,6 +96,16 @@ query_type(q), f(f), identity(id), default_value(d) {
 
 template<typename aug_t>
 UFOTree<aug_t>::~UFOTree() {
+    // Clear all memory
+    std::unordered_set<UFOCluster<aug_t>*> clusters;
+    for (auto leaf : leaves) {
+        auto curr = leaf.parent;
+        while (curr) {
+            clusters.insert(curr);
+            curr = curr->parent;
+        }
+    }
+    for (auto cluster : clusters) delete cluster;
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
@@ -100,12 +114,25 @@ UFOTree<aug_t>::~UFOTree() {
     #ifdef COLLECT_HEIGHT_STATS
         std::cout << "Maximum height of the tree: " << max_height << std::endl;
     #endif
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        std::cout << "Maximum calls to remove_ancestors: " << max_ra_calls << std::endl;
-    #endif
     PRINT_TIMER("REMOVE ANCESTORS TIME", ufo_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", ufo_recluster_tree_time);
     return;
+}
+
+template<typename aug_t>
+size_t UFOTree<aug_t>::space(){
+    std::unordered_set<UFOCluster<aug_t>*> visited;
+    size_t memory = 0;
+    for(auto cluster : leaves){
+        memory += cluster.calculate_size();
+        auto parent = cluster.parent;
+        while(parent != nullptr && visited.count(parent) == 0){
+            memory += parent->calculate_size();
+            visited.insert(parent);
+            parent = parent->parent;
+        }
+    }
+    return memory;
 }
 
 /* Link vertex u and vertex v in the tree. Optionally include an
@@ -122,14 +149,11 @@ void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     insert_adjacency(&leaves[u], &leaves[v], value);
     START_TIMER(ufo_recluster_tree_timer);
     recluster_tree();
-    // Collect stats at the end of each update
+    STOP_TIMER(ufo_recluster_tree_timer, ufo_recluster_tree_time);
+    // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
-    #endif
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        max_ra_calls = std::max(max_ra_calls, ra_calls);
-        ra_calls = 0;
     #endif
 }
 
@@ -154,14 +178,11 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     remove_adjacency(&leaves[u], &leaves[v]);
     START_TIMER(ufo_recluster_tree_timer);
     recluster_tree();
-    // Collect stats at the end of each update
+    STOP_TIMER(ufo_recluster_tree_timer, ufo_recluster_tree_time);
+    // Collect tree height stats at the end of each update
     #ifdef COLLECT_HEIGHT_STATS
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
-    #endif
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        max_ra_calls = std::max(max_ra_calls, ra_calls);
-        ra_calls = 0;
     #endif
 }
 
@@ -176,9 +197,6 @@ bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
 high fan-out and add them to root_clusters. */
 template<typename aug_t>
 void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
-    #ifdef COLLECT_REMOVE_ANCESTOR_STATS
-        ra_calls += 1;
-    #endif
     int level = start_level;
     auto prev = c;
     auto curr = c->parent;

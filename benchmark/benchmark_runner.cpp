@@ -8,7 +8,7 @@
 int main(int argc, char** argv) {
     // Run each test case using each data structure
     std::string test_case;
-    vertex_t n_list[] = {1000000};
+    vertex_t n_list[] = {1000};
     // vertex_t n_list[] = {1000000, 10000000};
 
     for (vertex_t n : n_list) {
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::linked_list_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::linked_list_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::linked_list_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
         test_case = "binary-tree";
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::binary_tree_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::binary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::binary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
         test_case = "64ary-tree";
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::k_ary_tree_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::k_ary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::k_ary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
         test_case = "star";
@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::star_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::star_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::star_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
         test_case = "random-degree-3";
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::random_degree3_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::random_degree3_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::random_degree3_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
         test_case = "random-unbounded";
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::random_unbounded_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::random_unbounded_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
 
         test_case = "preferential-attachment";
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       ";
         dynamic_tree_benchmark::preferential_attachment_benchmark<UFOTree<int>>(n);
         std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::preferential_attachment_benchmark<skip_list_ett::EulerTourTree>(n);
+        //dynamic_tree_benchmark::preferential_attachment_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;
     }
 }
