@@ -22,7 +22,11 @@ FetchContent_Declare(googletest
 )
 FetchContent_MakeAvailable(googletest)
 
-add_subdirectory(abseil-cpp)
+FetchContent_Declare(abseil-cpp
+  GIT_REPOSITORY  git@github.com:abseil/abseil-cpp.git
+  GIT_TAG         master
+)
+FetchContent_MakeAvailable(abseil-cpp)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
@@ -30,16 +34,15 @@ add_executable(dynamic_tree_tests
   test/topology_tree_tests.cpp
   test/ufo_tree_tests.cpp
 )
-
 target_link_libraries(dynamic_tree_tests PRIVATE ${JEMALLOC_LIB})
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
-target_link_libraries(dynamic_tree_tests PRIVATE absl::container)
+target_link_libraries(dynamic_tree_tests PRIVATE absl::flat_hash_map)
 
 add_executable(benchmark_dynamic_trees
   benchmark/benchmark_runner.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
-target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
-target_link_libraries(benchmark_dynamic_trees PRIVATE absl::container)
 target_include_directories(benchmark_dynamic_trees PRIVATE baselines)
+target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
+target_link_libraries(benchmark_dynamic_trees PRIVATE absl::flat_hash_map)
