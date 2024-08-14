@@ -13,23 +13,26 @@ namespace dynamic_tree_benchmark {
 
 template <typename DynamicTree>
 void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) {
-    size_t max_space = 0; 
+    #ifdef COLLECT_SPACE
+        std::cout << "Init Space: " << tree->space() << " Bytes" << std::endl;
+    #endif
+    bool first_delete = true;
     for (Update update : updates) {
         if (update.type == INSERT) {
             tree->link(update.edge.src, update.edge.dst);
         } else if (update.type == DELETE) {
+            #ifdef COLLECT_SPACE
+            if (first_delete) {
+                std::cout << "Peak Space: " << tree->space() << " Bytes" << std::endl;
+                first_delete = false;
+            }
+            #endif
             tree->cut(update.edge.src, update.edge.dst);
         } else {
             std::cerr << "Invalid update type: " << update.type << std::endl;
             std::abort();
         }
-        #ifdef COLLECT_SPACE
-            max_space = std::max(tree->space(), max_space);
-        #endif
     }
-    #ifdef COLLECT_SPACE
-        std::cout << "Maximum Space Used: " << max_space << " bytes.\n";
-    #endif
 }
 
 template <typename DynamicTree>
@@ -51,6 +54,7 @@ void linked_list_benchmark(vertex_t n) {
     parlay::internal::timer timer("");
     timer.start();
     perform_sequential_updates<DynamicTree>(&tree, updates);
+    std::cout << "Total Time";
     timer.next("");
 }
 
