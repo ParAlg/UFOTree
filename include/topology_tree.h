@@ -60,6 +60,7 @@ private:
     aug_t default_value;
     std::vector<std::vector<TopologyCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,bool>> contractions;
+    std::unordered_set<TopologyCluster<aug_t>*> visited;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
@@ -92,7 +93,6 @@ TopologyTree<aug_t>::~TopologyTree() {
 
 template<typename aug_t>
 size_t TopologyTree<aug_t>::space(){
-    std::unordered_set<TopologyCluster<aug_t>*> visited;
     size_t memory = 0;
     for(auto cluster : leaves){
         memory += sizeof(cluster);
@@ -210,6 +210,9 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
         }
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
+        #ifdef COLLECT_SPACE
+            visited.erase(prev);
+        #endif
         delete prev; // Remove cluster prev
     }
 }

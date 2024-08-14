@@ -2,6 +2,7 @@
 #include <math.h>
 #include "types.h"
 
+//#define COLLECT_SPACE
 #define MAX_VERTEX_T (std::numeric_limits<uint32_t>::max())
 
 static int max_tree_height(vertex_t n) {

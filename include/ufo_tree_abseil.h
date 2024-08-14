@@ -26,7 +26,7 @@ struct UFOCluster {
     // UFO cluster data
     UFOCluster<aug_t>* neighbors[UFO_ARRAY_MAX];
     std::vector<UFOCluster<aug_t>*> neighbors_vector;
-    std::unordered_set<UFOCluster<aug_t>*> neighbors_set;
+    absl::flat_hash_set<UFOCluster<aug_t>*> neighbors_set;
     aug_t value; // Stores subtree values or cluster path values
     UFOCluster<aug_t>* parent = nullptr;
     // Constructor
@@ -44,9 +44,8 @@ struct UFOCluster {
 
     size_t calculate_size(){
         size_t memory = sizeof(this);
-        memory +=   (neighbors_vector.capacity() * sizeof(UFOCluster<aug_t>*)) + // Vector
-                    ((neighbors_set.size() * sizeof(void*)) + // data list
-                     neighbors_set.bucket_count() * (sizeof(void*) + sizeof(size_t))); // bucket index
+        memory +=   (neighbors_vector.capacity() * sizeof(UFOCluster<aug_t>*)) + //vector
+                    (neighbors_set.size() * sizeof(UFOCluster<aug_t>*));
         return memory;
     }
 };

@@ -1,0 +1,7 @@
+[ RUNNING linked-list BENCHMARK WITH n=10000000 ]
+RCTree        : 127.1443
+TopologyTree  : 27.7117
+UFOTree       : 30.1511
+EulerTourTree : 37.8045
+
+[ RUNNING binary-tree BENCHMARK WITH n=10000000 ]

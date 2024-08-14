@@ -1,5 +1,5 @@
 #include "benchmark.h"
-#include "../include/ufo_tree.h"
+#include "../include/ufo_tree_abseil.h"
 #include "../include/topology_tree.h"
 #include "../include/rc_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"

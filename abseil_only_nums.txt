@@ -1,0 +1,30 @@
+[ RUNNING linked-list BENCHMARK WITH n=10000000 ]
+RCTree        : 125.3194
+TopologyTree  : 31.3869
+UFOTree       : 32.3446
+EulerTourTree : 41.3956
+
+[ RUNNING binary-tree BENCHMARK WITH n=10000000 ]
+RCTree        : 521.8470
+TopologyTree  : 48.3740
+UFOTree       : 39.6328
+EulerTourTree : 46.4021
+
+[ RUNNING 64ary-tree BENCHMARK WITH n=10000000 ]
+UFOTree       : 16.2096
+EulerTourTree : 72.1968
+
+[ RUNNING star BENCHMARK WITH n=10000000 ]
+UFOTree       : 8.8910
+EulerTourTree : 58.6077
+
+[ RUNNING random-degree-3 BENCHMARK WITH n=10000000 ]
+RCTree        : 325.5
+TopologyTree  : 43.15
+UFOTree       : 43.33
+EulerTourTree : 44.05
+
+[ RUNNING random-unbounded BENCHMARK WITH n=10000000 ]
+UFOTree       : 42.07
+EulerTourTree : 48.02
+

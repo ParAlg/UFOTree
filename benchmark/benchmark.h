@@ -5,11 +5,12 @@
 #include <parlay/internal/get_time.h>
 #include "../include/types.h"
 
+vertex_t n_list[] = {10000000};
+
 namespace dynamic_tree_benchmark {
 
-#define COLLECT_SPACE
-#ifdef COLLECT_SPACE
-#endif
+//#define COLLECT_SPACE
+
 
 template <typename DynamicTree>
 void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) {
