@@ -5,6 +5,7 @@
 typedef uint32_t vertex_t;
 
 enum QueryType {
+  NONE,
   PATH,
   SUBTREE
 };

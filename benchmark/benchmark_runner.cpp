@@ -1,4 +1,5 @@
 #include "benchmark.h"
+#include "../include/util.h"
 #include "../include/ufo_tree.h"
 #include "../include/topology_tree.h"
 #include "../include/rc_tree.h"

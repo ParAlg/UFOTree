@@ -282,7 +282,7 @@ TEST(TopologyTreeSuite, path_query_test) {
     TopologyTree<int> tree(n, qt, f, id, d);
 
     for (vertex_t i = 0; i < n-1; i++) {
-        tree.link(i,i+1);
+        tree.link(i,i+1,1);
         for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
             ASSERT_EQ(tree.path_query(u,v), v-u);
     }
