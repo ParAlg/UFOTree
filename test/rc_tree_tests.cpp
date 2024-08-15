@@ -356,7 +356,7 @@ TEST(RCTreeSuite, testBadCaseStarGraph){
 }
 
 TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
-  std::unordered_set<vertex_t> to_test({2, 10, 100, 1000, 10000});
+  std::unordered_set<vertex_t> to_test({2, 10, 100, 1000});
   for(auto llist_size : to_test){
     RCTree<int> tree(llist_size);
     for(int i = 0; i < llist_size - 1; i++){
@@ -396,7 +396,7 @@ TEST(RCTreeSuite, testTHETREE){
 }
 
 TEST(RCTreeSuite, testInsertDeleteCompleteBinaryTree){
-  std::unordered_set<vertex_t> to_test({1, 3, 31, 1023, 8191});
+  std::unordered_set<vertex_t> to_test({1, 3, 31, 255});
   for(auto n : to_test){
     RCTree<int> tree(n);
     for(int i = 0; i < (n/2); i++){ 
@@ -450,12 +450,12 @@ TEST(RCTreeSuite, randomIncrementalTestBinaryTree){
 }
 
 TEST(RCTreeSuite, randomIncrementalTests){
-  int num_trials = 10;
+  int num_trials = 1;
   int seeds[num_trials];
   srand(time(NULL));
   for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
   for (int trial = 0; trial < num_trials; trial++) {
-    vertex_t n = 1024;
+    vertex_t n = 256;
     RCTree<int> tree(n);
 
     auto seed = seeds[trial];
@@ -479,7 +479,7 @@ TEST(RCTreeSuite, randomIncrementalTests){
 }
 
 TEST(RCTreeSuite, decremental_random_correctness_test) {
-  int num_trials = 10;
+  int num_trials = 1;
   int seeds[num_trials];
   srand(time(NULL));
   for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();

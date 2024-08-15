@@ -77,7 +77,7 @@ public:
   RCTree(int _n, QueryType q = PATH, 
          std::function<aug_t(aug_t, aug_t)> f = [] (aug_t x, aug_t y) {return x + y;}, 
          aug_t id = 0, aug_t d_val = 0);
-  void link(vertex_t u, vertex_t v, int weight);
+  void link(vertex_t u, vertex_t v, aug_t weight = 1);
   void cut(vertex_t u, vertex_t v);
 };
 
@@ -335,7 +335,7 @@ void RCTree<aug_t>::MIS(int round){
 }
 
 template<typename aug_t>
-void RCTree<aug_t>::link(vertex_t u, vertex_t v, int weight) {
+void RCTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
   // Add an edge between 2 Trees of the RC forest.
   assert(u >= 0 && v < n && !connected(u,v));
 
@@ -424,7 +424,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   round_contracted[vertex] = round;
   // Free up extra memory used by sequence of vertex that contracted.
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
   contraction_tree[vertex].resize(round + 1);
   affected.erase(vertex);
@@ -463,7 +463,7 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
   round_contracted[vertex] = round;
 
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
 
   contraction_tree[vertex].resize(round + 1);
@@ -487,7 +487,7 @@ void RCTree<aug_t>::finalize(vertex_t vertex, int round){
   representative_clusters[vertex] = new_cluster;
   round_contracted[vertex] = round;
   for(int i = round + 1; i < contraction_tree[vertex].size(); i++){
-    delete contraction_tree[vertex][i];
+    delete[] contraction_tree[vertex][i];
   }
   contraction_tree[vertex].resize(round + 1);
   affected.erase(vertex);
