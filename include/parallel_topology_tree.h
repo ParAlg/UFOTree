@@ -1,3 +1,5 @@
+#pragma once
+
 #include <parlay/alloc.h>
 #include <parlay/parallel.h>
 #include <parlay/sequence.h>
@@ -5,6 +7,10 @@
 #include "sparse_table.h"
 #include "types.h"
 #include "util.h"
+
+#include "../cpam/cpam.h"
+#include "../aspen/api.h"
+
 using namespace parlay;
 using namespace gbbs;
 
