@@ -22,6 +22,17 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
+FetchContent_Declare(CPAM
+  GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
+  GIT_TAG         cmake
+)
+FetchContent_GetProperties(CPAM)
+if(NOT CPAM_POPULATED)
+  FetchContent_Populate(CPAM)  
+  message(${cpam_SOURCE_DIR})
+  add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
+endif()
+
 FetchContent_Declare(googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
@@ -39,8 +50,15 @@ add_executable(parallel_dynamic_tree_tests
   test/parallel_test_runner.cpp
   test/parallel_topology_tree_tests.cpp
 )
-target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay CPAM aspen GTest::gtest_main)
 target_include_directories(parallel_dynamic_tree_tests PRIVATE util)
+
+add_executable(benchmark_tree
+  test/parallel_test_runner.cpp
+  test/benchmark_tree.cpp
+)
+target_link_libraries(benchmark_tree PRIVATE parlay GTest::gtest_main)
+target_include_directories(benchmark_tree PRIVATE util CPAM)
 
 add_executable(benchmark_dynamic_trees
   benchmark/benchmark_runner.cpp
