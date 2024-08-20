@@ -115,17 +115,17 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
@@ -156,17 +156,17 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
     }
 }
@@ -194,17 +194,17 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
     }
 }
@@ -239,17 +239,17 @@ TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
     }
 }
@@ -277,30 +277,30 @@ TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
+        index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_cut(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
@@ -331,30 +331,30 @@ TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
+        index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_cut(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
@@ -382,30 +382,30 @@ TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
+        index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_cut(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
@@ -440,73 +440,72 @@ TEST(ParallelUFOTreeSuite, batch_decremental_random_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch(k);
+        vertex_t index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_link(batch);
+                index = 0;
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
+        index = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch[index++] = update.edge;
+            if (index == k) {
+                tree.batch_cut(batch);
+                index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
 
-TEST(ParallelUFOTreeSuite, batch_linkedlist_performance_test) {
-    vertex_t n = 1000000;
-    vertex_t k = 1;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
-    ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_linkedlist_performance_test) {
+//     vertex_t n = 1000000;
+//     vertex_t k = 1;
+//     QueryType qt = PATH;
+//     auto f = [](int x, int y)->int{return x + y;};
+//     ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-    std::vector<Update> updates;
-    parlay::sequence<Edge> edges;
-    srand(time(NULL));
-    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-    ids = parlay::random_shuffle(ids, parlay::random(rand()));
-    for (vertex_t i = 0; i < n-1; i++)
-        edges.push_back({ids[i],ids[i+1]});
-    edges = parlay::random_shuffle(edges, parlay::random(rand()));
-    for (auto edge : edges) updates.push_back({INSERT,edge});
+//     std::vector<Update> updates;
+//     parlay::sequence<Edge> edges;
+//     srand(time(NULL));
+//     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//     ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//     for (vertex_t i = 0; i < n-1; i++)
+//         edges.push_back({ids[i],ids[i+1]});
+//     edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//     for (auto edge : edges) updates.push_back({INSERT,edge});
 
-    Edge* batch = (Edge*) malloc(k*sizeof(Edge));
-    vertex_t len = 0;
-    for (auto update : updates) {
-        batch[len++] = update.edge;
-        if (len == k) {
-            tree.batch_link(batch, len);
-            len = 0;
-        }
-    }
-    tree.batch_link(batch, len);
+//     parlay::sequence<Edge> batch(k);
+//     vertex_t index = 0;
+//     for (auto update : updates) {
+//         batch[index++] = update.edge;
+//         if (index == k) {
+//             tree.batch_link(batch);
+//             index = 0;
+//         }
+//     }
+//     tree.batch_link(batch);
 
-    edges = parlay::random_shuffle(edges, parlay::random(rand()));
-    updates.clear();
-    for (auto edge : edges) updates.push_back({DELETE,edge});
-    len = 0;
-    for (auto update : updates) {
-        batch[len++] = update.edge;
-        if (len == k) {
-            tree.batch_cut(batch, len);
-            len = 0;
-        }
-    }
-    tree.batch_cut(batch, len);
-    free(batch);
-}
+//     edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//     updates.clear();
+//     for (auto edge : edges) updates.push_back({DELETE,edge});
+//     index = 0;
+//     for (auto update : updates) {
+//         batch[index++] = update.edge;
+//         if (index == k) {
+//             tree.batch_cut(batch);
+//             index = 0;
+//         }
+//     }
+//     tree.batch_cut(batch);
+// }

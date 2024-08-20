@@ -24,7 +24,6 @@ void benchmark_forest_structure(ForestStructure* F) {
     sequence<Edge> edges;
     F->insert_edges(edges);
     F->delete_edges(edges);
-    F->check_edges(edges);
 
     F->get_degree(0);
 

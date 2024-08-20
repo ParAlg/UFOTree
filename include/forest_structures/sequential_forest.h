@@ -51,15 +51,25 @@ public:
         }
     }
 
-    sequence<bool> check_edges(sequence<Edge>& E) {
-        sequence<bool> output(E.size());
+    sequence<vertex_t> get_endpoints(sequence<Edge>& E) {
+        std::unordered_set<vertex_t> endpoints;
         for (int i = 0; i < E.size(); ++i) {
-            if (vertices[E[i].src]->contains_neighbor(E[i].dst)) {
-                assert(vertices[E[i].dst]->contains_neighbor(E[i].src));
-                output[i] = true;
-            } else {
-                assert(!vertices[E[i].dst]->contains_neighbor(E[i].src));
-                output[i] = false;
+            endpoints.insert(E[i].src);
+            endpoints.insert(E[i].dst);
+        }
+        auto output = sequence<vertex_t>(endpoints.size());
+        int index = 0;
+        for (auto endpoint : endpoints) {
+            output[index++] = endpoint;
+        }
+        return output;
+    }
+
+    sequence<Edge> filter_edges(sequence<Edge>& E) {
+        sequence<Edge> output;
+        for (int i = 0; i < E.size(); ++i) {
+            if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {
+                output.push_back(E[i]);
             }
         }
         return output;
@@ -127,6 +137,14 @@ public:
         for (auto neighbor : vertices[v]->neighbors)
             output.push_back(neighbor);
         return output;
+    }
+
+    void set_parent(vertex_t v, vertex_t p) {
+        vertices[v]->parent = p;
+    }
+
+    void unset_parent(vertex_t v) {
+        vertices[v]->parent = -1;
     }
 
     vertex_t get_parent(vertex_t v) {

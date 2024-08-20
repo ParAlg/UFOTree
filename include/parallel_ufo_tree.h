@@ -17,8 +17,8 @@ public:
     ParallelUFOTree(vertex_t n, vertex_t k, QueryType q = PATH,
         std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {
         return x + y; }, aug_t id = 0, aug_t dval = 0);
-    void batch_link(Edge* links, int len);
-    void batch_cut(Edge* cuts, int len);
+    void batch_link(sequence<Edge>& links);
+    void batch_cut(sequence<Edge>& cuts);
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
@@ -34,7 +34,7 @@ private:
     aug_t identity;
     aug_t default_value;
     // Helper functions
-    void recluster_tree();
+    void recluster_level(int level, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U);
 };
 
 template <typename aug_t>
@@ -48,12 +48,35 @@ std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d)
 }
 
 template <typename aug_t>
-void ParallelUFOTree<aug_t>::batch_link(Edge* links, int len) {
-
+void ParallelUFOTree<aug_t>::batch_link(sequence<Edge>& links) {
+    sequence<vertex_t> R = levels[0].get_endpoints(links);
+    sequence<vertex_t> D = levels[0].get_parents(R);
+    parallel_for(0, R.size(), [&] (size_t i) {
+        if (levels[0].get_degree(R[i]) < 3) {
+            levels[0].unset_parent(R[i]);
+        }
+    });
+    levels[0].insert_edges(links);
+    sequence<Edge> U = levels[0].filter_edges(links);
+    recluster_level(0, R, D, links);
 }
 
 template <typename aug_t>
-void ParallelUFOTree<aug_t>::batch_cut(Edge* cuts, int len) {
+void ParallelUFOTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
+    sequence<vertex_t> R = levels[0].get_endpoints(cuts);
+    sequence<vertex_t> D = levels[0].get_parents(R);
+    parallel_for(0, R.size(), [&] (size_t i) {
+        if (levels[0].get_degree(R[i]) < 3) {
+            levels[0].unset_parent(R[i]);
+        }
+    });
+    levels[0].delete_edges(cuts);
+    sequence<Edge> U = levels[0].filter_edges(cuts);
+    recluster_level(0, R, D, cuts);
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::recluster_level(int level, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U) {
     
 }
 
