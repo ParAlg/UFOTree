@@ -12,7 +12,7 @@ class ForestStructure {
 public:
     // Insert the set of vertices in V
     virtual void insert_vertices(sequence<vertex_t>& V) = 0;
-    // Remove the set of vertices in V
+    // Remove the set of vertices in V and any adjacent edges
     virtual void delete_vertices(sequence<vertex_t>& V) = 0;
     // Insert the set of edges in E
     virtual void insert_edges(sequence<Edge>& E) = 0;
