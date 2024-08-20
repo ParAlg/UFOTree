@@ -34,7 +34,8 @@ private:
     aug_t identity;
     aug_t default_value;
     // Helper functions
-    void recluster_level(int level, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U);
+    void update_tree(sequence<Edge>& updates, bool deletion);
+    void recluster_level(int level, bool deletion, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U);
 };
 
 template <typename aug_t>
@@ -49,35 +50,40 @@ std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d)
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::batch_link(sequence<Edge>& links) {
-    sequence<vertex_t> R = levels[0].get_endpoints(links);
-    sequence<vertex_t> D = levels[0].get_parents(R);
-    parallel_for(0, R.size(), [&] (size_t i) {
-        if (levels[0].get_degree(R[i]) < 3) {
-            levels[0].unset_parent(R[i]);
-        }
-    });
-    levels[0].insert_edges(links);
-    sequence<Edge> U = levels[0].filter_edges(links);
-    recluster_level(0, R, D, links);
+    update_tree(links, false);
 }
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
-    sequence<vertex_t> R = levels[0].get_endpoints(cuts);
-    sequence<vertex_t> D = levels[0].get_parents(R);
-    parallel_for(0, R.size(), [&] (size_t i) {
-        if (levels[0].get_degree(R[i]) < 3) {
-            levels[0].unset_parent(R[i]);
-        }
-    });
-    levels[0].delete_edges(cuts);
-    sequence<Edge> U = levels[0].filter_edges(cuts);
-    recluster_level(0, R, D, cuts);
+    update_tree(cuts, true);
 }
 
 template <typename aug_t>
-void ParallelUFOTree<aug_t>::recluster_level(int level, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U) {
-    
+void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates, bool deletion) {
+    // Determine the intial set of root clusters and deletion clusters
+    sequence<vertex_t> R = levels[0].get_endpoints(updates);
+    sequence<vertex_t> D = levels[0].get_parents(R);
+    // Remove parents of low degree level 0 root clusters
+    sequence<vertex_t> low_deg = filter(R, [&] (auto v) { return levels[0].get_degree(v) < 2; });
+    levels[0].unset_parents(low_deg);
+    sequence<vertex_t> low_deg_parents = parlay::map(low_deg, [&] (auto v) { return levels[0].get_parent(v); });
+    if (levels.size() > 1) levels[1].subtract_children(low_deg_parents);
+    // Perform the updates at level 0 and determine the next level updates
+    sequence<Edge> U;
+    if (!deletion) {
+        levels[0].insert_edges(updates);
+        U = updates;
+    } else {
+        levels[0].delete_edges(updates);
+        U = levels[0].filter_edges(updates);
+    }
+    // Start the level-by-level update procedure
+    recluster_level(0, deletion, R, D, U);
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U) {
+
 }
 
 template <typename aug_t>

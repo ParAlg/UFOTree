@@ -28,7 +28,6 @@ void benchmark_forest_structure(ForestStructure* F) {
     F->get_degree(0);
 
     sequence<vertex_t> parents = F->get_parents(vertices);
-    sequence<pair<vertex_t,vertex_t>> parent_counts = F->count_parents(vertices);
     F->set_parents(vertices, vertices);
     F->unset_parents(vertices);
 

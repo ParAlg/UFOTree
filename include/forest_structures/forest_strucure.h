@@ -25,20 +25,18 @@ public:
     virtual sequence<Edge> filter_edges(sequence<Edge>& E) = 0;
     // Return the set of parents of V
     virtual sequence<vertex_t> get_parents(sequence<vertex_t>& V) = 0;
-    // Return the set of parents of V and the number of clusters in V that are a child of each parent
-    virtual sequence<pair<vertex_t,vertex_t>> count_parents(sequence<vertex_t>& V) = 0;
-    // Set the parents of each cluster in V to the corresponding cluster in P
+    // Set the parents of each cluster in V to the corresponding cluster in P also adding to their child count
     virtual void set_parents (sequence<vertex_t>& V, sequence<vertex_t>& P) = 0;
-    // Remove the parent of each cluster in V
+    // Remove the parent of each cluster in V also subtracting from the child count of the parent
     virtual void unset_parents (sequence<vertex_t>& V) = 0;
     // For each (possibly multiple) instance of a cluster in V add one to its child count
     virtual void add_children(sequence<vertex_t>& V) = 0;
+    // For each (possibly multiple) instance of a cluster in V subtract one from its child count
+    virtual void subtract_children(sequence<vertex_t>& V) = 0;
 
-    // Non batch helper functions
+    // Non batch read-only helper functions
     virtual vertex_t get_degree(vertex_t v) = 0;
     virtual sequence<vertex_t> get_neighbors(vertex_t v) = 0;
-    virtual void set_parent(vertex_t v, vertex_t p) = 0;
-    virtual void unset_parent(vertex_t v) = 0;
     virtual vertex_t get_parent(vertex_t v) = 0;
     virtual vertex_t get_child_count(vertex_t v) = 0;
     virtual bool contracts(vertex_t v) = 0;

@@ -90,26 +90,6 @@ public:
         return output;
     }
 
-    sequence<pair<vertex_t,vertex_t>> count_parents(sequence<vertex_t>& V) {
-        std::unordered_map<vertex_t,vertex_t> parent_counts;
-        for (int i = 0; i < V.size(); ++i) {
-            if (vertices[V[i]]->parent != -1) {
-                if (parent_counts.find(vertices[V[i]]->parent) == parent_counts.end()) {
-                    parent_counts[vertices[V[i]]->parent] = 1;
-                } else {
-                    parent_counts[vertices[V[i]]->parent] += 1;
-                }
-            }
-        }
-        auto output = sequence<pair<vertex_t,vertex_t>>(parent_counts.size());
-        int index = 0;
-        for (auto entry : parent_counts) {
-            output[index++] = entry;
-        }
-        return output;
-
-    }
-
     void set_parents (sequence<vertex_t>& V, sequence<vertex_t>& P) {
         for (int i = 0; i < V.size(); ++i) {
             vertices[V[i]]->parent = P[i];
@@ -124,7 +104,15 @@ public:
 
     void add_children(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
+            if (V[i] == -1) continue;
             vertices[V[i]]->child_count += 1;
+        }
+    }
+
+    void subtract_children(sequence<vertex_t>& V) {
+        for (int i = 0; i < V.size(); ++i) {
+            if (V[i] == -1) continue;
+            vertices[V[i]]->child_count -= 1;
         }
     }
 
@@ -137,14 +125,6 @@ public:
         for (auto neighbor : vertices[v]->neighbors)
             output.push_back(neighbor);
         return output;
-    }
-
-    void set_parent(vertex_t v, vertex_t p) {
-        vertices[v]->parent = p;
-    }
-
-    void unset_parent(vertex_t v) {
-        vertices[v]->parent = -1;
     }
 
     vertex_t get_parent(vertex_t v) {
