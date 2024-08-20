@@ -45,6 +45,7 @@ add_executable(dynamic_tree_tests
   test/ufo_tree_tests.cpp
 )
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+target_include_directories(dynamic_tree_tests PRIVATE util)
 
 add_executable(parallel_dynamic_tree_tests
   test/parallel_test_runner.cpp
@@ -53,17 +54,16 @@ add_executable(parallel_dynamic_tree_tests
 target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay CPAM aspen GTest::gtest_main)
 target_include_directories(parallel_dynamic_tree_tests PRIVATE util)
 
-add_executable(benchmark_tree
-  test/parallel_test_runner.cpp
-  test/benchmark_tree.cpp
-)
-target_link_libraries(benchmark_tree PRIVATE parlay GTest::gtest_main)
-target_include_directories(benchmark_tree PRIVATE util CPAM)
-
 add_executable(benchmark_dynamic_trees
-  benchmark/benchmark_runner.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+benchmark/benchmark_runner.cpp
+baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
-target_include_directories(benchmark_dynamic_trees PRIVATE baselines)
+target_include_directories(benchmark_dynamic_trees PRIVATE util baselines)
+
+add_executable(benchmark_forest_structures
+  benchmark/benchmark_forest_structures.cpp
+)
+target_link_libraries(benchmark_forest_structures PRIVATE parlay GTest::gtest_main)
+target_include_directories(benchmark_forest_structures PRIVATE util include/forest_structures)

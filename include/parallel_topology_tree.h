@@ -8,8 +8,6 @@
 #include "types.h"
 #include "util.h"
 
-#include "../cpam/cpam.h"
-#include "../aspen/api.h"
 
 using namespace parlay;
 using namespace gbbs;
