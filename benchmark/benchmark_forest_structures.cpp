@@ -1,4 +1,5 @@
 #include "forest_strucure.h"
+#include "sequential_forest.h"
 #include <parlay/sequence.h>
 
 
