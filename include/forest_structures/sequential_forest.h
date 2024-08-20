@@ -64,14 +64,13 @@ public:
         }
         return output;
     }
-    vertex_t get_degree(vertex_t v) {
-        return vertices[v]->neighbors.size();
-    }
 
     sequence<vertex_t> get_parents(sequence<vertex_t>& V) {
         std::unordered_set<vertex_t> parents;
         for (int i = 0; i < V.size(); ++i) {
-            parents.insert(vertices[V[i]]->parent);
+            if (vertices[V[i]]->parent != -1) {
+                parents.insert(vertices[V[i]]->parent);
+            }
         }
         auto output = sequence<vertex_t>(parents.size());
         int index = 0;
@@ -84,10 +83,12 @@ public:
     sequence<pair<vertex_t,vertex_t>> count_parents(sequence<vertex_t>& V) {
         std::unordered_map<vertex_t,vertex_t> parent_counts;
         for (int i = 0; i < V.size(); ++i) {
-            if (parent_counts.find(vertices[V[i]]->parent) == parent_counts.end()) {
-                parent_counts[vertices[V[i]]->parent] = 1;
-            } else {
-                parent_counts[vertices[V[i]]->parent] += 1;
+            if (vertices[V[i]]->parent != -1) {
+                if (parent_counts.find(vertices[V[i]]->parent) == parent_counts.end()) {
+                    parent_counts[vertices[V[i]]->parent] = 1;
+                } else {
+                    parent_counts[vertices[V[i]]->parent] += 1;
+                }
             }
         }
         auto output = sequence<pair<vertex_t,vertex_t>>(parent_counts.size());
@@ -117,7 +118,31 @@ public:
         }
     }
 
+    vertex_t get_degree(vertex_t v) {
+        return vertices[v]->neighbors.size();
+    }
+
+    sequence<vertex_t> get_neighbors(vertex_t v) {
+        sequence<vertex_t> output;
+        for (auto neighbor : vertices[v]->neighbors)
+            output.push_back(neighbor);
+        return output;
+    }
+
+    vertex_t get_parent(vertex_t v) {
+        return vertices[v]->parent;
+    }
+
     vertex_t get_child_count(vertex_t v) {
         return vertices[v]->child_count;
+    }
+
+    bool contracts(vertex_t v) {
+        for (vertex_t neighbor : vertices[v]->neighbors) {
+            if (vertices[neighbor]->parent == vertices[v]->parent) {
+                return true;
+            }
+        }
+        return false;
     }
 };

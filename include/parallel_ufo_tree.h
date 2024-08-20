@@ -56,3 +56,16 @@ template <typename aug_t>
 void ParallelUFOTree<aug_t>::batch_cut(Edge* cuts, int len) {
     
 }
+
+template <typename aug_t>
+bool ParallelUFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
+    vertex_t root_u = u;
+    int level = 0;
+    while (levels[level].get_parent(root_u) != -1)
+        root_u = levels[level++].get_parent(root_u);
+    vertex_t root_v = v;
+    level = 0;
+    while (levels[level].get_parent(root_v) != -1)
+        root_v = levels[level++].get_parent(root_v);
+    return root_u == root_v;
+}

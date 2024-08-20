@@ -7,6 +7,48 @@
 
 template<typename aug_t>
 bool ParallelUFOTree<aug_t>::is_valid() {
+    parlay::sequence<vertex_t> clusters = tabulate(n, [&] (size_t i) { return (vertex_t) i; });
+    parlay::sequence<vertex_t> next_clusters;
+    for (auto cluster : clusters) // Ensure that every pair of incident vertices are in the same component
+        for (vertex_t neighbor : levels[0].get_neighbors(cluster)) // This ensures all connectivity is correct by transitivity
+            if (!connected(cluster, neighbor)) {
+                std::cerr << "INCORRECT CONNECTIVITY." << std::endl;
+                return false;
+            }
+    int level = 0;
+    while (!clusters.empty()) {
+        for (vertex_t cluster : clusters) {
+            for (vertex_t neighbor : levels[level].get_neighbors(cluster)) { // Look for invalid combinations
+                if (levels[level].get_parent(cluster) != -1 && levels[level].get_parent(cluster) == levels[level].get_parent(neighbor)) {
+                    if ((levels[level].get_degree(cluster) >= 3 || levels[level].get_degree(neighbor) >= 3)
+                    && !(levels[level].get_degree(cluster) == 1 || levels[level].get_degree(neighbor) == 1)) {
+                        std::cerr << "INVALID COMBINATION." << std::endl;
+                        return false;
+                    }
+                }
+            }
+            if (levels[level].get_degree(cluster) <= 3 && !levels[level].contracts(cluster)) { // Ensure maximality of contraction
+                if (levels[level].get_degree(cluster) == 1) {
+                    vertex_t neighbor = levels[level].get_neighbors(cluster)[0];
+                    if (levels[level].get_degree(neighbor) > 2) {
+                            std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 1 MUST CONTRACT WITH DEG 3+." << std::endl;
+                            return false;
+                        }
+                    else if (!levels[level].contracts(neighbor)) {
+                            std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 1 CAN CONTRACT WITH UNCONTRACTING NEIGHBOR." << std::endl;
+                            return false;
+                        }
+                } else if (levels[level].get_degree(cluster) == 2) {
+                    for (vertex_t neighbor : levels[level].get_neighbors(cluster))
+                        if (levels[level].get_degree(neighbor) < 3 && !levels[level].contracts(neighbor)) {
+                            std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 2 CAN CONTRACT WITH UNCONTRACTING NEIGHBOR." << std::endl;
+                            return false;
+                        }
+                }
+            }
+        }
+        clusters = levels[level++].get_parents(clusters);
+    }
     return true;
 }
 
