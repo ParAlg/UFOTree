@@ -4,12 +4,18 @@
 #include "../include/topology_tree.h"
 #include "../include/rc_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
+#include <fstream>
 
-
+#define GEN_PLOTS
 int main(int argc, char** argv) {
+    
+    #ifdef GEN_PLOTS
+      std::ofstream nums("../benchmark/nums.txt");
+      std::streambuf *oldbuf = std::cout.rdbuf();
+      std::cout.rdbuf(nums.rdbuf());
+    #endif // DEBUG
     // Run each test case using each data structure
     std::string test_case;
-    // vertex_t n_list[] = {1000000, 10000000};
 
     for (vertex_t n : n_list) {
 
@@ -81,4 +87,7 @@ int main(int argc, char** argv) {
         dynamic_tree_benchmark::preferential_attachment_benchmark<skip_list_ett::EulerTourTree>(n);
         std::cout << std::endl;*/
     }
+  #ifdef GEN_PLOTS
+    std::cout.rdbuf(oldbuf);
+  #endif
 }

@@ -15,10 +15,12 @@ namespace dynamic_tree_benchmark {
 static parlay::internal::timer timer("");
 
 template <typename DynamicTree>
-void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates, size_t* space) {
+void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates, size_t* space, bool init_calc=false) {
     #ifdef COLLECT_SPACE
-      size_t initial_space = tree->space();
-      std::cout << "Init Space: " << initial_space << " Bytes" << std::endl;
+      if(!init_calc){
+        size_t initial_space = tree->space();
+        std::cout << "\nInit Space: " << initial_space << " Bytes" << std::endl;
+      }
     #endif
     timer.start();
     bool first_delete = true;
@@ -29,7 +31,7 @@ void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates, 
             #ifdef COLLECT_SPACE
             if (first_delete) {
                 timer.stop();
-                *space = std::max(initial_space,(tree->space()));
+                *space = tree->space();
                 first_delete = false;
                 timer.start();
             } 
@@ -90,6 +92,7 @@ void binary_tree_benchmark(vertex_t n) {
     size_t space_used = 0;
     timer.reset();
     perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+    std::cout << "Total Time";
     timer.next("");
     #ifdef COLLECT_SPACE 
       std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
@@ -115,6 +118,7 @@ void k_ary_tree_benchmark(vertex_t n, vertex_t k = 64) {
     size_t space_used = 0;
     timer.reset();
     perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+    std::cout << "Total Time";
     timer.next("");
      #ifdef COLLECT_SPACE 
       std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
@@ -139,6 +143,7 @@ void star_benchmark(vertex_t n) {
     size_t space_used = 0;
     timer.reset();
     perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+    std::cout << "Total Time";
     timer.next("");
     #ifdef COLLECT_SPACE 
       std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
@@ -177,11 +182,15 @@ void random_degree3_benchmark(vertex_t n) {
         for (auto edge : edges) updates.push_back({DELETE,edge});
         
         timer.reset();
-        perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+        if(trial == 0){
+          perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+        } else {
+          perform_sequential_updates(&tree, updates, &space_used, true);
+        }
         timer.stop();
         space_total += space_used;
     }
-    std::cout << ": " << timer.total_time()/num_trials << std::endl;
+    std::cout << "Total Time: " << timer.total_time()/num_trials << std::endl;
     #ifdef COLLECT_SPACE
       std::cout << "Peak Space: " << space_total/num_trials << " Bytes" << std::endl;
     #endif
@@ -218,11 +227,15 @@ void random_unbounded_benchmark(vertex_t n) {
         
         size_t space_used = 0;
         timer.reset();
-        perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+        if(trial == 0){
+          perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+        } else {
+          perform_sequential_updates(&tree, updates, &space_used, true);
+        }
         timer.stop();
         space_total += space_used;
     }
-    std::cout << ": " << timer.total_time()/num_trials << std::endl; 
+    std::cout << "Total Time: " << timer.total_time()/num_trials << std::endl; 
     #ifdef COLLECT_SPACE
       std::cout << "Peak Space: " << space_total/num_trials << " Bytes" << std::endl;
     #endif
@@ -267,11 +280,15 @@ void preferential_attachment_benchmark(vertex_t n) {
         for (auto edge : edges) updates.push_back({DELETE,edge});
         size_t space_used = 0; 
         timer.reset();
-        perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+        if(trial == 0){
+          perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
+        } else {
+          perform_sequential_updates(&tree, updates, &space_used, true);
+        }
         timer.stop();
         space_total += space_used;
     }
-    std::cout << ": " << timer.total_time()/num_trials << std::endl;
+    std::cout << "Total Time: " << timer.total_time()/num_trials << std::endl;
     #ifdef COLLECT_SPACE
       std::cout << "Peak Space: " << space_total/num_trials << " Bytes" << std::endl;
     #endif

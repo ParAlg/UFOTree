@@ -47,6 +47,7 @@ class EulerTourTree {
   std::unordered_map<std::pair<int, int>, skip_list::Element*,
     HashIntPairStruct> edges;
   std::vector<skip_list::Element*> node_pool;
+  size_t max_space = -1;
 };
 
 } // namespace skip_list_ett

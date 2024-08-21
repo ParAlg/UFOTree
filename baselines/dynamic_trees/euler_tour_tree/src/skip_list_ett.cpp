@@ -34,13 +34,15 @@ EulerTourTree::~EulerTourTree() {
 }
 
 size_t EulerTourTree::space(){
-  size_t memory = sizeof(EulerTourTree);
-  memory = memory + (edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*))) // Size of key value pairs
-            + edges.bucket_count() * (sizeof(void*) + sizeof(size_t)); // Space used by linked list.
-  for(auto curr : node_pool){
-    memory += (sizeof(void*) + curr->calculate_size());
+  if(max_space == -1) {
+    max_space = sizeof(EulerTourTree) - sizeof(size_t);
+    max_space = max_space + (edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*))) // Size of key value pairs
+      + edges.bucket_count() * (sizeof(void*) + sizeof(size_t)); // Space used by linked list.
+    for(auto curr : node_pool){
+      max_space += (sizeof(void*) + curr->calculate_size());
+    }
   }
-  return memory; 
+  return max_space;
 }
 
 bool EulerTourTree::IsConnected(int u, int v) {
