@@ -33,11 +33,21 @@ EulerTourTree::~EulerTourTree() {
   pbbs::delete_array(verts, num_verts);
 }
 
-bool EulerTourTree::connected(int u, int v) {
+size_t EulerTourTree::space(){
+  size_t memory = sizeof(EulerTourTree);
+  memory = memory + (edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*))) // Size of key value pairs
+            + edges.bucket_count() * (sizeof(void*) + sizeof(size_t)); // Space used by linked list.
+  for(auto curr : node_pool){
+    memory += (sizeof(void*) + curr->calculate_size());
+  }
+  return memory; 
+}
+
+bool EulerTourTree::IsConnected(int u, int v) {
   return verts[u].FindRepresentative() == verts[v].FindRepresentative();
 }
 
-void EulerTourTree::link(int u, int v) {
+void EulerTourTree::Link(int u, int v) {
   Element* uv = node_pool.back();
   node_pool.pop_back();
   Element* vu = node_pool.back();
@@ -54,7 +64,7 @@ void EulerTourTree::link(int u, int v) {
   Element::Join(vu, u_right);
 }
 
-void EulerTourTree::cut(int u, int v) {
+void EulerTourTree::Cut(int u, int v) {
   auto uv_it = edges.find(std::make_pair(u, v));
   auto vu_it = edges.find(std::make_pair(v, u));
   Element* uv = uv_it->second;
@@ -76,20 +86,20 @@ void EulerTourTree::cut(int u, int v) {
 bool* EulerTourTree::BatchConnected(pair<int, int>* queries, int len) {
   bool* ans = pbbs::new_array_no_init<bool>(len);
   for (int i = 0; i < len; i++) {
-    ans[i] = connected(queries[i].first, queries[i].second);
+    ans[i] = IsConnected(queries[i].first, queries[i].second);
   }
   return ans;
 }
 
 void EulerTourTree::BatchLink(pair<int, int>* links, int len) {
   for (int i = 0; i < len; i++) {
-    link(links[i].first, links[i].second);
+    Link(links[i].first, links[i].second);
   }
 }
 
 void EulerTourTree::BatchCut(pair<int, int>* cuts, int len) {
   for (int i = 0; i < len; i++) {
-    cut(cuts[i].first, cuts[i].second);
+    Cut(cuts[i].first, cuts[i].second);
   }
 }
 

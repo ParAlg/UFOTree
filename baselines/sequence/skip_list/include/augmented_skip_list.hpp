@@ -7,6 +7,7 @@
 // The augmentation is hardcoded to the sum function with the value 1 assigned
 // to each element. As such, `GetSum()` returns the size of the list.
 
+#include "skip_list_base.hpp"
 #include <algorithm>
 
 #include <sequence/skip_list/include/skip_list_base.hpp>
@@ -37,7 +38,16 @@ class AugmentedElement : private ElementBase<AugmentedElement> {
   using ElementBase<AugmentedElement>::FindRepresentative;
   using ElementBase<AugmentedElement>::GetNextElement;
   using ElementBase<AugmentedElement>::GetPreviousElement;
-
+  
+  size_t calculate_size(){
+    size_t memory = ElementBase<AugmentedElement>::calculate_size();
+    int* curr = vals;
+    while(curr){
+      memory += sizeof(curr);
+      curr++;
+    }
+    return memory;
+  }
  private:
   int* vals;
 

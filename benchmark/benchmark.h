@@ -5,18 +5,22 @@
 #include <parlay/internal/get_time.h>
 #include "../include/types.h"
 
-vertex_t n_list[] = {10000000};
+vertex_t n_list[] = {10000};
 
 namespace dynamic_tree_benchmark {
 
-//#define COLLECT_SPACE
+#define COLLECT_SPACE
 
+
+static parlay::internal::timer timer("");
 
 template <typename DynamicTree>
-void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) {
+void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates, size_t* space) {
     #ifdef COLLECT_SPACE
-        std::cout << "Init Space: " << tree->space() << " Bytes" << std::endl;
+      size_t initial_space = tree->space();
+      std::cout << "Init Space: " << initial_space << " Bytes" << std::endl;
     #endif
+    timer.start();
     bool first_delete = true;
     for (Update update : updates) {
         if (update.type == INSERT) {
@@ -24,9 +28,11 @@ void perform_sequential_updates(DynamicTree* tree, std::vector<Update> updates) 
         } else if (update.type == DELETE) {
             #ifdef COLLECT_SPACE
             if (first_delete) {
-                std::cout << "Peak Space: " << tree->space() << " Bytes" << std::endl;
+                timer.stop();
+                *space = std::max(initial_space,(tree->space()));
                 first_delete = false;
-            }
+                timer.start();
+            } 
             #endif
             tree->cut(update.edge.src, update.edge.dst);
         } else {
@@ -52,11 +58,15 @@ void linked_list_benchmark(vertex_t n) {
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
 
-    parlay::internal::timer timer("");
+    size_t space_used = 0;
+    timer.reset();
     timer.start();
-    perform_sequential_updates<DynamicTree>(&tree, updates);
+    perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
     std::cout << "Total Time";
     timer.next("");
+    #ifdef COLLECT_SPACE 
+      std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
+    #endif
 }
 
 template <typename DynamicTree>
@@ -77,10 +87,13 @@ void binary_tree_benchmark(vertex_t n) {
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
     
-    parlay::internal::timer timer("");
-    timer.start();
-    perform_sequential_updates<DynamicTree>(&tree, updates);
+    size_t space_used = 0;
+    timer.reset();
+    perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
     timer.next("");
+    #ifdef COLLECT_SPACE 
+      std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
+    #endif
 }
 
 template <typename DynamicTree>
@@ -98,11 +111,14 @@ void k_ary_tree_benchmark(vertex_t n, vertex_t k = 64) {
     for (auto edge : edges) updates.push_back({INSERT,edge});
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
-
-    parlay::internal::timer timer("");
-    timer.start();
-    perform_sequential_updates<DynamicTree>(&tree, updates);
+    
+    size_t space_used = 0;
+    timer.reset();
+    perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
     timer.next("");
+     #ifdef COLLECT_SPACE 
+      std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
+    #endif
 }
 
 template <typename DynamicTree>
@@ -120,11 +136,13 @@ void star_benchmark(vertex_t n) {
     for (auto edge : edges) updates.push_back({INSERT,edge});
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({DELETE,edge});
-
-    parlay::internal::timer timer("");
-    timer.start();
-    perform_sequential_updates<DynamicTree>(&tree, updates);
+    size_t space_used = 0;
+    timer.reset();
+    perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
     timer.next("");
+    #ifdef COLLECT_SPACE 
+      std::cout << "Peak Space: " << space_used << " Bytes" << std::endl;
+    #endif
 }
 
 template <typename DynamicTree>
@@ -133,8 +151,8 @@ void random_degree3_benchmark(vertex_t n) {
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    parlay::internal::timer timer("");
-
+    long long space_total = 0;
+    size_t space_used = 0;
     for (int trial = 0; trial < num_trials; trial++) {
         DynamicTree tree(n);
         std::vector<Update> updates;
@@ -157,12 +175,17 @@ void random_degree3_benchmark(vertex_t n) {
         for (auto edge : edges) updates.push_back({INSERT,edge});
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({DELETE,edge});
-
-        timer.start();
-        perform_sequential_updates<DynamicTree>(&tree, updates);
+        
+        timer.reset();
+        perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
         timer.stop();
+        space_total += space_used;
     }
     std::cout << ": " << timer.total_time()/num_trials << std::endl;
+    #ifdef COLLECT_SPACE
+      std::cout << "Peak Space: " << space_total/num_trials << " Bytes" << std::endl;
+    #endif
+    
 }
 
 template <typename DynamicTree>
@@ -172,6 +195,7 @@ void random_unbounded_benchmark(vertex_t n) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     parlay::internal::timer timer("");
+    long long space_total = 0;
 
     for (int trial = 0; trial < num_trials; trial++) {
         DynamicTree tree(n);
@@ -191,12 +215,17 @@ void random_unbounded_benchmark(vertex_t n) {
         for (auto edge : edges) updates.push_back({INSERT,edge});
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({DELETE,edge});
-
-        timer.start();
-        perform_sequential_updates<DynamicTree>(&tree, updates);
+        
+        size_t space_used = 0;
+        timer.reset();
+        perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
         timer.stop();
+        space_total += space_used;
     }
-    std::cout << ": " << timer.total_time()/num_trials << std::endl;
+    std::cout << ": " << timer.total_time()/num_trials << std::endl; 
+    #ifdef COLLECT_SPACE
+      std::cout << "Peak Space: " << space_total/num_trials << " Bytes" << std::endl;
+    #endif
 }
 
 template <typename DynamicTree>
@@ -206,6 +235,7 @@ void preferential_attachment_benchmark(vertex_t n) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     parlay::internal::timer timer("");
+    long long space_total =  0;
 
     for (int trial = 0; trial < num_trials; trial++) {
         DynamicTree tree(n);
@@ -235,12 +265,16 @@ void preferential_attachment_benchmark(vertex_t n) {
         for (auto edge : edges) updates.push_back({INSERT,edge});
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        
-        timer.start();
-        perform_sequential_updates<DynamicTree>(&tree, updates);
+        size_t space_used = 0; 
+        timer.reset();
+        perform_sequential_updates<DynamicTree>(&tree, updates, &space_used);
         timer.stop();
+        space_total += space_used;
     }
     std::cout << ": " << timer.total_time()/num_trials << std::endl;
+    #ifdef COLLECT_SPACE
+      std::cout << "Peak Space: " << space_total/num_trials << " Bytes" << std::endl;
+    #endif
 }
 
 }

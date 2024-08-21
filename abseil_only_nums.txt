@@ -1,30 +1,90 @@
-[ RUNNING linked-list BENCHMARK WITH n=10000000 ]
-RCTree        : 125.3194
-TopologyTree  : 31.3869
-UFOTree       : 32.3446
-EulerTourTree : 41.3956
+[ RUNNING linked-list BENCHMARK WITH n=10000 ]
+RCTree        Init Space: 1000280 Bytes
+Total Time: 0.1667
+Peak Space: 1380312 Bytes
+TopologyTree  Init Space: 480120 Bytes
+Total Time: 0.0167
+Peak Space: 1091880 Bytes
+UFOTree       Init Space: 960000 Bytes
+Total Time: 0.0407
+Peak Space: 2142912 Bytes
+EulerTourTree Init Space: 1593104 Bytes
+Total Time: 0.0094
+Peak Space: 1593104 Bytes
 
-[ RUNNING binary-tree BENCHMARK WITH n=10000000 ]
-RCTree        : 521.8470
-TopologyTree  : 48.3740
-UFOTree       : 39.6328
-EulerTourTree : 46.4021
+[ RUNNING binary-tree BENCHMARK WITH n=10000 ]
+RCTree        Init Space: 1000280 Bytes
+: 0.3839
+Peak Space: 1319576 Bytes
+TopologyTree  Init Space: 480120 Bytes
+: 0.0312
+Peak Space: 1678248 Bytes
+UFOTree       Init Space: 960000 Bytes
+: 0.0530
+Peak Space: 1919136 Bytes
+EulerTourTree Init Space: 1593104 Bytes
+: 0.0100
+Peak Space: 1593104 Bytes
 
-[ RUNNING 64ary-tree BENCHMARK WITH n=10000000 ]
-UFOTree       : 16.2096
-EulerTourTree : 72.1968
+[ RUNNING 64ary-tree BENCHMARK WITH n=10000 ]
+UFOTree       Init Space: 960000 Bytes
+: 0.0190
+Peak Space: 1054400 Bytes
+EulerTourTree Init Space: 1593104 Bytes
+: 0.0120
+Peak Space: 1593104 Bytes
 
-[ RUNNING star BENCHMARK WITH n=10000000 ]
-UFOTree       : 8.8910
-EulerTourTree : 58.6077
+[ RUNNING star BENCHMARK WITH n=10000 ]
+UFOTree       Init Space: 960000 Bytes
+: 0.0377
+Peak Space: 1040064 Bytes
+EulerTourTree Init Space: 1593104 Bytes
+: 0.0131
+Peak Space: 1593104 Bytes
 
-[ RUNNING random-degree-3 BENCHMARK WITH n=10000000 ]
-RCTree        : 325.5
-TopologyTree  : 43.15
-UFOTree       : 43.33
-EulerTourTree : 44.05
+[ RUNNING random-degree-3 BENCHMARK WITH n=10000 ]
+RCTree        Init Space: 1000280 Bytes
+Init Space: 1000280 Bytes
+Init Space: 1000280 Bytes
+Init Space: 1000280 Bytes
+Init Space: 1000280 Bytes
+: 0.1383
+Peak Space: 1379940 Bytes
+TopologyTree  Init Space: 480120 Bytes
+Init Space: 480120 Bytes
+Init Space: 480120 Bytes
+Init Space: 480120 Bytes
+Init Space: 480120 Bytes
+: 0.01486
+Peak Space: 1477454 Bytes
+UFOTree       Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+: 0.02457
+Peak Space: 2575084 Bytes
+EulerTourTree Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+: 0.004156
+Peak Space: 1593104 Bytes
 
-[ RUNNING random-unbounded BENCHMARK WITH n=10000000 ]
-UFOTree       : 42.07
-EulerTourTree : 48.02
+[ RUNNING random-unbounded BENCHMARK WITH n=10000 ]
+UFOTree       Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+Init Space: 960000 Bytes
+: 0.1274
+Peak Space: 2020315 Bytes
+EulerTourTree Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+Init Space: 1593104 Bytes
+: 0.02691
+Peak Space: 1593104 Bytes
 

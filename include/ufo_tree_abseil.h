@@ -43,7 +43,7 @@ struct UFOCluster {
     UFOCluster<aug_t>* get_root();
 
     size_t calculate_size(){
-        size_t memory = sizeof(this);
+        size_t memory = sizeof(UFOCluster<aug_t>);
         memory +=   (neighbors_vector.capacity() * sizeof(UFOCluster<aug_t>*)) + //vector
                     (neighbors_set.size() * sizeof(UFOCluster<aug_t>*));
         return memory;

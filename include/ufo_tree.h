@@ -43,7 +43,7 @@ struct UFOCluster {
     UFOCluster<aug_t>* get_root();
 
     size_t calculate_size(){
-        size_t memory = sizeof(this);
+        size_t memory = sizeof(UFOCluster<aug_t>);
         memory +=   (neighbors_vector.capacity() * sizeof(UFOCluster<aug_t>*)) + // Vector
                     ((neighbors_set.size() * sizeof(void*)) + // data list
                      neighbors_set.bucket_count() * (sizeof(void*) + sizeof(size_t))); // bucket index
@@ -55,8 +55,7 @@ template<typename aug_t>
 class UFOTree {
 public:
     // UFO tree interface
-    UFOTree(vertex_t n, QueryType q = NONE, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t {return x;},
-    aug_t id = empty, aug_t dval = empty);
+    UFOTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, aug_t id = 0, aug_t dval = 0);
     ~UFOTree();
     void link(vertex_t u, vertex_t v, aug_t value);
     void link(vertex_t u, vertex_t v) { link(u,v,default_value); };
@@ -67,7 +66,6 @@ public:
     int get_height(vertex_t v);
     void print_tree();
     size_t space();
-    std::unordered_set<UFOCluster<aug_t>*> visited;
 private:
     // Class data and parameters
     std::vector<UFOCluster<aug_t>> leaves;
@@ -121,18 +119,9 @@ UFOTree<aug_t>::~UFOTree() {
 }
 
 template<typename aug_t>
-size_t UFOCluster<aug_t>::calculate_size() {
-    size_t memory = sizeof(this);
-    memory += sizeof(neighbors) + sizeof(neighbors_vector) +
-                (neighbors_vector.capacity() * sizeof(UFOCluster<aug_t>*)) +
-                sizeof(neighbors_set) + (neighbors_set.size() * sizeof(UFOCluster<aug_t>*))
-                + (neighbors_set.bucket_count() * (sizeof(size_t) + sizeof(void*)));
-    return memory;
-}
-
-template<typename aug_t>
 size_t UFOTree<aug_t>::space(){
-    size_t memory = 0;
+    std::unordered_set<UFOCluster<aug_t>*> visited;
+    size_t memory = sizeof(UFOTree<aug_t>);
     for(auto cluster : leaves){
         memory += cluster.calculate_size();
         auto parent = cluster.parent;
@@ -234,9 +223,6 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
                     if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                #ifdef COLLECT_SPACE
-                    visited.erase(prev);
-                #endif
                 delete prev;
             } else {
                 prev->parent = nullptr;
@@ -249,9 +235,6 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
                     if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                #ifdef COLLECT_SPACE
-                    visited.erase(prev);
-                #endif
                 delete prev;
             } else if (prev->get_degree() <= 1) {
                 prev->parent = nullptr;
@@ -270,9 +253,6 @@ void UFOTree<aug_t>::remove_ancestors(UFOCluster<aug_t>* c, int start_level) {
             if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-        #ifdef COLLECT_SPACE
-            visited.erase(prev);
-        #endif
         delete prev;
     } else root_clusters[level].push_back(prev);
 }
@@ -305,9 +285,6 @@ void UFOTree<aug_t>::recluster_tree() {
                             old_parent = old_parent->parent;
                             auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
                             if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
-                            #ifdef COLLECT_SPACE
-                                visited.erase(temp);
-                            #endif
                             delete temp;
                             lev++;
                         }
@@ -344,9 +321,6 @@ void UFOTree<aug_t>::recluster_tree() {
                             auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
                             if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
                             if (old_parent) { 
-                                #ifdef COLLECT_SPACE
-                                    visited.erase(old_parent);
-                                #endif
                                 delete old_parent;
                             }
                         }

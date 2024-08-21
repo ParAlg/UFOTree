@@ -44,7 +44,10 @@ class ElementBase {
   // in its list). Returns what was the successor to the node (the first node
   // on the right-hand side of the split).
   Derived* Split();
-
+ 
+  // Calculate the size of a single node in the skip list.
+  size_t calculate_size();
+  
  protected:
   // neighbors[i] holds neighbors at level i, where level 0 is the lowest level
   // and is the level at which the list contains all elements
@@ -61,6 +64,7 @@ class ElementBase {
   Derived* FindRightParent(int level);
 
   static int RandomIntToHeight(size_t rand_int);
+  
 };
 
 template <typename Derived>
@@ -96,6 +100,15 @@ ElementBase<Derived>::ElementBase(size_t random_int) {
 template <typename Derived>
 ElementBase<Derived>::~ElementBase() {
   delete[] neighbors;
+}
+
+template <typename Derived>
+size_t ElementBase<Derived>::calculate_size(){
+  size_t memory = sizeof(ElementBase<Derived>); 
+  for(int i = 0; i < height; i++){
+    memory += sizeof(neighbors[i]);
+  }
+  return memory;
 }
 
 template <typename Derived>
@@ -145,7 +158,7 @@ Derived* ElementBase<Derived>::FindRepresentative() {
 
   // walk up while moving forward
   while (current_node->neighbors[current_level].next != nullptr &&
-         seen_node != current_node) {
+    seen_node != current_node) {
     if (seen_node == nullptr || current_node < seen_node) {
       seen_node = current_node;
     }
@@ -188,7 +201,7 @@ Derived* ElementBase<Derived>::Split() {
   int level = 0;
   Derived* next;
   while (current_node != nullptr &&
-      (next = current_node->neighbors[level].next) != nullptr) {
+    (next = current_node->neighbors[level].next) != nullptr) {
     current_node->neighbors[level].next = nullptr;
     next->neighbors[level].prev = nullptr;
     current_node = current_node->FindLeftParent(level);

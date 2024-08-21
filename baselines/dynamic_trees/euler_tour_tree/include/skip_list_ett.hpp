@@ -25,9 +25,9 @@ class EulerTourTree {
   EulerTourTree& operator=(const EulerTourTree&) = delete;
   EulerTourTree& operator=(EulerTourTree&&) = delete;
 
-  bool connected(int u, int v);
-  void link(int u, int v);
-  void cut(int u, int v);
+  bool IsConnected(int u, int v);
+  void Link(int u, int v);
+  void Cut(int u, int v);
 
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.
@@ -35,6 +35,12 @@ class EulerTourTree {
   // All edges in [cuts] must be in the graph, and no edges may be repeated.
   void BatchCut(std::pair<int, int>* cuts, int len);
 
+  // Return the space being used by the skip list.
+  size_t space();
+
+  void link(int u, int v){Link(u,v);}
+  
+  void cut(int u, int v){ Cut(u,v);}
  private:
   int num_verts;
   skip_list::Element* verts;

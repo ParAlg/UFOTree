@@ -36,8 +36,11 @@ template<typename aug_t>
 class TopologyTree {
 public:
     // Topology tree interface
-    TopologyTree(vertex_t n, QueryType q = NONE, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {return x;},
-    aug_t id = empty, aug_t dval = empty);
+    TopologyTree(
+     vertex_t n, QueryType q = PATH,
+     std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {
+       return x + y;
+     },aug_t id = 0, aug_t dval = 0);
     ~TopologyTree();
     void link(vertex_t u, vertex_t v, aug_t value);
     void link(vertex_t u, vertex_t v) { link(u,v,default_value); };
@@ -61,7 +64,6 @@ private:
     aug_t default_value;
     std::vector<std::vector<TopologyCluster<aug_t>*>> root_clusters;
     std::vector<std::pair<std::pair<TopologyCluster<aug_t>*,TopologyCluster<aug_t>*>,bool>> contractions;
-    std::unordered_set<TopologyCluster<aug_t>*> visited;
     // Helper functions
     void remove_ancestors(TopologyCluster<aug_t>* c, int start_level = 0);
     void recluster_tree();
@@ -93,8 +95,9 @@ TopologyTree<aug_t>::~TopologyTree() {
 }
 
 template<typename aug_t>
-size_t TopologyTree<aug_t>::space(){
-    size_t memory = 0;
+size_t TopologyTree<aug_t>::space(){ 
+    std::unordered_set<TopologyCluster<aug_t>*> visited;
+    size_t memory = sizeof(TopologyTree<aug_t>);
     for(auto cluster : leaves){
         memory += sizeof(cluster);
         auto parent = cluster.parent;
@@ -211,9 +214,6 @@ void TopologyTree<aug_t>::remove_ancestors(TopologyCluster<aug_t>* c, int start_
         }
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-        #ifdef COLLECT_SPACE
-            visited.erase(prev);
-        #endif
         delete prev; // Remove cluster prev
     }
 }

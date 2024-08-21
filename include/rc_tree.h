@@ -119,13 +119,12 @@ RCTree<aug_t>::~RCTree(){
 /* ------- HELPER METHODS ------- */
 template<typename aug_t>
 size_t RCTree<aug_t>::space(){
-  size_t memory = sizeof(representative_clusters) + 
-                  (representative_clusters.size() * sizeof(RCCluster<aug_t>*));
+  size_t memory = sizeof(RCTree<aug_t>);
   for(auto ptr : representative_clusters){
-    memory += sizeof(*ptr); 
+    memory += (sizeof(*ptr) + sizeof(ptr));
   }
   for(int i = 0; i < contraction_tree.size(); i++){
-    for(int j = 0; j < contraction_tree.size(); j++){
+    for(int j = 0; j < contraction_tree[i].size(); j++){
       for(int k = 0; k < DEGREE_BOUND; k++){
         memory += sizeof(contraction_tree[i][j][k]);
       }
@@ -133,7 +132,7 @@ size_t RCTree<aug_t>::space(){
     memory += (contraction_tree[i].size() * sizeof(RCCluster<aug_t>*));
   }
   memory += (contraction_tree.size() * sizeof(parlay::sequence<RCCluster<aug_t>**>));
-  memory += sizeof(round_contracted) + (round_contracted.size() * sizeof(int));
+  memory += round_contracted.size() * sizeof(int);
   return memory;
 }
 

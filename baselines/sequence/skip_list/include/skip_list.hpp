@@ -1,5 +1,6 @@
 #pragma once
 
+#include "skip_list_base.hpp"
 #include <sequence/skip_list/include/skip_list_base.hpp>
 
 namespace skip_list {
