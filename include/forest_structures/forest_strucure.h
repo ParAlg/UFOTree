@@ -40,4 +40,9 @@ public:
     virtual vertex_t get_parent(vertex_t v) = 0;
     virtual vertex_t get_child_count(vertex_t v) = 0;
     virtual bool contracts(vertex_t v) = 0;
+
+    // Async recluster functions
+    virtual bool try_set_partner(vertex_t v, vertex_t p) = 0;
+    virtual bool try_set_partner_atomic(vertex_t v, vertex_t p) = 0;
+    virtual void unset_partner(vertex_t v) = 0;
 };

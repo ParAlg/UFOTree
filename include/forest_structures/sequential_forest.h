@@ -1,16 +1,20 @@
 #pragma once
 
+#include "bridge.h"
 #include <forest_strucure.h>
 #include <unordered_set>
 #include <unordered_map>
 
 
+using namespace parlay;
+
 class SequentialForest : public ForestStructure {
 private:
     struct ForestNode {
         std::unordered_set<vertex_t> neighbors;
-        vertex_t parent = -1;
         vertex_t child_count = 0;
+        vertex_t parent = NONE;
+        vertex_t partner = NONE;
         void insert_neighbor(vertex_t neighbor) { neighbors.insert(neighbor); }
         void remove_neighbor(vertex_t neighbor) { neighbors.erase(neighbor); }
         bool contains_neighbor(vertex_t neighbor) { return neighbors.find(neighbor) != neighbors.end(); }
@@ -78,7 +82,7 @@ public:
     sequence<vertex_t> get_parents(sequence<vertex_t>& V) {
         std::unordered_set<vertex_t> parents;
         for (int i = 0; i < V.size(); ++i) {
-            if (vertices[V[i]]->parent != -1) {
+            if (vertices[V[i]]->parent != NONE) {
                 parents.insert(vertices[V[i]]->parent);
             }
         }
@@ -98,20 +102,20 @@ public:
 
     void unset_parents (sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
-            vertices[V[i]]->parent = -1;
+            vertices[V[i]]->parent = NONE;
         }
     }
 
     void add_children(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
-            if (V[i] == -1) continue;
+            if (V[i] == NONE) continue;
             vertices[V[i]]->child_count += 1;
         }
     }
 
     void subtract_children(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
-            if (V[i] == -1) continue;
+            if (V[i] == NONE) continue;
             vertices[V[i]]->child_count -= 1;
         }
     }
@@ -142,5 +146,24 @@ public:
             }
         }
         return false;
+    }
+
+    bool try_set_partner(vertex_t v, vertex_t p) {
+        if (vertices[v]->partner == NONE) {
+            vertices[v]->partner = p;
+            return true;
+        }
+        return false;
+    }
+
+    bool try_set_partner_atomic(vertex_t v, vertex_t p) {
+        if (vertices[v]->partner == NONE) {
+            return gbbs::CAS(&vertices[v]->partner, NONE, p);
+        }
+        return false;
+    }
+
+    void unset_partner(vertex_t v) {
+        vertices[v]->partner = NONE;
     }
 };

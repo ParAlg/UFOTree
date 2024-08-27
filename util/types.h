@@ -3,6 +3,7 @@
 
 
 typedef uint32_t vertex_t;
+static vertex_t NONE = -1;
 
 enum QueryType {
   PATH,

@@ -10,7 +10,7 @@ bool ParallelUFOTree<aug_t>::is_valid() {
     parlay::sequence<vertex_t> clusters = tabulate(n, [&] (size_t i) { return (vertex_t) i; });
     parlay::sequence<vertex_t> next_clusters;
     for (auto cluster : clusters) // Ensure that every pair of incident vertices are in the same component
-        for (vertex_t neighbor : levels[0].get_neighbors(cluster)) // This ensures all connectivity is correct by transitivity
+        for (vertex_t neighbor : forests[0].get_neighbors(cluster)) // This ensures all connectivity is correct by transitivity
             if (!connected(cluster, neighbor)) {
                 std::cerr << "INCORRECT CONNECTIVITY." << std::endl;
                 return false;
@@ -18,43 +18,43 @@ bool ParallelUFOTree<aug_t>::is_valid() {
     int level = 0;
     while (!clusters.empty()) {
         for (vertex_t cluster : clusters) {
-            for (vertex_t neighbor : levels[level].get_neighbors(cluster)) { // Look for invalid combinations
-                if (levels[level].get_parent(cluster) != -1 && levels[level].get_parent(cluster) == levels[level].get_parent(neighbor)) {
-                    if ((levels[level].get_degree(cluster) >= 3 || levels[level].get_degree(neighbor) >= 3)
-                    && !(levels[level].get_degree(cluster) == 1 || levels[level].get_degree(neighbor) == 1)) {
+            for (vertex_t neighbor : forests[level].get_neighbors(cluster)) { // Look for invalid combinations
+                if (forests[level].get_parent(cluster) != NONE && forests[level].get_parent(cluster) == forests[level].get_parent(neighbor)) {
+                    if ((forests[level].get_degree(cluster) >= 3 || forests[level].get_degree(neighbor) >= 3)
+                    && !(forests[level].get_degree(cluster) == 1 || forests[level].get_degree(neighbor) == 1)) {
                         std::cerr << "INVALID COMBINATION." << std::endl;
                         return false;
                     }
                 }
             }
-            if (levels[level].get_degree(cluster) <= 3 && !levels[level].contracts(cluster)) { // Ensure maximality of contraction
-                if (levels[level].get_degree(cluster) == 1) {
-                    vertex_t neighbor = levels[level].get_neighbors(cluster)[0];
-                    if (levels[level].get_degree(neighbor) > 2) {
+            if (forests[level].get_degree(cluster) <= 3 && !forests[level].contracts(cluster)) { // Ensure maximality of contraction
+                if (forests[level].get_degree(cluster) == 1) {
+                    vertex_t neighbor = forests[level].get_neighbors(cluster)[0];
+                    if (forests[level].get_degree(neighbor) > 2) {
                             std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 1 MUST CONTRACT WITH DEG 3+." << std::endl;
                             return false;
                         }
-                    else if (!levels[level].contracts(neighbor)) {
+                    else if (!forests[level].contracts(neighbor)) {
                             std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 1 CAN CONTRACT WITH UNCONTRACTING NEIGHBOR." << std::endl;
                             return false;
                         }
-                } else if (levels[level].get_degree(cluster) == 2) {
-                    for (vertex_t neighbor : levels[level].get_neighbors(cluster))
-                        if (levels[level].get_degree(neighbor) < 3 && !levels[level].contracts(neighbor)) {
+                } else if (forests[level].get_degree(cluster) == 2) {
+                    for (vertex_t neighbor : forests[level].get_neighbors(cluster))
+                        if (forests[level].get_degree(neighbor) < 3 && !forests[level].contracts(neighbor)) {
                             std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 2 CAN CONTRACT WITH UNCONTRACTING NEIGHBOR." << std::endl;
                             return false;
                         }
                 }
             }
         }
-        clusters = levels[level++].get_parents(clusters);
+        clusters = forests[level++].get_parents(clusters);
     }
     return true;
 }
 
 template<typename aug_t>
 int ParallelUFOTree<aug_t>::get_height(vertex_t v) {
-    return levels.size();
+    return forests.size();
 }
 
 template<typename aug_t>
@@ -62,16 +62,16 @@ void ParallelUFOTree<aug_t>::print_tree() {
     std::multimap<vertex_t,vertex_t> clusters;
     std::multimap<vertex_t,vertex_t> next_clusters;
     std::cout << "========================= LEAVES =========================" << std::endl;
-    for (vertex_t i = 0; i < n; i++) clusters.insert({levels[0].get_parent(i), i});
+    for (vertex_t i = 0; i < n; i++) clusters.insert({forests[0].get_parent(i), i});
     for (auto entry : clusters) {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << leaf << "\t " << " Parent " << parent << "\t Neighbors: ";
-        for (auto neighbor : levels[0].get_neighbors(leaf)) std::cout << neighbor << " ";
+        for (auto neighbor : forests[0].get_neighbors(leaf)) std::cout << neighbor << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-        if (parent != -1 && !in_map) next_clusters.insert({levels[1].get_parent(parent), parent});
+        if (parent != NONE && !in_map) next_clusters.insert({forests[1].get_parent(parent), parent});
     }
     clusters.swap(next_clusters);
     next_clusters.clear();
@@ -85,7 +85,7 @@ void ParallelUFOTree<aug_t>::print_tree() {
             std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
             bool in_map = false;
             for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-            if (parent != -1 && !in_map) next_clusters.insert({levels[level].get_parent(parent), parent});
+            if (parent != NONE && !in_map) next_clusters.insert({forests[level].get_parent(parent), parent});
         }
         clusters.swap(next_clusters);
         next_clusters.clear();
