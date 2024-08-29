@@ -3,6 +3,7 @@
 #include "types.h"
 #include "util.h"
 #include "bridge.h"
+#include "hash_bag.h"
 #include <parlay/parallel.h>
 #include <parlay/sequence.h>
 #include "sequential_forest.h"
