@@ -8,6 +8,11 @@
 using namespace std;
 using namespace parlay;
 
+class NeighborIterator {
+public:
+    virtual vertex_t next() = 0;
+};
+
 class ForestStructure {
 public:
     // Insert the set of vertices in V
@@ -36,13 +41,20 @@ public:
 
     // Non batch read-only helper functions
     virtual vertex_t get_degree(vertex_t v) = 0;
-    virtual sequence<vertex_t> get_neighbors(vertex_t v) = 0;
+    virtual std::unique_ptr<NeighborIterator> get_neighbor_iterator(vertex_t v) = 0;
+    virtual vertex_t get_first_neighbor(vertex_t v) = 0;
+    virtual vertex_t get_other_neighbor(vertex_t v, vertex_t x) = 0;
     virtual vertex_t get_parent(vertex_t v) = 0;
+    virtual void set_parent (vertex_t v, vertex_t p) = 0;
+    virtual void unset_parent(vertex_t v) = 0;
     virtual vertex_t get_child_count(vertex_t v) = 0;
     virtual bool contracts(vertex_t v) = 0;
 
     // Async recluster functions
+    virtual vertex_t get_partner(vertex_t v) = 0;
     virtual bool try_set_partner(vertex_t v, vertex_t p) = 0;
     virtual bool try_set_partner_atomic(vertex_t v, vertex_t p) = 0;
     virtual void unset_partner(vertex_t v) = 0;
+    virtual bool has_partner(vertex_t v) = 0;
+    virtual bool is_local_max_priority(vertex_t v) = 0;
 };

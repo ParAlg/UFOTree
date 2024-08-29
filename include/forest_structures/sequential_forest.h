@@ -8,6 +8,21 @@
 
 using namespace parlay;
 
+class SequentialNeighborIterator : public NeighborIterator {
+private:
+    std::unordered_set<vertex_t>::iterator iter;
+    std::unordered_set<vertex_t>::iterator end;
+public:
+    SequentialNeighborIterator(std::unordered_set<vertex_t>::iterator _iter, std::unordered_set<vertex_t>::iterator _end) : iter(_iter), end(_end) {}
+    vertex_t next() {
+        if (iter == end) {
+            return NONE;
+        } else {
+            return *(iter++);
+        }
+    }
+};
+
 class SequentialForest : public ForestStructure {
 private:
     struct ForestNode {
@@ -15,6 +30,7 @@ private:
         vertex_t child_count = 0;
         vertex_t parent = NONE;
         vertex_t partner = NONE;
+        uint32_t priority;
         void insert_neighbor(vertex_t neighbor) { neighbors.insert(neighbor); }
         void remove_neighbor(vertex_t neighbor) { neighbors.erase(neighbor); }
         bool contains_neighbor(vertex_t neighbor) { return neighbors.find(neighbor) != neighbors.end(); }
@@ -26,6 +42,7 @@ public:
     void insert_vertices(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
             auto node = new ForestNode();
+            node->priority = hash32(V[i]);
             vertices[V[i]] = node;
         }
     }
@@ -124,15 +141,33 @@ public:
         return vertices[v]->neighbors.size();
     }
 
-    sequence<vertex_t> get_neighbors(vertex_t v) {
-        sequence<vertex_t> output;
-        for (auto neighbor : vertices[v]->neighbors)
-            output.push_back(neighbor);
-        return output;
+    std::unique_ptr<NeighborIterator> get_neighbor_iterator(vertex_t v) {
+        return std::make_unique<SequentialNeighborIterator>(vertices[v]->neighbors.begin(), vertices[v]->neighbors.end());
+    }
+
+    vertex_t get_first_neighbor(vertex_t v) {
+        return *vertices[v]->neighbors.begin();
+    }
+
+    vertex_t get_other_neighbor(vertex_t v, vertex_t x) {
+        auto iter = vertices[v]->neighbors.begin();
+        vertex_t first = *iter;
+        iter++;
+        vertex_t second = (iter == vertices[v]->neighbors.end()) ? NONE : *iter;
+        if (first != x) return first;
+        return second;
     }
 
     vertex_t get_parent(vertex_t v) {
         return vertices[v]->parent;
+    }
+
+    void set_parent (vertex_t v, vertex_t p) {
+        vertices[v]->parent = p;
+    }
+
+    void unset_parent(vertex_t v) {
+        vertices[v]->parent = NONE;
     }
 
     vertex_t get_child_count(vertex_t v) {
@@ -146,6 +181,10 @@ public:
             }
         }
         return false;
+    }
+
+    vertex_t get_partner(vertex_t v) {
+        return vertices[v]->partner;
     }
 
     bool try_set_partner(vertex_t v, vertex_t p) {
@@ -165,5 +204,18 @@ public:
 
     void unset_partner(vertex_t v) {
         vertices[v]->partner = NONE;
+    }
+
+    bool has_partner(vertex_t v) {
+        return vertices[v]->partner != NONE;
+    }
+
+    bool is_local_max_priority (vertex_t v) {
+        for (vertex_t neighbor : vertices[v]->neighbors) {
+            if (vertices[neighbor]->priority >= vertices[v]->priority) {
+                return false;
+            }
+        }
+        return true;
     }
 };
