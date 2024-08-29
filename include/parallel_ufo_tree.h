@@ -37,7 +37,10 @@ private:
     // Helper functions
     void update_tree(sequence<Edge>& updates, bool deletion);
     void recluster_level(int level, bool deletion, sequence<vertex_t>& R, sequence<vertex_t>& D, sequence<Edge>& U);
-    sequence<std::pair<vertex_t,vertex_t>> maximal_combination(int level, sequence<vertex_t>& R);
+    void maximal_combination(int level, sequence<vertex_t>& R);
+    void set_partners(int level, sequence<vertex_t>& R);
+    void add_parents(int level, sequence<vertex_t>& R);
+    void add_adjacency(int level, sequence<vertex_t>& R);
 };
 
 template <typename aug_t>
@@ -108,7 +111,8 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     forests[level+1].subtract_children(low_deg_parents);
 
     // Determine the new combinations of the root clusters at this level
-    auto combinations = maximal_combination(level, R);
+    maximal_combination(level, R);
+    // Create new parent nodes where appropriate
 
     // Prepare the inputs to the next level
     sequence<vertex_t> next_R = forests[level].get_parents(R);
@@ -126,14 +130,21 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
 }
 
 template <typename aug_t>
-sequence<std::pair<vertex_t,vertex_t>> ParallelUFOTree<aug_t>::maximal_combination(int level, sequence<vertex_t>& R) {
+void ParallelUFOTree<aug_t>::maximal_combination(int level, sequence<vertex_t>& R) {
+    set_partners(level, R);
+    add_parents(level, R);
+    add_adjacency(level, R);
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::set_partners(int level, sequence<vertex_t>& R) {
     // Perform clustering of the root clusters
     parallel_for(0, R.size(), [&](size_t i) {
         auto cluster = R[i];
         if (forests[level].get_parent(cluster)) return;
         // Combine deg 3+ root clusters with deg 1 root or non-root clusters
         if (forests[level].get_degree(cluster) >= 3) {
-            // If it became high degree, any non-contracting deg 1 clusters must be in the first 2 neighbors
+            // If it became high degree, find any non-contracting deg 1 neighbors
             auto iter = forests[level].get_neighbor_iterator(cluster);
             while (vertex_t neighbor = iter->next() != NONE) {
                 if (forests[level].get_degree(neighbor) == 1) {
@@ -193,64 +204,73 @@ sequence<std::pair<vertex_t,vertex_t>> ParallelUFOTree<aug_t>::maximal_combinati
                     forests[level].try_set_partner(cluster, neighbor);
                     forests[level].try_set_partner(neighbor, cluster);
                     // If it became high degree, any non-contracting deg 1 clusters must be in the first 2 neighbors
-                    if (forests[level].get_parent(neighbor) != NONE) {
-                        auto n_iter = forests[level].get_neighbor_iterator(neighbor);
-                        while (vertex_t entry = n_iter->next() != NONE) {
-                            if (forests[level].get_degree(entry) == 1 && forests[level].get_parent(entry) != forests[level].get_parent(neighbor)) {
-                                forests[level].try_set_partner(entry, neighbor);
-                                forests[level].set_parent(entry, forests[level].get_parent(neighbor));
-                            }
-                        }
-                    }
+                    // if (forests[level].get_parent(neighbor) != NONE) {
+                    //     auto n_iter = forests[level].get_neighbor_iterator(neighbor);
+                    //     while (vertex_t entry = n_iter->next() != NONE) {
+                    //         if (forests[level].get_degree(entry) == 1 && forests[level].get_parent(entry) != forests[level].get_parent(neighbor)) {
+                    //             forests[level].try_set_partner(entry, neighbor);
+                    //             forests[level].set_parent(entry, forests[level].get_parent(neighbor));
+                    //         }
+                    //     }
+                    // }
                     break;
                 }
             }
         }
     });
-    // // Create new parent clusters for each new combination
-    // parallel_for(0, R.size(), [&](size_t i) {
-    //     auto cluster = R[i];
-    //     if (cluster->parent && cluster->parent->partner == (Cluster*) 0) return;
-    //     // Make new parent clusters for all new combinations
-    //     auto partner = cluster->partner;
-    //     // Deal with possible multi-combinations
-    //     if (partner && partner->get_degree() >= 3) {
-    //         if (partner->parent) cluster->parent = partner->parent;
-    //         return;
-    //     }
-    //     if (partner && forests[level].get_degree(cluster) >= 3 && !cluster->parent) {
-    //         auto parent = type_allocator<Cluster>::create(
-    //         cluster->priority, default_value);
-    //         parent->partner = (Cluster*) 1;
-    //         cluster->parent = parent;
-    //         for (auto neighbor : cluster->neighbors)
-    //         if (neighbor && neighbor->partner == cluster)
-    //             neighbor->parent = cluster->parent;
-    //         for (auto neighbor : cluster->neighbors_set)
-    //         if (neighbor && neighbor->partner == cluster)
-    //             neighbor->parent = cluster->parent;
-    //         return;
-    //     }
-    //     // Deal with regular pairwise combinations
-    //     if (partner) {
-    //         if (partner->parent && partner->parent != cluster->parent) { // partner is non-root cluster
-    //         cluster->parent = partner->parent;
-    //         partner->partner = nullptr;
-    //         } else if (cluster > partner) { // higher address cluster will do the combination
-    //         auto parent = type_allocator<Cluster>::create(
-    //             cluster->priority + partner->priority, default_value);
-    //         parent->partner = (Cluster*) 1;
-    //         partner->parent = parent;
-    //         cluster->parent = parent;
-    //         }
-    //     } else if (!cluster->parent && forests[level].get_degree(cluster) > 0) { // clusters that don't combine get a new parent
-    //         auto parent = type_allocator<Cluster>::create(
-    //         cluster->priority, default_value);
-    //         parent->partner = (Cluster*) 1;
-    //         cluster->parent = parent;
-    //         cluster->partner = cluster;
-    //     }
-    // });
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::add_parents(int level, sequence<vertex_t>& R) {
+    // Create new parent clusters for each new combination
+    parallel_for(0, R.size(), [&](size_t i) {
+        vertex_t cluster = R[i];
+        vertex_t partner = forests[level].get_partner(cluster);
+        vertex_t parent = forests[level].get_parent(cluster);
+        // if (cluster->parent && cluster->parent->partner == (Cluster*) 0) return;
+        // Make new parent clusters for all new combinations
+        // Deal with possible multi-combinations
+        // if (partner && partner->get_degree() >= 3) {
+        //     if (partner->parent) cluster->parent = partner->parent;
+        //     return;
+        // }
+        // if (partner && forests[level].get_degree(cluster) >= 3 && !cluster->parent) {
+        //     auto parent = type_allocator<Cluster>::create(
+        //     cluster->priority, default_value);
+        //     parent->partner = (Cluster*) 1;
+        //     cluster->parent = parent;
+        //     for (auto neighbor : cluster->neighbors)
+        //     if (neighbor && neighbor->partner == cluster)
+        //         neighbor->parent = cluster->parent;
+        //     for (auto neighbor : cluster->neighbors_set)
+        //     if (neighbor && neighbor->partner == cluster)
+        //         neighbor->parent = cluster->parent;
+        //     return;
+        // }
+        // Deal with regular pairwise combinations
+        if (partner != NONE) {
+            vertex_t p_partner = forests[level].get_partner(partner);
+            vertex_t p_parent = forests[level].get_parent(partner);
+            if (p_parent != NONE && p_parent != parent) { // partner is non-root cluster
+                forests[level].set_parent(cluster, p_parent);
+                forests[level].unset_partner(partner);
+            } else { // higher address cluster will do the combination
+                vertex_t new_parent = std::max(cluster, partner);
+                // parent->partner = (Cluster*) 1;
+                forests[level].set_parent(cluster, new_parent);
+                forests[level].set_parent(partner, new_parent);
+            }
+        } else if (parent == NONE && forests[level].get_degree(cluster) > 0) { // clusters that don't combine get a new parent
+            vertex_t new_parent = cluster;
+            // parent->partner = (Cluster*) 1;
+            forests[level].set_parent(cluster, new_parent);
+            forests[level].try_set_partner(cluster, cluster);
+        }
+    });
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::add_adjacency(int level, sequence<vertex_t>& R) {
     // // Fill in the neighbor lists of the new clusters
     // parallel_for(0, R.size(), [&](size_t i) {
     //     auto c1 = R[i];
