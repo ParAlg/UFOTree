@@ -36,6 +36,7 @@ class hashbag {
     // reciprocal sample rate
     rate = max(1.0, floor(len * load_factor / EXP_SAMPLES));
   }
+ public:
   void clear() {
     size_t len = bag_size[pointer];
     parallel_for(
@@ -51,9 +52,17 @@ class hashbag {
     }
     pointer = 1;
   }
-
- public:
-  // public:
+  void for_all (std::function<void(ET)> f, int b = BLOCK_SIZE) {
+    size_t len = bag_size[pointer];
+    parallel_for(0, len, [&](size_t i) {
+        if (pool[i] != empty) f(pool[i]);
+    }, b);
+  }
+  sequence<ET> extract_all () {
+    return filter(pool, [&](vertex_t v) {
+        return v != empty;
+    });
+  }
   hashbag() = delete;
   hashbag(size_t _n, size_t _min_bag_size = MIN_BAG_SIZE,
           double _load_factor = 0.5, ET _empty = numeric_limits<ET>::max())
