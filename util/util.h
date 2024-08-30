@@ -5,6 +5,9 @@
 
 #define MAX_VERTEX_T (std::numeric_limits<uint32_t>::max())
 
+#define VERTICES_TO_EDGE(U, V) (edge_t) U + (((edge_t) V) << 32)
+#define EDGE_TYPE_TO_STRUCT(E) {(vertex_t) E, (vertex_t) (E >> 32)}
+
 static int max_tree_height(vertex_t n) {
     return ceil(log2(n) / log2(1.2));
 }

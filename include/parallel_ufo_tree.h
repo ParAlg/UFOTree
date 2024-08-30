@@ -319,50 +319,20 @@ void ParallelUFOTree<aug_t>::add_parents(int level) {
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::add_adjacency(int level) {
-    // // Fill in the neighbor lists of the new clusters
-    // parallel_for(0, R.size(), [&](size_t i) {
-    //     auto c1 = R[i];
-    //     auto c2 = c1->partner;
-    //     auto parent = c1->parent;
-    //     if (!c2) return;
-    //     // Deal with possible multi-combinations
-    //     if (c1 != c2 && c2->get_degree() >= 3) return;
-    //     if (c1->get_degree() >= 3) {
-    //         // This means the high degree cluster's parent was newly created
-    //         if (parent->partner == (Cluster*) 1) {
-    //         for (auto neighbor : c1->neighbors)
-    //             if (neighbor && neighbor->parent != parent) {
-    //             parent->insert_neighbor(neighbor->parent);
-    //             if (!neighbor->parent->partner) neighbor->parent->insert_neighbor(parent);
-    //             }
-    //         for (auto neighbor : c1->neighbors_set)
-    //             if (neighbor->parent != parent) {
-    //             parent->insert_neighbor(neighbor->parent);
-    //             if (!neighbor->parent->partner) neighbor->parent->insert_neighbor(parent);
-    //             }
-    //         }
-    //         return;
-    //     }
-    //     // Deal with regular pairwise combinations
-    //     bool new_parent = (parent->partner == (Cluster*) 1);
-    //     if (!new_parent) return;
-    //     if (c1 < c2) return;
-    //     for (int i = 0; i < 3; ++i) {
-    //         if (c1->neighbors[i] && c1->neighbors[i] != c2) {   // Don't add c2's parent (itself)
-    //         parent->insert_neighbor(c1->neighbors[i]->parent);
-    //         if (c1->neighbors[i]->parent->partner == (Cluster*) 0) // Non-root neighbor
-    //             c1->neighbors[i]->parent->insert_neighbor(parent);
-    //         }
-    //     }
-    //     if (c1 != c2)
-    //     for (int i = 0; i < 3; ++i) {
-    //         if (c2->neighbors[i] && c2->neighbors[i] != c1) {   // Don't add c1's parent (itself)
-    //         parent->insert_neighbor(c2->neighbors[i]->parent);
-    //         if (c2->neighbors[i]->parent->partner == (Cluster*) 0) // Non-root neighbor
-    //             c2->neighbors[i]->parent->insert_neighbor(parent);
-    //         }
-    //     }
-    // });
+    // Fill in the neighbor lists of the new clusters
+    hashbag<edge_t> E(n);
+    R.for_all([&](vertex_t v) {
+        auto iter = forests[level].get_neighbor_iterator(v);
+        while (vertex_t neighbor = iter->next() != NONE)
+            E.insert(VERTICES_TO_EDGE(v, neighbor));
+    });
+    sequence<Edge> edges = parlay::map_maybe(E.extract_all(), [&](edge_t e) -> std::optional<Edge> {
+        Edge edge = EDGE_TYPE_TO_STRUCT(e);
+        if (forests[level].get_parent(edge.src) != forests[level].get_parent(edge.dst))
+            return (Edge) {forests[level].get_parent(edge.src), forests[level].get_parent(edge.dst)};
+        return std::nullopt;
+    });
+    forests[level+1].insert_edges(edges);
 }
 
 template <typename aug_t>

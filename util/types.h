@@ -5,6 +5,8 @@
 typedef uint32_t vertex_t;
 static vertex_t NONE = -1;
 
+typedef uint64_t edge_t;
+
 enum QueryType {
   PATH,
   SUBTREE
