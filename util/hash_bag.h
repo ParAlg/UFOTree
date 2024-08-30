@@ -16,7 +16,8 @@ constexpr int EXP_SAMPLES = 64;
 
 template <class ET>
 class hashbag {
- protected:
+//  protected:
+public:
   size_t n;
   double load_factor;
   int pointer;
@@ -59,8 +60,8 @@ class hashbag {
     }, b);
   }
   sequence<ET> extract_all () {
-    return filter(pool, [&](vertex_t v) {
-        return v != empty;
+    return filter(pool, [&](ET element) {
+        return element != empty;
     });
   }
   hashbag() = delete;

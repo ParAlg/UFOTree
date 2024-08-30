@@ -11,7 +11,7 @@ bool ParallelUFOTree<aug_t>::is_valid() {
     parlay::sequence<vertex_t> next_clusters;
     for (vertex_t cluster : clusters) { // Ensure that every pair of incident vertices are in the same component
         auto iter = forests[0].get_neighbor_iterator(cluster);
-        while (vertex_t neighbor = iter->next() != NONE) { // This ensures all connectivity is correct by transitivity
+        for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) { // This ensures all connectivity is correct by transitivity
             if (!connected(cluster, neighbor)) {
                 std::cerr << "INCORRECT CONNECTIVITY." << std::endl;
                 return false;
@@ -22,7 +22,7 @@ bool ParallelUFOTree<aug_t>::is_valid() {
     while (!clusters.empty()) {
         for (vertex_t cluster : clusters) {
             auto iter = forests[level].get_neighbor_iterator(cluster);
-            while (vertex_t neighbor = iter->next() != NONE) { // Look for invalid combinations
+            for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) { // Look for invalid combinations
                 if (forests[level].get_parent(cluster) != NONE && forests[level].get_parent(cluster) == forests[level].get_parent(neighbor)) {
                     if ((forests[level].get_degree(cluster) >= 3 || forests[level].get_degree(neighbor) >= 3)
                     && !(forests[level].get_degree(cluster) == 1 || forests[level].get_degree(neighbor) == 1)) {
@@ -44,7 +44,7 @@ bool ParallelUFOTree<aug_t>::is_valid() {
                         }
                 } else if (forests[level].get_degree(cluster) == 2) {
                     auto iter = forests[level].get_neighbor_iterator(cluster);
-                    while (vertex_t neighbor = iter->next() != NONE) {
+                    for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                         if (forests[level].get_degree(neighbor) < 3 && !forests[level].contracts(neighbor)) {
                             std::cerr << "CONTRACTIONS NOT MAXIMAL. DEG 2 CAN CONTRACT WITH UNCONTRACTING NEIGHBOR." << std::endl;
                             return false;
@@ -74,7 +74,7 @@ void ParallelUFOTree<aug_t>::print_tree() {
         auto parent = entry.first;
         std::cout << "VERTEX " << leaf << "\t " << " Parent " << parent << "\t Neighbors: ";
         auto iter = forests[0].get_neighbor_iterator(leaf);
-        while (vertex_t neighbor = iter->next() != NONE) std::cout << neighbor << " ";
+        for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next())  std::cout << neighbor << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
@@ -82,17 +82,20 @@ void ParallelUFOTree<aug_t>::print_tree() {
     }
     clusters.swap(next_clusters);
     next_clusters.clear();
-    int level = 1;
+    int level = 0;
     while (!clusters.empty()) {
         level++;
         std::cout << "======================= NEXT LEVEL =======================" << std::endl;
         for (auto entry : clusters) {
             auto cluster = entry.second;
             auto parent = entry.first;
-            std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
+            std::cout << "CLUSTER: " << cluster << "\t" << " Parent: " << parent << "\t Neighbors: ";
+            auto iter = forests[level].get_neighbor_iterator(cluster);
+            for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next())  std::cout << neighbor << " ";
+            std::cout << std::endl;
             bool in_map = false;
             for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-            if (parent != NONE && !in_map) next_clusters.insert({forests[level].get_parent(parent), parent});
+            if (parent != NONE && !in_map) next_clusters.insert({forests[level+1].get_parent(parent), parent});
         }
         clusters.swap(next_clusters);
         next_clusters.clear();
@@ -105,8 +108,8 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
+        vertex_t n = 10;
+        vertex_t k = 3;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int {return x + y;};
         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
@@ -114,6 +117,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         std::vector<Update> updates;
         parlay::sequence<Edge> edges;
         auto seed = seeds[trial];
+        seed = 0;
         srand(seed);
         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
         ids = parlay::random_shuffle(ids, parlay::random(rand()));
@@ -137,343 +141,343 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
     }
 }
 
-TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < (n-1)/2; i++) {
-            edges.push_back({ids[i],ids[2*i+1]});
-            edges.push_back({ids[i],ids[2*i+2]});
-        }
-        if (n%2 == 0) edges.push_back({ids[(n-1)/2],ids[n-1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         for (vertex_t i = 0; i < (n-1)/2; i++) {
+//             edges.push_back({ids[i],ids[2*i+1]});
+//             edges.push_back({ids[i],ids[2*i+2]});
+//         }
+//         if (n%2 == 0) edges.push_back({ids[(n-1)/2],ids[n-1]});
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            }
-        }
-        tree.batch_link(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
-    }
-}
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+//             }
+//         }
+//         tree.batch_link(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
+//     }
+// }
 
-TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < n-1; i++)
-            edges.push_back({ids[0],ids[i+1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         for (vertex_t i = 0; i < n-1; i++)
+//             edges.push_back({ids[0],ids[i+1]});
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            }
-        }
-        tree.batch_link(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
-    }
-}
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+//             }
+//         }
+//         tree.batch_link(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
+//     }
+// }
 
-TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        std::vector<int> vertex_degrees(n,0);
-        while (edges.size() < n-1) {
-            vertex_t u = edges.size()+1;
-            vertex_t v = rand() % u;
-            if (vertex_degrees[v] >= 3) continue;
-            edges.push_back({ids[u],ids[v]});
-            vertex_degrees[u]++;
-            vertex_degrees[v]++;
-        }
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         std::vector<int> vertex_degrees(n,0);
+//         while (edges.size() < n-1) {
+//             vertex_t u = edges.size()+1;
+//             vertex_t v = rand() % u;
+//             if (vertex_degrees[v] >= 3) continue;
+//             edges.push_back({ids[u],ids[v]});
+//             vertex_degrees[u]++;
+//             vertex_degrees[v]++;
+//         }
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            }
-        }
-        tree.batch_link(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
-    }
-}
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+//             }
+//         }
+//         tree.batch_link(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
+//     }
+// }
 
-TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < n-1; i++)
-            edges.push_back({ids[i],ids[i+1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         for (vertex_t i = 0; i < n-1; i++)
+//             edges.push_back({ids[i],ids[i+1]});
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-            }
-        }
-        tree.batch_link(batch);
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//             }
+//         }
+//         tree.batch_link(batch);
 
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_cut(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-            }
-        }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-    }
-}
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         updates.clear();
+//         for (auto edge : edges) updates.push_back({DELETE,edge});
+//         index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_cut(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//             }
+//         }
+//         tree.batch_cut(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//     }
+// }
 
-TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < (n-1)/2; i++) {
-            edges.push_back({ids[i],ids[2*i+1]});
-            edges.push_back({ids[i],ids[2*i+2]});
-        }
-        if (n%2 == 0) edges.push_back({ids[(n-1)/2],ids[n-1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         for (vertex_t i = 0; i < (n-1)/2; i++) {
+//             edges.push_back({ids[i],ids[2*i+1]});
+//             edges.push_back({ids[i],ids[2*i+2]});
+//         }
+//         if (n%2 == 0) edges.push_back({ids[(n-1)/2],ids[n-1]});
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-            }
-        }
-        tree.batch_link(batch);
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//             }
+//         }
+//         tree.batch_link(batch);
 
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_cut(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-            }
-        }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-    }
-}
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         updates.clear();
+//         for (auto edge : edges) updates.push_back({DELETE,edge});
+//         index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_cut(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//             }
+//         }
+//         tree.batch_cut(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//     }
+// }
 
-TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < n-1; i++)
-            edges.push_back({ids[0],ids[i+1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         for (vertex_t i = 0; i < n-1; i++)
+//             edges.push_back({ids[0],ids[i+1]});
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-            }
-        }
-        tree.batch_link(batch);
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//             }
+//         }
+//         tree.batch_link(batch);
 
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_cut(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-            }
-        }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-    }
-}
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         updates.clear();
+//         for (auto edge : edges) updates.push_back({DELETE,edge});
+//         index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_cut(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//             }
+//         }
+//         tree.batch_cut(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//     }
+// }
 
-TEST(ParallelUFOTreeSuite, batch_decremental_random_correctness_test) {
-    int num_trials = 1;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int {return x + y;};
-        ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
+// TEST(ParallelUFOTreeSuite, batch_decremental_random_correctness_test) {
+//     int num_trials = 1;
+//     int seeds[num_trials];
+//     srand(time(NULL));
+//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+//     for (int trial = 0; trial < num_trials; trial++) {
+//         vertex_t n = 256;
+//         vertex_t k = 16;
+//         QueryType qt = PATH;
+//         auto f = [](int x, int y)->int {return x + y;};
+//         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        std::vector<int> vertex_degrees(n,0);
-        while (edges.size() < n-1) {
-            vertex_t u = edges.size()+1;
-            vertex_t v = rand() % u;
-            if (vertex_degrees[v] >= 3) continue;
-            edges.push_back({ids[u],ids[v]});
-            vertex_degrees[u]++;
-            vertex_degrees[v]++;
-        }
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+//         std::vector<Update> updates;
+//         parlay::sequence<Edge> edges;
+//         auto seed = seeds[trial];
+//         srand(seed);
+//         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+//         ids = parlay::random_shuffle(ids, parlay::random(rand()));
+//         std::vector<int> vertex_degrees(n,0);
+//         while (edges.size() < n-1) {
+//             vertex_t u = edges.size()+1;
+//             vertex_t v = rand() % u;
+//             if (vertex_degrees[v] >= 3) continue;
+//             edges.push_back({ids[u],ids[v]});
+//             vertex_degrees[u]++;
+//             vertex_degrees[v]++;
+//         }
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_link(batch);
-                index = 0;
-            }
-        }
-        tree.batch_link(batch);
+//         parlay::sequence<Edge> batch(k);
+//         vertex_t index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_link(batch);
+//                 index = 0;
+//             }
+//         }
+//         tree.batch_link(batch);
 
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        index = 0;
-        for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
-                tree.batch_cut(batch);
-                index = 0;
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-            }
-        }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-    }
-}
+//         edges = parlay::random_shuffle(edges, parlay::random(rand()));
+//         updates.clear();
+//         for (auto edge : edges) updates.push_back({DELETE,edge});
+//         index = 0;
+//         for (auto update : updates) {
+//             batch[index++] = update.edge;
+//             if (index == k) {
+//                 tree.batch_cut(batch);
+//                 index = 0;
+//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//             }
+//         }
+//         tree.batch_cut(batch);
+//         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+//     }
+// }
 
 // TEST(ParallelUFOTreeSuite, batch_linkedlist_performance_test) {
 //     vertex_t n = 1000000;

@@ -41,6 +41,7 @@ private:
 public:
     void insert_vertices(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
+            if (V[i] == NONE) continue;
             auto node = new ForestNode();
             node->priority = hash32(V[i]);
             vertices[V[i]] = node;

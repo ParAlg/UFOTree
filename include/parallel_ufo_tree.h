@@ -92,11 +92,13 @@ void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates, bool deletion)
     }
     // Start the level-by-level update procedure
     recluster_level(0, deletion, U);
-    forests.pop_back();
+    std::cout << "FINISHED BATCH UPDATE" << std::endl;
 }
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<Edge>& U) {
+    std::cout << "LEVEL " << level << std::endl;
+    print_tree();
     bool next_R_empty = true;
     bool next_D_empty = true;
     // Delete the edges from our initial updates that are still in level i+1
@@ -112,7 +114,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
             bool low_fanout = forests[level+1].get_child_count(parent) < 3;
             if (low_degree && low_fanout) {
                 auto iter = forests[level].get_neighbor_iterator(v);
-                while (vertex_t neighbor = iter->next() != NONE) {
+                for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                     if (forests[level].get_parent(neighbor) == parent) {
                         R.insert(neighbor);
                         forests[level].unset_parent(neighbor);
@@ -126,7 +128,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     sequence<vertex_t> low_deg = filter(R.extract_all(), [&] (auto v) { return forests[level].get_degree(v) < 2; });
     sequence<vertex_t> low_deg_parents = parlay::map(low_deg, [&] (auto v) { return forests[level].get_parent(v); });
     forests[level].unset_parents(low_deg);
-    forests[level+1].subtract_children(low_deg_parents);
+    if (forests.size() > level+1) forests[level+1].subtract_children(low_deg_parents);
 
     // Determine the new combinations of the root clusters at this level
     set_partners(level);
@@ -144,7 +146,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
         bool low_fanout = forests[level+1].get_child_count(v) < 3;
         return (low_degree && low_fanout);
     });
-    forests[level+1].delete_vertices(del);
+    if (forests.size() > level+1) forests[level+1].delete_vertices(del);
 
     // Add the new parents and edges to the next level for the set of combinations determined
     add_parents(level);
@@ -194,7 +196,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
         if (forests[level].get_degree(cluster) >= 3) {
             // If it became high degree, find any non-contracting deg 1 neighbors
             auto iter = forests[level].get_neighbor_iterator(cluster);
-            while (vertex_t neighbor = iter->next() != NONE) {
+            for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                 if (forests[level].get_degree(neighbor) == 1) {
                     forests[level].try_set_partner(cluster, neighbor);
                     forests[level].try_set_partner(neighbor, cluster);
@@ -237,7 +239,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
             }
         } else if (forests[level].get_degree(cluster) == 1) {
             auto iter = forests[level].get_neighbor_iterator(cluster);
-            while (vertex_t neighbor = iter->next() != NONE) {
+            for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                 // Combine deg 1 root clusters with deg 1 root or non-root clusters
                 if (neighbor && forests[level].get_degree(neighbor) == 1) {
                     forests[level].try_set_partner(cluster, neighbor);
@@ -315,6 +317,12 @@ void ParallelUFOTree<aug_t>::add_parents(int level) {
             forests[level].try_set_partner(cluster, cluster);
         }
     });
+    // Add the parents
+    sequence<vertex_t> P = parlay::map(R.extract_all(), [&](vertex_t v) {
+        return forests[level].get_parent(v);
+    });
+    if (forests.size() <= level+1) forests.emplace_back();
+    forests[level+1].insert_vertices(P);
 }
 
 template <typename aug_t>
@@ -323,8 +331,9 @@ void ParallelUFOTree<aug_t>::add_adjacency(int level) {
     hashbag<edge_t> E(n);
     R.for_all([&](vertex_t v) {
         auto iter = forests[level].get_neighbor_iterator(v);
-        while (vertex_t neighbor = iter->next() != NONE)
+        for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
             E.insert(VERTICES_TO_EDGE(v, neighbor));
+        }
     });
     sequence<Edge> edges = parlay::map_maybe(E.extract_all(), [&](edge_t e) -> std::optional<Edge> {
         Edge edge = EDGE_TYPE_TO_STRUCT(e);
@@ -332,7 +341,7 @@ void ParallelUFOTree<aug_t>::add_adjacency(int level) {
             return (Edge) {forests[level].get_parent(edge.src), forests[level].get_parent(edge.dst)};
         return std::nullopt;
     });
-    forests[level+1].insert_edges(edges);
+    if (forests.size() > level+1) forests[level+1].insert_edges(edges);
 }
 
 template <typename aug_t>
