@@ -7,6 +7,9 @@
 #include <iostream>
 using namespace std;
 using namespace parlay;
+
+namespace hb {
+
 constexpr int BLOCK_SIZE = 1024;
 
 #define ELONG
@@ -128,3 +131,5 @@ inline ET _hash_2(ET a) {
     abort();
   }
 }
+
+};

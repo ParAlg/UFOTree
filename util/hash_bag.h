@@ -33,7 +33,7 @@ public:
     // size of hash bag
     len = bag_size[local_pointer] - bag_size[local_pointer - 1];
     // insert into a random position between [2^i, 2^(i+1)]
-    idx = (_hash(u) & (len - 1)) + bag_size[local_pointer - 1];
+    idx = (hb::_hash(u) & (len - 1)) + bag_size[local_pointer - 1];
     // reciprocal sample rate
     rate = max(1.0, floor(len * load_factor / EXP_SAMPLES));
   }
@@ -47,13 +47,13 @@ public:
             pool[i] = empty;
           }
         },
-        BLOCK_SIZE);
+        hb::BLOCK_SIZE);
     for (int i = 0; i <= pointer; i++) {
       counter[i] = 0;
     }
     pointer = 1;
   }
-  void for_all (std::function<void(ET)> f, int b = BLOCK_SIZE) {
+  void for_all (std::function<void(ET)> f, int b = hb::BLOCK_SIZE) {
     size_t len = bag_size[pointer];
     parallel_for(0, len, [&](size_t i) {
         if (pool[i] != empty) f(pool[i]);
@@ -90,11 +90,11 @@ public:
       bool succeed = false;
       uint32_t ret = counter[local_pointer];
       while (ret < EXP_SAMPLES && !succeed) {
-        succeed = compare_and_swap(&counter[local_pointer], ret, ret + 1);
+        succeed = hb::compare_and_swap(&counter[local_pointer], ret, ret + 1);
         ret = counter[local_pointer];
       }
       if (ret >= EXP_SAMPLES && local_pointer + 1 < num_hash_bag) {
-        compare_and_swap(&pointer, local_pointer, local_pointer + 1);
+        hb::compare_and_swap(&pointer, local_pointer, local_pointer + 1);
       }
       if (local_pointer != pointer) {
         set_values(u, local_pointer, len, idx, rate);
@@ -105,7 +105,7 @@ public:
       // assert(local_pointer + 1 != num_hash_bag || ret < EXP_SAMPLES);
     }
     for (size_t i = 0;; i++) {
-      if (compare_and_swap(&pool[idx], empty, u)) {
+      if (hb::compare_and_swap(&pool[idx], empty, u)) {
         break;
       }
       idx = (idx == bag_size[local_pointer] - 1 ? bag_size[local_pointer - 1]
@@ -117,7 +117,7 @@ public:
       }
       if (i == len) {
         if (local_pointer == pointer) {
-          compare_and_swap(&pointer, local_pointer, local_pointer + 1);
+          hb::compare_and_swap(&pointer, local_pointer, local_pointer + 1);
         }
         local_pointer = pointer;
         set_values(u, local_pointer, len, idx, rate);
@@ -138,11 +138,11 @@ public:
       bool succeed = false;
       uint32_t ret = counter[local_pointer];
       while (ret < EXP_SAMPLES && !succeed) {
-        succeed = compare_and_swap(&counter[local_pointer], ret, ret + 1);
+        succeed = hb::compare_and_swap(&counter[local_pointer], ret, ret + 1);
         ret = counter[local_pointer];
       }
       if (ret >= EXP_SAMPLES && local_pointer + 1 < num_hash_bag) {
-        compare_and_swap(&pointer, local_pointer, local_pointer + 1);
+        hb::compare_and_swap(&pointer, local_pointer, local_pointer + 1);
       }
       if (local_pointer != pointer) {
         set_values(u, local_pointer, len, idx, rate);
@@ -155,7 +155,7 @@ public:
     uint32_t key_stamp = pool_stamp[idx];
     for (size_t i = 0;; i++) {
       if (key_stamp != current_stamp &&
-          compare_and_swap(&pool_stamp[idx], key_stamp, current_stamp)) {
+          hb::compare_and_swap(&pool_stamp[idx], key_stamp, current_stamp)) {
         break;
       }
       idx = (idx == bag_size[local_pointer] - 1 ? bag_size[local_pointer - 1]
@@ -168,7 +168,7 @@ public:
       }
       if (i == len) {
         if (local_pointer == pointer) {
-          compare_and_swap(&pointer, local_pointer, local_pointer + 1);
+          hb::compare_and_swap(&pointer, local_pointer, local_pointer + 1);
         }
         local_pointer = pointer;
         set_values(u, local_pointer, len, idx, rate);

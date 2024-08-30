@@ -8,6 +8,12 @@
 using namespace std;
 using namespace parlay;
 
+enum ClusterStatus {
+    NORMAL,
+    ROOT,
+    DEL
+};
+
 class NeighborIterator {
 public:
     virtual vertex_t next() = 0;
@@ -52,9 +58,12 @@ public:
 
     // Async recluster functions
     virtual vertex_t get_partner(vertex_t v) = 0;
-    virtual bool try_set_partner(vertex_t v, vertex_t p) = 0;
+    virtual void set_partner(vertex_t v, vertex_t p) = 0;
     virtual bool try_set_partner_atomic(vertex_t v, vertex_t p) = 0;
     virtual void unset_partner(vertex_t v) = 0;
-    virtual bool has_partner(vertex_t v) = 0;
     virtual bool is_local_max_priority(vertex_t v) = 0;
+    virtual ClusterStatus get_status(vertex_t v) = 0;
+    virtual void set_status(vertex_t v, ClusterStatus s) = 0;
+    virtual bool try_set_status_atomic(vertex_t v, ClusterStatus s) = 0;
+    void unset_status(vertex_t v);
 };

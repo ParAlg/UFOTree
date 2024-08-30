@@ -71,10 +71,14 @@ template <typename aug_t>
 void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates, bool deletion) {
     // Determine the intial set of root clusters and deletion clusters
     parallel_for(0, updates.size(), [&](size_t i) {
-        R.insert(updates[i].src);
-        R.insert(updates[i].dst);
-        D.insert(forests[0].get_parent(updates[i].src));
-        D.insert(forests[0].get_parent(updates[i].dst));
+        if (forests[0].try_set_status_atomic(updates[i].src, ROOT)) R.insert(updates[i].src);
+        if (forests[0].try_set_status_atomic(updates[i].dst, ROOT)) R.insert(updates[i].dst);
+        if (forests.size() > 1) {
+            vertex_t parent1 = forests[0].get_parent(updates[i].src);
+            vertex_t parent2 = forests[0].get_parent(updates[i].dst);
+            if (forests[1].try_set_status_atomic(parent1, DEL)) D.insert(parent1);
+            if (forests[1].try_set_status_atomic(parent2, DEL)) D.insert(parent2);
+        }
     });
     // Remove parents of low degree level 0 root clusters
     sequence<vertex_t> low_deg = filter(R.extract_all(), [&] (auto v) { return forests[0].get_degree(v) < 2; });
@@ -198,8 +202,8 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
             auto iter = forests[level].get_neighbor_iterator(cluster);
             for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                 if (forests[level].get_degree(neighbor) == 1) {
-                    forests[level].try_set_partner(cluster, neighbor);
-                    forests[level].try_set_partner(neighbor, cluster);
+                    forests[level].set_partner(cluster, neighbor);
+                    forests[level].set_partner(neighbor, cluster);
                     vertex_t parent = forests[level].get_parent(neighbor);
                     if (parent != NONE) {
                         forests[level].unset_parent(neighbor);
@@ -216,7 +220,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
             for (auto direction : {0, 1}) {
                 auto curr = cluster;
                 auto next = direction ? first_neighbor : forests[level].get_other_neighbor(cluster, first_neighbor);
-                if (forests[level].has_partner(curr)) {
+                if (forests[level].get_partner(curr) != NONE) {
                     curr = next;
                     next = forests[level].get_other_neighbor(curr, cluster);
                 }
@@ -224,7 +228,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
                 && next != NONE && forests[level].get_degree(next) < 3 && !forests[level].contracts(next)) {
                     if (!forests[level].try_set_partner_atomic(curr, next)) break;
                     if (forests[level].get_degree(next) == 1) { // If next deg 1 they can combine
-                        forests[level].try_set_partner(next, curr);
+                        forests[level].set_partner(next, curr);
                         break;
                     }
                     if (!forests[level].try_set_partner_atomic(next, curr)) { // If the CAS fails next was combined from the other side
@@ -242,21 +246,21 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
             for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                 // Combine deg 1 root clusters with deg 1 root or non-root clusters
                 if (neighbor && forests[level].get_degree(neighbor) == 1) {
-                    forests[level].try_set_partner(cluster, neighbor);
-                    forests[level].try_set_partner(neighbor, cluster);
+                    forests[level].set_partner(cluster, neighbor);
+                    forests[level].set_partner(neighbor, cluster);
                     break;
                 }
                 // Combine deg 1 root cluster with deg 2 non-root clusters that don't contract
                 if (forests[level].get_parent(neighbor) != NONE && forests[level].get_degree(neighbor) == 2) {
                     if (forests[level].contracts(neighbor)) continue;
                     if (!forests[level].try_set_partner_atomic(neighbor, cluster)) continue;
-                    forests[level].try_set_partner(cluster, neighbor);
+                    forests[level].set_partner(cluster, neighbor);
                     break;
                 }
                 // Combine deg 1 root cluster with deg 3+ clusters always
                 if (neighbor && forests[level].get_degree(neighbor) >= 3) {
-                    forests[level].try_set_partner(cluster, neighbor);
-                    forests[level].try_set_partner(neighbor, cluster);
+                    forests[level].set_partner(cluster, neighbor);
+                    forests[level].set_partner(neighbor, cluster);
                     // QUINTEN: if a high degree cluster is a non-root cluster, it must have been high degree previously ?
                     // If it became high degree, any non-contracting deg 1 clusters must be in the first 2 neighbors
                     // if (forests[level].get_parent(neighbor) != NONE) {
@@ -314,7 +318,7 @@ void ParallelUFOTree<aug_t>::add_parents(int level) {
         } else if (parent == NONE && forests[level].get_degree(cluster) > 0) { // clusters that don't combine get a new parent
             vertex_t new_parent = cluster;
             forests[level].set_parent(cluster, new_parent);
-            forests[level].try_set_partner(cluster, cluster);
+            forests[level].set_partner(cluster, cluster);
         }
     });
     // Add the parents

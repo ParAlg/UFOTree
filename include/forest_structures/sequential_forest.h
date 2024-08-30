@@ -31,6 +31,7 @@ private:
         vertex_t parent = NONE;
         vertex_t partner = NONE;
         uint32_t priority;
+        ClusterStatus status = NORMAL;
         void insert_neighbor(vertex_t neighbor) { neighbors.insert(neighbor); }
         void remove_neighbor(vertex_t neighbor) { neighbors.erase(neighbor); }
         bool contains_neighbor(vertex_t neighbor) { return neighbors.find(neighbor) != neighbors.end(); }
@@ -188,12 +189,8 @@ public:
         return vertices[v]->partner;
     }
 
-    bool try_set_partner(vertex_t v, vertex_t p) {
-        if (vertices[v]->partner == NONE) {
-            vertices[v]->partner = p;
-            return true;
-        }
-        return false;
+    void set_partner(vertex_t v, vertex_t p) {
+        vertices[v]->partner = p;
     }
 
     bool try_set_partner_atomic(vertex_t v, vertex_t p) {
@@ -207,10 +204,6 @@ public:
         vertices[v]->partner = NONE;
     }
 
-    bool has_partner(vertex_t v) {
-        return vertices[v]->partner != NONE;
-    }
-
     bool is_local_max_priority (vertex_t v) {
         for (vertex_t neighbor : vertices[v]->neighbors) {
             if (vertices[neighbor]->priority >= vertices[v]->priority) {
@@ -218,5 +211,24 @@ public:
             }
         }
         return true;
+    }
+
+    ClusterStatus get_status(vertex_t v) {
+        return vertices[v]->status;
+    }
+
+    void set_status(vertex_t v, ClusterStatus s) {
+        vertices[v]->status = s;
+    }
+
+    bool try_set_status_atomic(vertex_t v, ClusterStatus s) {
+        if (vertices[v]->status == NORMAL) {
+            return gbbs::CAS(&vertices[v]->status, NORMAL, s);
+        }
+        return false;
+    }
+
+    void unset_status(vertex_t v) {
+        vertices[v]->status = NORMAL;
     }
 };
