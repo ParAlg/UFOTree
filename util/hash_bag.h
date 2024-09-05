@@ -235,4 +235,12 @@ public:
       printf("table[%d]: %f\n", i, 1.0 * occupied / len);
     }
   }
+  void print() {
+    std::cout << "Bag: ";
+    for (auto element : extract_all()) {
+      std::cout << element << " ";
+    }
+    std::cout << std::endl;
+  }
 };
+

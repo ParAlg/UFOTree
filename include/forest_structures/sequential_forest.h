@@ -43,6 +43,7 @@ public:
     void insert_vertices(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
             if (V[i] == NONE) continue;
+            if (vertices.find(V[i]) != vertices.end()) continue;
             auto node = new ForestNode();
             node->priority = hash32(V[i]);
             vertices[V[i]] = node;
@@ -53,7 +54,6 @@ public:
         for (int i = 0; i < V.size(); ++i) {
             for (vertex_t neighbor : vertices[V[i]]->neighbors) {
                 vertices[neighbor]->remove_neighbor(V[i]);
-                vertices[V[i]]->remove_neighbor(neighbor);
             }
             delete vertices[V[i]];
             vertices.erase(V[i]);
@@ -88,11 +88,11 @@ public:
         return output;
     }
 
-    sequence<Edge> filter_edges(sequence<Edge>& E) {
+    sequence<Edge> filter_parent_edges(sequence<Edge>& E) {
         sequence<Edge> output;
         for (int i = 0; i < E.size(); ++i) {
             if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {
-                output.push_back(E[i]);
+                output.push_back({vertices[E[i].src]->parent,vertices[E[i].dst]->parent});
             }
         }
         return output;
@@ -177,9 +177,11 @@ public:
     }
 
     bool contracts(vertex_t v) {
-        for (vertex_t neighbor : vertices[v]->neighbors) {
-            if (vertices[neighbor]->parent == vertices[v]->parent) {
-                return true;
+        if (vertices[v]->parent != NONE) {
+            for (vertex_t neighbor : vertices[v]->neighbors) {
+                if (vertices[neighbor]->parent == vertices[v]->parent) {
+                    return true;
+                }
             }
         }
         return false;

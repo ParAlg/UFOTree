@@ -19,8 +19,22 @@ bool ParallelUFOTree<aug_t>::is_valid() {
         }
     }
     int level = 0;
+    std::unordered_map<vertex_t,vertex_t> child_counts;
     while (!clusters.empty()) {
         for (vertex_t cluster : clusters) {
+            if (forests[level].get_partner(cluster) != NONE) {
+                std::cerr << "PARTNER FIELD IS STILL SET FOR CLUSTER " << cluster << " AT LEVEL " << level << "." << std::endl;
+                return false;
+            }
+            if (forests[level].get_status(cluster) != NORMAL) {
+                std::cerr << "STATUS FIELD IS STILL SET FOR CLUSTER " << cluster << " AT LEVEL " << level << "." << std::endl;
+                return false;
+            }
+            if (level > 0 && child_counts[cluster] != forests[level].get_child_count(cluster)) {
+                std::cerr << "INCORRECT CHILD COUNT FOR CLUSTER " << cluster << " AT LEVEL " << level << "." << std::endl;
+                std::cerr << "EXPECTED " << child_counts[cluster] << " GOT " << forests[level].get_child_count(cluster) << std::endl;
+                return false;
+            }
             auto iter = forests[level].get_neighbor_iterator(cluster);
             for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) { // Look for invalid combinations
                 if (forests[level].get_parent(cluster) != NONE && forests[level].get_parent(cluster) == forests[level].get_parent(neighbor)) {
@@ -53,6 +67,14 @@ bool ParallelUFOTree<aug_t>::is_valid() {
                 }
             }
         }
+        child_counts.clear();
+        for (vertex_t cluster : clusters) {
+            vertex_t parent = forests[level].get_parent(cluster);
+            if (child_counts.find(parent) == child_counts.end())
+                child_counts[parent] = 1;
+            else
+                child_counts[parent] += 1;
+        }
         clusters = forests[level++].get_parents(clusters);
     }
     return true;
@@ -72,7 +94,7 @@ void ParallelUFOTree<aug_t>::print_tree() {
     for (auto entry : clusters) {
         auto leaf = entry.second;
         auto parent = entry.first;
-        std::cout << "VERTEX " << leaf << "\t " << " Parent " << parent << "\t Neighbors: ";
+        std::cout << "VERTEX " << leaf << "\t " << " Parent " << (parent==NONE ? "NONE" : std::to_string(parent)) << "\t Neighbors: ";
         auto iter = forests[0].get_neighbor_iterator(leaf);
         for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next())  std::cout << neighbor << " ";
         std::cout << std::endl;
@@ -85,11 +107,11 @@ void ParallelUFOTree<aug_t>::print_tree() {
     int level = 0;
     while (!clusters.empty()) {
         level++;
-        std::cout << "======================= NEXT LEVEL =======================" << std::endl;
+        std::cout << "======================== LEVEL " << level << " ========================" << std::endl;
         for (auto entry : clusters) {
             auto cluster = entry.second;
             auto parent = entry.first;
-            std::cout << "CLUSTER: " << cluster << "\t" << " Parent: " << parent << "\t Neighbors: ";
+            std::cout << "CLUSTER: " << cluster << "\t" << " Parent: " << (parent==NONE ? "NONE" : std::to_string(parent)) << "\t Neighbors: ";
             auto iter = forests[level].get_neighbor_iterator(cluster);
             for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next())  std::cout << neighbor << " ";
             std::cout << std::endl;
@@ -132,6 +154,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
             batch[index++] = update.edge;
             if (index == k) {
                 tree.batch_link(batch);
+                tree.print_tree();
                 index = 0;
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
