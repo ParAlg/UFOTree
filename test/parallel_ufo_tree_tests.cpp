@@ -148,14 +148,13 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        parlay::sequence<Edge> batch(k);
-        vertex_t index = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[index++] = update.edge;
-            if (index == k) {
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
                 tree.batch_link(batch);
                 tree.print_tree();
-                index = 0;
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
