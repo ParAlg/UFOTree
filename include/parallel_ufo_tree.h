@@ -98,11 +98,11 @@ void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates, bool deletion)
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<Edge>& U) {
-    std::cout << "RECLUSTER LEVEL " << level << std::endl;
-    std::cout << "R ";
-    R.print();
-    std::cout << "D ";
-    D.print();
+    // std::cout << "RECLUSTER LEVEL " << level << std::endl;
+    // std::cout << "R ";
+    // R.print();
+    // std::cout << "D ";
+    // D.print();
     bool next_R_empty = true;
     bool next_D_empty = true;
     // Delete the edges from our initial updates that are still in level i+1

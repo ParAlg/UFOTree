@@ -208,7 +208,7 @@ public:
 
     bool is_local_max_priority (vertex_t v) {
         for (vertex_t neighbor : vertices[v]->neighbors) {
-            if (vertices[neighbor]->parent != NONE) continue;
+            if (vertices[neighbor]->parent != NONE || get_degree(neighbor) != 2) continue;
             if (vertices[neighbor]->priority >= vertices[v]->priority) {
                 return false;
             }

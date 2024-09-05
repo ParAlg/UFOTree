@@ -130,8 +130,8 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 10;
-        vertex_t k = 3;
+        vertex_t n = 256;
+        vertex_t k = 16;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int {return x + y;};
         ParallelUFOTree<int> tree(n, k, qt, f, 0, 0);
@@ -139,7 +139,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         std::vector<Update> updates;
         parlay::sequence<Edge> edges;
         auto seed = seeds[trial];
-        seed = 0;
+        // std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
         ids = parlay::random_shuffle(ids, parlay::random(rand()));
@@ -153,7 +153,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
             batch.push_back(update.edge);
             if (batch.size() == k) {
                 tree.batch_link(batch);
-                tree.print_tree();
+                // tree.print_tree();
                 batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
