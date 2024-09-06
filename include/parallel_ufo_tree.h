@@ -9,7 +9,7 @@
 #include "sequential_forest.h"
 
 
-// #define PRINT_DEBUG_INFO
+#define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -82,10 +82,6 @@ void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates, bool deletion)
             if (parent2 != NONE && forests[1].try_set_status_atomic(parent2, DEL)) D.insert(parent2);
         }
     });
-    // Remove parents of low degree level 0 root clusters
-    sequence<vertex_t> low_deg = filter(R.extract_all(), [&] (auto v) { return forests[0].get_degree(v) < 3; });
-    sequence<vertex_t> low_deg_parents = parlay::map(low_deg, [&] (auto v) { return forests[0].get_parent(v); });
-    if (forests.size() > 1) forests[1].subtract_children(low_deg_parents);
     // Perform the updates at level 0 and determine the next level updates
     sequence<Edge> U;
     if (!deletion) {
@@ -120,6 +116,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     }
 
     // Collect the new level i root clusters that will be formed by deleting some level i+1 clusters
+    // Also mark root clusters whose parents should be deleted/unset
     R.for_all([&](vertex_t v) {
         vertex_t parent = forests[level].get_parent(v);
         if (parent != NONE) {
@@ -135,21 +132,22 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
                         }
                     }
                 }
+                forests[level].set_partner(v, MARK);
             }
+            // ALSO NEED TO FIND AND MARK (PREVIOUSLY) DEG 1 CLUSTERS WHOSE PARENT WON'T BE DELETED
         }
     });
-
-    // Remove the parents of low degree root clusters
-    sequence<vertex_t> low_deg = filter(R.extract_all(), [&] (auto v) { return forests[level].get_degree(v) < 3; });
-    sequence<vertex_t> low_deg_parents = parlay::map_maybe(low_deg, [&] (auto v) -> std::optional<vertex_t> {
+    // Remove the parents of root clusters whose parent will get deleted/unset
+    sequence<vertex_t> remove_parent = parlay::map_maybe(R.extract_all(), [&] (auto v) -> std::optional<vertex_t> {
         if (forests[level].get_partner(v) == MARK) {
             forests[level].unset_partner(v);
-            return forests[level].get_parent(v);
+            vertex_t parent = forests[level].get_parent(v);
+            forests[level].unset_parent(v);
+            return parent;
         }
         return std::nullopt;
     });
-    forests[level].unset_parents(low_deg);
-    if (forests.size() > level+1) forests[level+1].subtract_children(low_deg_parents);
+    if (forests.size() > level+1) forests[level+1].subtract_children(remove_parent);
 
     // Determine the new combinations of the root clusters at this level
     set_partners(level);
@@ -187,9 +185,6 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     // Add the new parents and edges to the next level for the set of combinations determined
     add_parents(level);
     add_adjacency(level);
-    R.for_all([&](vertex_t v) {
-        forests[level].unset_partner(v);
-    });
 
     // Prepare the inputs to the next level
     R.for_all([&](vertex_t v) {
@@ -208,19 +203,17 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
             }
         }
     });
-    // Remove the parents of low degree clusters in the next root clusters
-    low_deg = filter(next_R.extract_all(), [&] (auto v) { return forests[level+1].get_degree(v) < 2; });
-    low_deg_parents = parlay::map(low_deg, [&] (auto v) { return forests[level+1].get_parent(v); });
-    if (forests.size() > level+2) forests[level+2].subtract_children(low_deg_parents);
-    // Check if the update is complete or recursively recluster the next level
+    // Cleanup
     R.for_all([&](vertex_t v) {
+        forests[level].unset_partner(v);
         forests[level].unset_status(v);
     });
     R.clear();
     D.clear();
+    // Check if the update is complete or recursively recluster the next level
+    if (next_R_empty && next_D_empty) return;
     std::swap(R, next_R);
     std::swap(D, next_D);
-    if (next_R_empty && next_D_empty) return;
     recluster_level(level+1, deletion, U);
 }
 
@@ -233,7 +226,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
         if (forests[level].get_degree(cluster) >= 3) {
             // If it became high degree, find any non-contracting deg 1 neighbors
             auto iter = forests[level].get_neighbor_iterator(cluster);
-            for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
+            for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                 if (forests[level].get_degree(neighbor) == 1) {
                     forests[level].set_partner(cluster, neighbor);
                     forests[level].set_partner(neighbor, cluster);
@@ -332,9 +325,10 @@ void ParallelUFOTree<aug_t>::add_parents(int level) {
                 auto new_parent = cluster;
                 forests[level].set_parent(cluster, new_parent);
                 auto iter = forests[level].get_neighbor_iterator(cluster);
-                while(vertex_t neighbor = iter->next() != NONE)
+                for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                     if (forests[level].get_partner(neighbor) == cluster)
                         forests[level].set_parent(neighbor, new_parent);
+                }
                 return;
             }
         }
