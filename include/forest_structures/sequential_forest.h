@@ -234,4 +234,16 @@ public:
     void unset_status(vertex_t v) {
         vertices[v]->status = NORMAL;
     }
+
+    void mark(vertex_t v) {
+        set_partner(v, MARK);
+    }
+
+    void unmark(vertex_t v) {
+        unset_partner(v);
+    }
+
+    bool is_marked(vertex_t v) {
+        return vertices[v]->partner == MARK;
+    }
 };

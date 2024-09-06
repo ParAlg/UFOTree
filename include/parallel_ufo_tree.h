@@ -9,7 +9,7 @@
 #include "sequential_forest.h"
 
 
-#define PRINT_DEBUG_INFO
+// #define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -82,16 +82,8 @@ void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates, bool deletion)
             if (parent2 != NONE && forests[1].try_set_status_atomic(parent2, DEL)) D.insert(parent2);
         }
     });
-    // Perform the updates at level 0 and determine the next level updates
-    sequence<Edge> U;
-    if (!deletion) {
-        forests[0].insert_edges(updates);
-    } else {
-        forests[0].delete_edges(updates);
-        U = forests[0].filter_parent_edges(updates);
-    }
     // Start the level-by-level update procedure
-    recluster_level(0, deletion, U);
+    recluster_level(0, deletion, updates);
     #ifdef PRINT_DEBUG_INFO
     print_tree();
     #endif
@@ -108,6 +100,24 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     #endif
     bool next_R_empty = true;
     bool next_D_empty = true;
+    // Remove the parents of root clusters whose parent will get deleted/unset
+    sequence<vertex_t> disconnect_from_parent = parlay::map_maybe(R.extract_all(), [&] (auto v) -> std::optional<vertex_t> {
+        if (forests[level].get_degree(v) < 3) {
+            forests[level].mark(v);
+            return forests[level].get_parent(v);
+        }
+        return std::nullopt;
+    });
+    if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
+    // Add or remove the initial set of updates to level 0
+    if (level == 0) {
+        if (deletion) {
+            forests[0].delete_edges(U);
+            U = forests[0].filter_parent_edges(U);
+        } else {
+            forests[0].insert_edges(U);
+        }
+    }
     // Delete the edges from our initial updates that are still in level i+1
     if (forests.size() < level) forests.emplace_back();
     if (deletion) {
@@ -128,26 +138,20 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
                     if (forests[level].get_parent(neighbor) == parent) {
                         if (forests[level].try_set_status_atomic(neighbor, ROOT)) {
                             R.insert(neighbor);
-                            forests[level].set_partner(neighbor, MARK);
+                            forests[level].mark(neighbor);
                         }
                     }
                 }
-                forests[level].set_partner(v, MARK);
             }
-            // ALSO NEED TO FIND AND MARK (PREVIOUSLY) DEG 1 CLUSTERS WHOSE PARENT WON'T BE DELETED
         }
     });
-    // Remove the parents of root clusters whose parent will get deleted/unset
-    sequence<vertex_t> remove_parent = parlay::map_maybe(R.extract_all(), [&] (auto v) -> std::optional<vertex_t> {
-        if (forests[level].get_partner(v) == MARK) {
-            forests[level].unset_partner(v);
-            vertex_t parent = forests[level].get_parent(v);
+    // Unset the parents of all marked clusters
+    R.for_all([&](vertex_t v) {
+        if (forests[level].is_marked(v)) {
             forests[level].unset_parent(v);
-            return parent;
+            forests[level].unmark(v);
         }
-        return std::nullopt;
     });
-    if (forests.size() > level+1) forests[level+1].subtract_children(remove_parent);
 
     // Determine the new combinations of the root clusters at this level
     set_partners(level);
