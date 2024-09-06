@@ -177,6 +177,10 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
                 }
             }
         }
+        if (!low_degree || !low_fanout) {
+            forests[level+1].set_status(v, ROOT);
+            next_R.insert(v);
+        }
         return (low_degree && low_fanout);
     });
     D.for_all([&](vertex_t v) {
@@ -209,6 +213,8 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     });
     // Cleanup
     R.for_all([&](vertex_t v) {
+        vertex_t partner = forests[level].get_partner(v);
+        if (partner != NONE) forests[level].unset_partner(partner);
         forests[level].unset_partner(v);
         forests[level].unset_status(v);
     });

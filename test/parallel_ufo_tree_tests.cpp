@@ -163,7 +163,7 @@ void ParallelUFOTree<aug_t>::print_tree() {
 // }
 
 TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 100;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
@@ -177,7 +177,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
         std::vector<Update> updates;
         parlay::sequence<Edge> edges;
         auto seed = seeds[trial];
-        // seed = 1254998229;
+        // seed = 455101750;
         std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
