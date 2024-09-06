@@ -234,6 +234,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
                     if (parent != NONE) {
                         if (forests[level+1].try_set_status_atomic(parent, DEL)) {
                             forests[level].unset_parent(neighbor);
+                            R.insert(neighbor);
                             D.insert(parent);
                         }
                     }
@@ -326,8 +327,9 @@ void ParallelUFOTree<aug_t>::add_parents(int level) {
                 forests[level].set_parent(cluster, new_parent);
                 auto iter = forests[level].get_neighbor_iterator(cluster);
                 for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
-                    if (forests[level].get_partner(neighbor) == cluster)
+                    if (forests[level].get_partner(neighbor) == cluster) {
                         forests[level].set_parent(neighbor, new_parent);
+                    }
                 }
                 return;
             }

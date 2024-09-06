@@ -177,7 +177,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
         std::vector<Update> updates;
         parlay::sequence<Edge> edges;
         auto seed = seeds[trial];
-        // seed = 2108940160;
+        // seed = 1254998229;
         std::cout << "SEED: " << seed << std::endl;
         srand(seed);
         parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
@@ -518,26 +518,25 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
 //     edges = parlay::random_shuffle(edges, parlay::random(rand()));
 //     for (auto edge : edges) updates.push_back({INSERT,edge});
 
-//     parlay::sequence<Edge> batch(k);
-//     vertex_t index = 0;
+//     parlay::sequence<Edge> batch;
 //     for (auto update : updates) {
-//         batch[index++] = update.edge;
-//         if (index == k) {
+//         batch.push_back(update.edge);
+//         if (batch.size() == k) {
 //             tree.batch_link(batch);
-//             index = 0;
+//             batch.clear();
 //         }
 //     }
 //     tree.batch_link(batch);
+//     batch.clear();
 
 //     edges = parlay::random_shuffle(edges, parlay::random(rand()));
 //     updates.clear();
 //     for (auto edge : edges) updates.push_back({DELETE,edge});
-//     index = 0;
 //     for (auto update : updates) {
-//         batch[index++] = update.edge;
-//         if (index == k) {
+//         batch.push_back(update.edge);
+//         if (batch.size() == k) {
 //             tree.batch_cut(batch);
-//             index = 0;
+//             batch.clear();
 //         }
 //     }
 //     tree.batch_cut(batch);
