@@ -42,7 +42,7 @@ private:
     hashbag<vertex_t> D;
     hashbag<vertex_t> next_R;
     hashbag<vertex_t> next_D;
-    // Helper functions
+    // Main batch update functions
     void update_tree(sequence<Edge>& updates, bool deletion);
     void recluster_level(int level, bool deletion, sequence<Edge>& U);
     void set_partners(int level);
@@ -102,9 +102,14 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     bool next_D_empty = true;
     // Remove the parents of root clusters whose parent will get deleted/unset
     sequence<vertex_t> disconnect_from_parent = parlay::map_maybe(R.extract_all(), [&] (auto v) -> std::optional<vertex_t> {
-        if (forests[level].get_degree(v) < 3) {
-            forests[level].mark(v);
-            return forests[level].get_parent(v);
+        vertex_t parent = forests[level].get_parent(v);
+        if (parent != NONE) {
+            bool low_degree = forests[level+1].get_degree(parent) < 3;
+            bool low_fanout = forests[level+1].get_child_count(parent) < 3;
+            if (low_degree && low_fanout || forests[level].get_degree(v) < 3) {
+                forests[level].mark(v);
+                return forests[level].get_parent(v);
+            }
         }
         return std::nullopt;
     });
