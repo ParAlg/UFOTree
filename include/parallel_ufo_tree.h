@@ -135,7 +135,8 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     }
     // Delete the edges from our initial updates that are still in level i+1
     if (deletion) {
-        auto next_U = forests[level].map_edges_to_parents(U);
+        auto next_U = U;
+        if (level == 0) next_U = forests[level].map_edges_to_parents(U);
         if (forests.size() > level+1) forests[level+1].delete_edges(next_U);
     }
 
