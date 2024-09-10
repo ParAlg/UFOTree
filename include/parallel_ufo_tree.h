@@ -144,6 +144,15 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
                         if (forests[level].try_set_status_atomic(neighbor, ROOT)) {
                             R.insert(neighbor);
                             forests[level].mark(neighbor);
+                            auto iter = forests[level].get_neighbor_iterator(neighbor);
+                            for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
+                                if (forests[level].get_parent(grand_neighbor) == parent) {
+                                    if (forests[level].try_set_status_atomic(grand_neighbor, ROOT)) {
+                                        R.insert(grand_neighbor);
+                                        forests[level].mark(grand_neighbor);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -166,34 +175,52 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
         vertex_t parent = forests[level+1].get_parent(v);
         bool low_degree = forests[level+1].get_degree(v) < 3;
         bool low_fanout = forests[level+1].get_child_count(v) < 3;
+        if (!low_degree || !low_fanout) { // Current del clusters that were not deleted added to next_R
+            forests[level+1].set_status(v, ROOT);
+            next_R.insert(v);
+            next_R_empty = false;
+        }
         if (parent != NONE) {
-            if (forests[level+2].try_set_status_atomic(parent, DEL)) {
+            if (forests[level+2].try_set_status_atomic(parent, DEL)) { // Parents added to next_D
                 next_D.insert(parent);
                 next_D_empty = false;
             }
-            if (low_degree) {
+        }
+        return (low_degree && low_fanout);
+    });
+    sequence<vertex_t> del_parents = parlay::map(del, [&] (auto v) { return forests[level+1].get_parent(v); });
+    if (forests.size() > level+2) forests[level+2].subtract_children(del_parents);
+    D.for_all([&](vertex_t v) { // Non-deleted neighbors of parents that will be deleted added to next_R
+        vertex_t parent = forests[level+1].get_parent(v);
+        if (parent != NONE) {
+            bool p_low_degree = forests[level+2].get_degree(parent) < 3;
+            bool p_low_fanout = forests[level+2].get_child_count(parent) < 3;
+            if (p_low_degree && p_low_fanout) {
                 auto iter = forests[level+1].get_neighbor_iterator(v);
                 for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                     if (forests[level+1].get_parent(neighbor) == parent) {
                         if (forests[level+1].try_set_status_atomic(neighbor, ROOT)) {
                             next_R.insert(neighbor);
+                            next_R_empty = false;
+                            auto iter = forests[level+1].get_neighbor_iterator(neighbor);
+                            for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
+                                if (forests[level+1].get_parent(grand_neighbor) == parent) {
+                                    if (forests[level+1].try_set_status_atomic(grand_neighbor, ROOT)) {
+                                        next_R.insert(grand_neighbor);
+                                        next_R_empty = false;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        if (!low_degree || !low_fanout) {
-            forests[level+1].set_status(v, ROOT);
-            next_R.insert(v);
-        }
-        return (low_degree && low_fanout);
     });
-    D.for_all([&](vertex_t v) {
-        forests[level+1].unset_status(v);
-    });
-    sequence<vertex_t> del_parents = parlay::map(del, [&] (auto v) { return forests[level+1].get_parent(v); });
+    // D.for_all([&](vertex_t v) {
+    //     forests[level+1].unset_status(v);
+    // });
     if (forests.size() > level+1) forests[level+1].delete_vertices(del);
-    if (forests.size() > level+2) forests[level+2].subtract_children(del_parents);
 
     // Add the new parents and edges to the next level for the set of combinations determined
     add_parents(level);
@@ -302,7 +329,7 @@ void ParallelUFOTree<aug_t>::set_partners(int level) {
                     break;
                 }
                 // Combine deg 1 root cluster with deg 3+ clusters always
-                if (neighbor && forests[level].get_degree(neighbor) >= 3) {
+                if (forests[level].get_degree(neighbor) >= 3) {
                     forests[level].set_partner(cluster, neighbor);
                     forests[level].set_partner(neighbor, cluster);
                     // QUINTEN: if a high degree cluster is a non-root cluster, it must have been high degree previously ?
