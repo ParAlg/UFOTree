@@ -88,7 +88,7 @@ public:
         return output;
     }
 
-    sequence<Edge> filter_parent_edges(sequence<Edge>& E) {
+    sequence<Edge> map_edges_to_parents(sequence<Edge>& E) {
         sequence<Edge> output;
         for (int i = 0; i < E.size(); ++i) {
             if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {

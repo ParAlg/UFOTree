@@ -33,7 +33,7 @@ public:
     virtual sequence<vertex_t> get_endpoints(sequence<Edge>& E) = 0;
 
     // Return the edges in E that still exist in the next level up
-    virtual sequence<Edge> filter_parent_edges(sequence<Edge>& E) = 0;
+    virtual sequence<Edge> map_edges_to_parents(sequence<Edge>& E) = 0;
     // Return the set of parents of V
     virtual sequence<vertex_t> get_parents(sequence<vertex_t>& V) = 0;
     // Set the parents of each cluster in V to the corresponding cluster in P also adding to their child count

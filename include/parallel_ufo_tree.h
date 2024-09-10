@@ -9,7 +9,7 @@
 #include "sequential_forest.h"
 
 
-// #define PRINT_DEBUG_INFO
+#define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -61,11 +61,21 @@ std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d)
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::batch_link(sequence<Edge>& links) {
+    #ifdef PRINT_DEBUG_INFO
+    std::cout << std::endl << "[ BATCH LINK ]: ";
+    for (Edge e : links) std::cout << e.src << "," << e.dst << " ";
+    std::cout << std::endl << std::endl;
+    #endif
     update_tree(links, false);
 }
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
+    #ifdef PRINT_DEBUG_INFO
+    std::cout << std::endl << "[ BATCH CUT ]: ";
+    for (Edge e : cuts) std::cout << e.src << "," << e.dst << " ";
+    std::cout << std::endl << std::endl;
+    #endif
     update_tree(cuts, true);
 }
 
@@ -123,20 +133,10 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
         R.clear();
         std::swap(R, next_R);
     }
-    // Add or remove the initial set of updates to level 0
-    if (level == 0) {
-        if (deletion) {
-            forests[0].delete_edges(U);
-            U = forests[0].filter_parent_edges(U);
-        } else {
-            forests[0].insert_edges(U);
-        }
-    }
     // Delete the edges from our initial updates that are still in level i+1
-    if (forests.size() < level) forests.emplace_back();
     if (deletion) {
-        forests[level+1].delete_edges(U);
-        U = forests[level+1].filter_parent_edges(U);
+        auto next_U = forests[level].map_edges_to_parents(U);
+        if (forests.size() > level+1) forests[level+1].delete_edges(next_U);
     }
 
     // Collect the new level i root clusters that will be formed by deleting some level i+1 clusters
@@ -175,6 +175,17 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
             forests[level].unmark(v);
         }
     });
+
+    // Delete the level 0 edges in the initial batch
+    if (level == 0) {
+        if (deletion) {
+            forests[0].delete_edges(U);
+        } else {
+            forests[0].insert_edges(U);
+        }
+        U = forests[0].map_edges_to_parents(U);
+    }
+    if (forests.size() > level+1) U = forests[level+1].map_edges_to_parents(U);
 
     // Determine the new combinations of the root clusters at this level
     set_partners(level);
@@ -226,9 +237,6 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
             }
         }
     });
-    // D.for_all([&](vertex_t v) {
-    //     forests[level+1].unset_status(v);
-    // });
     if (forests.size() > level+1) forests[level+1].delete_vertices(del);
 
     // Add the new parents and edges to the next level for the set of combinations determined
