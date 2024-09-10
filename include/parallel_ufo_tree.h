@@ -9,7 +9,7 @@
 #include "sequential_forest.h"
 
 
-#define PRINT_DEBUG_INFO
+// #define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -168,13 +168,6 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
             }
         }
     });
-    // Unset the parents of all marked clusters
-    R.for_all([&](vertex_t v) {
-        if (forests[level].is_marked(v)) {
-            forests[level].unset_parent(v);
-            forests[level].unmark(v);
-        }
-    });
 
     // Delete the level 0 edges in the initial batch
     if (level == 0) {
@@ -186,6 +179,14 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
         U = forests[0].map_edges_to_parents(U);
     }
     if (forests.size() > level+1) U = forests[level+1].map_edges_to_parents(U);
+
+    // Unset the parents of all marked clusters
+    R.for_all([&](vertex_t v) {
+        if (forests[level].is_marked(v)) {
+            forests[level].unset_parent(v);
+            forests[level].unmark(v);
+        }
+    });
 
     // Determine the new combinations of the root clusters at this level
     set_partners(level);

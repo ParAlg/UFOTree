@@ -91,8 +91,10 @@ public:
     sequence<Edge> map_edges_to_parents(sequence<Edge>& E) {
         sequence<Edge> output;
         for (int i = 0; i < E.size(); ++i) {
-            if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {
-                output.push_back({vertices[E[i].src]->parent,vertices[E[i].dst]->parent});
+            if (vertices[E[i].src]->parent != NONE && vertices[E[i].dst]->parent != NONE) {
+                if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {
+                    output.push_back({vertices[E[i].src]->parent,vertices[E[i].dst]->parent});
+                }
             }
         }
         return output;
