@@ -111,12 +111,14 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     bool next_R_empty = true;
     bool next_D_empty = true;
     // Remove the parents of root clusters whose parent will get deleted/unset
+    if (deletion && level == 0) forests[level].compute_new_degrees(U);
     sequence<vertex_t> disconnect_from_parent = parlay::map_maybe(R.extract_all(), [&] (auto v) -> std::optional<vertex_t> {
         vertex_t parent = forests[level].get_parent(v);
         if (parent != NONE) {
             bool low_degree = forests[level+1].get_degree(parent) < 3;
             bool low_fanout = forests[level+1].get_child_count(parent) < 3;
-            if (low_degree && low_fanout || forests[level].get_degree(v) < 3) {
+            vertex_t degree = (level == 0) ? forests[0].get_new_degree(v) : forests[level].get_degree(v);
+            if (low_degree && low_fanout || degree < 3) {
                 forests[level].mark(v);
                 return forests[level].get_parent(v);
             }
@@ -136,7 +138,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion, sequence<
     // Delete the edges from our initial updates that are still in level i+1
     if (deletion) {
         auto next_U = U;
-        if (level == 0) next_U = forests[level].map_edges_to_parents(U);
+        if (level == 0) next_U = forests[0].map_edges_to_parents(U);
         if (forests.size() > level+1) forests[level+1].delete_edges(next_U);
     }
 

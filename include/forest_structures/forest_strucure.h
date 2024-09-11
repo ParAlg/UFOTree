@@ -45,18 +45,21 @@ public:
     // For each (possibly multiple) instance of a cluster in V subtract one from its child count
     virtual void subtract_children(sequence<vertex_t>& V) = 0;
 
+    virtual void compute_new_degrees(sequence<Edge>& E) = 0;
+
     // Non batch read-only helper functions
     virtual vertex_t get_degree(vertex_t v) = 0;
+    virtual vertex_t get_new_degree(vertex_t v) = 0;
+    virtual vertex_t get_child_count(vertex_t v) = 0;
     virtual std::unique_ptr<NeighborIterator> get_neighbor_iterator(vertex_t v) = 0;
     virtual vertex_t get_first_neighbor(vertex_t v) = 0;
     virtual vertex_t get_other_neighbor(vertex_t v, vertex_t x) = 0;
     virtual vertex_t get_parent(vertex_t v) = 0;
     virtual void set_parent (vertex_t v, vertex_t p) = 0;
     virtual void unset_parent(vertex_t v) = 0;
-    virtual vertex_t get_child_count(vertex_t v) = 0;
     virtual bool contracts(vertex_t v) = 0;
 
-    // Batch update helper functions
+    // Asynchronous update helper functions
     virtual vertex_t get_partner(vertex_t v) = 0;
     virtual void set_partner(vertex_t v, vertex_t p) = 0;
     virtual bool try_set_partner_atomic(vertex_t v, vertex_t p) = 0;

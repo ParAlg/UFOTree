@@ -27,6 +27,7 @@ class SequentialForest : public ForestStructure {
 private:
     struct ForestNode {
         std::unordered_set<vertex_t> neighbors;
+        vertex_t new_degree = 0;
         vertex_t child_count = 0;
         vertex_t parent = NONE;
         vertex_t partner = NONE;
@@ -141,8 +142,23 @@ public:
         }
     }
 
+    void compute_new_degrees(sequence<Edge>& E) {
+        for (int i = 0; i < E.size(); ++i) {
+            vertices[E[i].src]->new_degree = get_degree(E[i].src);
+            vertices[E[i].dst]->new_degree = get_degree(E[i].dst);
+        }
+        for (int i = 0; i < E.size(); ++i) {
+            vertices[E[i].src]->new_degree--;
+            vertices[E[i].dst]->new_degree--;
+        }
+    }
+
     vertex_t get_degree(vertex_t v) {
         return vertices[v]->neighbors.size();
+    }
+
+    vertex_t get_new_degree(vertex_t v) {
+        return vertices[v]->new_degree;
     }
 
     std::unique_ptr<NeighborIterator> get_neighbor_iterator(vertex_t v) {
