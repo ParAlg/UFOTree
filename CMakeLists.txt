@@ -48,6 +48,7 @@ target_include_directories(benchmark_dynamic_trees PRIVATE baselines)
 target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
 target_link_libraries(benchmark_dynamic_trees PRIVATE absl::flat_hash_map)
 
+if(FALSE)
 add_executable(benchmark_dynamic_trees_2
   benchmark/abseil_only.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
@@ -67,3 +68,4 @@ add_executable(benchmark_dynamic_trees_3
 target_include_directories(benchmark_dynamic_trees_3 PRIVATE baselines)
 target_link_libraries(benchmark_dynamic_trees_3 PRIVATE parlay)
 target_link_libraries(benchmark_dynamic_trees_3 PRIVATE absl::flat_hash_map)
+endif()

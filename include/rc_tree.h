@@ -72,7 +72,11 @@ public:
   bool is_edge(RCCluster<aug_t> *cluster);
   bool edge_exists(vertex_t u, vertex_t v);
   RCTree<aug_t>** get_neighbors(vertex_t v);
-  size_t space();
+  size_t space(); // For space benchmarks.
+
+  // Queries
+  aug_t path_query(vertex_t u, vertex_t v);
+
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   // These are only ones that should really be public.
   RCTree(int _n, QueryType q = PATH, 
@@ -636,9 +640,13 @@ void RCTree<aug_t>::update() {
         }
       }
     }
-
     round += 1;
     maximal_set.clear();
   }
   to_delete.clear();
 }
+
+template<typename aug_t>
+aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
+  
+};

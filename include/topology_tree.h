@@ -504,7 +504,7 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     }
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
-    while (curr_u->parent != curr_v->parent) {
+    while (curr_u->parent != curr_v->parent) { 
         for (int i = 0; i < 3; i++) {
             auto neighbor = curr_u->neighbors[i];
             if (neighbor && neighbor->parent == curr_u->parent) {

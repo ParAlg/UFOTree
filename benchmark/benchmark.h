@@ -5,7 +5,7 @@
 #include <parlay/internal/get_time.h>
 #include "../include/types.h"
 
-vertex_t n_list[] = {10000};
+vertex_t n_list[] = {10,100};
 
 namespace dynamic_tree_benchmark {
 
