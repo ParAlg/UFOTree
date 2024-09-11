@@ -70,6 +70,8 @@ public:
 
     void delete_edges(sequence<Edge>& E) {
         for (int i = 0; i < E.size(); ++i) {
+            if (vertices.find(E[i].src) == vertices.end()) continue;
+            if (vertices.find(E[i].dst) == vertices.end()) continue;
             vertices[E[i].src]->remove_neighbor(E[i].dst);
             vertices[E[i].dst]->remove_neighbor(E[i].src);
         }
@@ -92,6 +94,8 @@ public:
     sequence<Edge> map_edges_to_parents(sequence<Edge>& E) {
         sequence<Edge> output;
         for (int i = 0; i < E.size(); ++i) {
+            if (vertices.find(E[i].src) == vertices.end()) continue;
+            if (vertices.find(E[i].dst) == vertices.end()) continue;
             if (vertices[E[i].src]->parent != NONE && vertices[E[i].dst]->parent != NONE) {
                 if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {
                     output.push_back({vertices[E[i].src]->parent,vertices[E[i].dst]->parent});
