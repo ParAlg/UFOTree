@@ -9,7 +9,7 @@
 #include "sequential_forest.h"
 
 
-// #define PRINT_DEBUG_INFO
+#define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -270,7 +270,8 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion) {
     // Cleanup
     R.for_all([&](vertex_t v) {
         vertex_t partner = forests[level].get_partner(v);
-        if (partner != NONE) forests[level].unset_partner(partner);
+        auto iter = forests[level].get_neighbor_iterator(v);
+        for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) forests[level].unset_partner(neighbor);
         forests[level].unset_partner(v);
         forests[level].unset_status(v);
     });
