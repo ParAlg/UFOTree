@@ -45,6 +45,7 @@ public:
     // For each (possibly multiple) instance of a cluster in V subtract one from its child count
     virtual void subtract_children(sequence<vertex_t>& V) = 0;
 
+    // Compute and store the degrees of of vertices if this set of edges was deleted
     virtual void compute_new_degrees(sequence<Edge>& E) = 0;
 
     // Non batch read-only helper functions

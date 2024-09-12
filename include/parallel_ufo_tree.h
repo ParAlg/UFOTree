@@ -200,20 +200,20 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, bool deletion) {
     // Get the next set of del clusters and do the deletion of clusters
     sequence<vertex_t> del = filter(D.extract_all(), [&] (auto v) {
         vertex_t parent = forests[level+1].get_parent(v);
-        bool low_degree = forests[level+1].get_degree(v) < 3;
-        bool low_fanout = forests[level+1].get_child_count(v) < 3;
-        if (!low_degree || !low_fanout) { // Current del clusters that were not deleted added to next_R
-            forests[level+1].set_status(v, ROOT);
-            next_R.insert(v);
-            next_R_empty = false;
-        }
         if (parent != NONE) {
             if (forests[level+2].try_set_status_atomic(parent, DEL)) { // Parents added to next_D
                 next_D.insert(parent);
                 next_D_empty = false;
             }
         }
-        return (low_degree && low_fanout);
+        bool low_degree = forests[level+1].get_degree(v) < 3;
+        bool low_fanout = forests[level+1].get_child_count(v) < 3;
+        if (forests[level+1].get_child_count(v) == 0 || low_degree && low_fanout) return true;
+        // Current del clusters that were not deleted added to next_R
+        forests[level+1].set_status(v, ROOT);
+        next_R.insert(v);
+        next_R_empty = false;
+        return false;
     });
     sequence<vertex_t> del_parents = parlay::map(del, [&] (auto v) { return forests[level+1].get_parent(v); });
     if (forests.size() > level+2) forests[level+2].subtract_children(del_parents);
