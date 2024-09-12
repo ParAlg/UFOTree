@@ -9,7 +9,7 @@
 #include "sequential_forest.h"
 
 
-#define PRINT_DEBUG_INFO
+// #define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
