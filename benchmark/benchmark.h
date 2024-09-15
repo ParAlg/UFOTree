@@ -190,12 +190,9 @@ std::vector<Update> preferential_attachment_benchmark(vertex_t n) {
     while (edges.size() < n-1) {
         vertex_t u = edges.size()+1;
         vertex_t v = 0;
-        int total_degree = 2*edges.size();
-        if (total_degree > 0) { // preferential attachment
-            int x = rand() % total_degree;
-            int degree_sum = vertex_degrees[0];
-            while (x >= degree_sum)
-                degree_sum += vertex_degrees[++v];
+        if (edges.size() > 0) {
+            auto rand_edge = edges[rand() % edges.size()];
+            vertex_t v = rand()%2 ? rand_edge.src : rand_edge.dst;
         }
         edges.push_back({ids[u],ids[v]});
         vertex_degrees[u]++;
