@@ -33,6 +33,7 @@ add_executable(dynamic_tree_tests
   test/rc_tree_tests.cpp
   test/topology_tree_tests.cpp
   test/ufo_tree_tests.cpp
+  test/ternarization_tests.cpp
 )
 target_link_libraries(dynamic_tree_tests PRIVATE ${JEMALLOC_LIB})
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)

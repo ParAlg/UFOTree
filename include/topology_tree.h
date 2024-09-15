@@ -1,17 +1,20 @@
+#pragma once
+#include <stdexcept>
 #include "types.h"
 #include "util.h"
+#include "ternarizable_interface.h"
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
-    std::map<int, int> root_clusters_histogram;
+    static std::map<int, int> root_clusters_histogram;
 #endif
 // #define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
-    int max_height = 0;
+    static int max_height = 0;
 #endif
 
-long topology_remove_ancestor_time = 0;
-long topology_recluster_tree_time = 0;
+static long topology_remove_ancestor_time = 0;
+static long topology_recluster_tree_time = 0;
 
 
 template<typename aug_t>
@@ -21,8 +24,10 @@ struct TopologyCluster {
     aug_t edge_values[3];   // Only for path queries
     aug_t value;            // Stores subtree values or cluster path values
     TopologyCluster<aug_t>* parent;
+    vertex_t v;
     // Constructor
-    TopologyCluster(aug_t value) : neighbors(), edge_values(), parent(), value(value) {};
+    TopologyCluster(aug_t value, vertex_t _v = MAX_VERTEX_T) : 
+      neighbors(), edge_values(), parent(), value(value), v(_v) {};
     // Helper functions
     int get_degree();
     bool contracts();
@@ -33,7 +38,7 @@ struct TopologyCluster {
 };
 
 template<typename aug_t>
-class TopologyTree {
+class TopologyTree : ITernarizable {
 public:
     // Topology tree interface
     TopologyTree(
@@ -50,6 +55,12 @@ public:
     bool connected(vertex_t u, vertex_t v);
     aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
     aug_t path_query(vertex_t u, vertex_t v);
+    
+    //Interface methods overriden.
+    short get_degree(vertex_t v) override {return leaves[v].get_degree();}
+    std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+      return std::pair(leaves[v].neighbors[0] - &leaves[0], leaves[v].edge_values[0]); 
+    }
     // Testing helpers
     bool is_valid();
     int get_height(vertex_t v);
@@ -394,8 +405,7 @@ void TopologyCluster<aug_t>::insert_neighbor(TopologyCluster<aug_t>* c, aug_t va
             return;
         }
     }
-    std::cerr << "No space to insert neighbor." << std::endl;
-    std::abort();
+    throw std::invalid_argument("No space to insert neighbor"); 
 }
 
 template<typename aug_t>
@@ -406,8 +416,7 @@ void TopologyCluster<aug_t>::remove_neighbor(TopologyCluster<aug_t>* c) {
             return;
         }
     }
-    std::cerr << "Neighbor to delete not found." << std::endl;
-    std::abort();
+    throw std::invalid_argument("Neighbor to delete not found");
 }
 
 template<typename aug_t>

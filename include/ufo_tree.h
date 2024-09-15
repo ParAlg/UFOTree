@@ -1,3 +1,4 @@
+#pragma once
 #include "types.h"
 #include "util.h"
 #include <absl/container/flat_hash_set.h>
@@ -9,15 +10,15 @@ be stored in the hash set for efficiency. */
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
-    std::map<int, int> root_clusters_histogram;
+    static std::map<int, int> root_clusters_histogram;
 #endif
 // #define COLLECT_HEIGHT_STATS
 #ifdef COLLECT_HEIGHT_STATS
-    int max_height = 0;
+    static int max_height = 0;
 #endif
 
-long ufo_remove_ancestor_time = 0;
-long ufo_recluster_tree_time = 0;
+static long ufo_remove_ancestor_time = 0;
+static long ufo_recluster_tree_time = 0;
 
 
 template<typename aug_t>

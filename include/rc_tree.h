@@ -1,3 +1,4 @@
+#pragma once  
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -8,6 +9,7 @@
 #include<vector>
 #include "types.h"
 #include "util.h"
+#include "ternarizable_interface.h" 
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 
@@ -37,7 +39,7 @@ public:
 };
 
 template<typename aug_t>
-class RCTree {
+class RCTree : ITernarizable{
 public:
   // Data structure fields.
   int degree_bound;
@@ -77,6 +79,11 @@ public:
   // Queries
   aug_t path_query(vertex_t u, vertex_t v);
 
+  // Overrides for ternarizable_interface methods
+  short get_degree(vertex_t v) override {return get_degree(v, 0);}
+  std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+    return std::pair(GET_NEIGHBOR(v, (*contraction_tree[v][0][0])), contraction_tree[v][0][0]->aug_val);
+  }
   /*RCTree::RCTree(vector<int[3]> tree, int n, int degree_bound); */
   // These are only ones that should really be public.
   RCTree(int _n, QueryType q = PATH, 
@@ -193,9 +200,9 @@ void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t 
 template<typename aug_t>
 bool boundaries_equal(RCCluster<aug_t>* neighbor, RCCluster<aug_t>* cluster){
   return (neighbor->boundary_vertexes[0] == cluster->boundary_vertexes[0] &&
-          neighbor->boundary_vertexes[1] == cluster->boundary_vertexes[1]) ||
-         (neighbor->boundary_vertexes[0] == cluster->boundary_vertexes[1] &&
-          neighbor->boundary_vertexes[1] == cluster->boundary_vertexes[0]);
+  neighbor->boundary_vertexes[1] == cluster->boundary_vertexes[1]) ||
+  (neighbor->boundary_vertexes[0] == cluster->boundary_vertexes[1] &&
+  neighbor->boundary_vertexes[1] == cluster->boundary_vertexes[0]);
 }
 
 template<typename aug_t>
@@ -234,7 +241,7 @@ bool RCTree<aug_t>::edge_exists(vertex_t u, vertex_t v){
         if(!contains_cluster){
           throw std::invalid_argument("Unidirectional edge found, edge_exists method.");
         }
-        
+
         return true;
       }
     } 
@@ -252,7 +259,7 @@ void RCTree<aug_t>::clear_deleted_clusters(vertex_t vertex, int round){
   // present round.
   for(int i = 0; i < degree_bound; i++){
     if(contraction_tree[vertex][round][i] != nullptr && 
-        to_delete.count(contraction_tree[vertex][round][i]) == 1){
+      to_delete.count(contraction_tree[vertex][round][i]) == 1){
       contraction_tree[vertex][round][i] = nullptr;
     }
 
@@ -263,10 +270,6 @@ void RCTree<aug_t>::clear_deleted_clusters(vertex_t vertex, int round){
       }
     }
   }
-}
-template<typename aug_t>
-RCTree<aug_t>** RCTree<aug_t>::get_neighbors(vertex_t v){
-  return contraction_tree[v][0];
 }
 /* ------------------------------- */
 
@@ -550,7 +553,7 @@ void RCTree<aug_t>::update() {
     spread_affection(round);
     MIS(round);
     //is_valid_MIS(round);
-    
+
     for(auto vertex: affected){to_delete.insert(representative_clusters[vertex]);}
 
     //Insert new neighbor list for next round for each affected vertex if it does not already
