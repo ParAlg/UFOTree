@@ -6,88 +6,62 @@
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 #include <fstream>
 
-#define GEN_PLOTS
+
+using namespace skip_list_ett;
+
 int main(int argc, char** argv) {
-    
-    #ifdef GEN_PLOTS
-      std::ofstream nums("../benchmark/nums.txt");
-      std::streambuf *oldbuf = std::cout.rdbuf();
-      std::cout.rdbuf(nums.rdbuf());
-    #endif // DEBUG
-    // Run each test case using each data structure
-    std::string test_case;
+  // List of values of n to loop through and run all test cases
+  vertex_t n_list[] = {1000000};
+  /* Each test case has a name for output, the update generator function, and
+  a bool indicating if ternarization may be necessary for this input */
+  std::tuple<std::string, std::function<std::vector<Update>(vertex_t)>, bool, int> test_cases[] = {
+    {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
+    {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
+    {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
+    {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
+    {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 5},
+    {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 5},
+    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 5}
+  };
 
-    for (vertex_t n : n_list) {
+  for (vertex_t n : n_list) {
+    std::string filename = "../results/update_speeds_" + std::to_string(n) + ".csv";
+    std::ofstream output_csv;
+    output_csv.open(filename);
+    output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,\n";
 
-        test_case = "linked-list";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "RCTree        ";
-        dynamic_tree_benchmark::linked_list_benchmark<RCTree<int>>(n);
-        std::cout << "TopologyTree  ";
-        dynamic_tree_benchmark::linked_list_benchmark<TopologyTree<int>>(n);
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::linked_list_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::linked_list_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;
+    for (auto test_case : test_cases) {
+      std::string test_case_name = std::get<0>(test_case);
+      auto update_generator = std::get<1>(test_case);
+      bool ternarize = std::get<2>(test_case);
+      int num_trials = std::get<3>(test_case);
+      double time;
+      std::cout << "[ RUNNING " << test_case_name << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+      output_csv << test_case_name << ",";
 
-        test_case = "binary-tree";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "RCTree        ";
-        dynamic_tree_benchmark::binary_tree_benchmark<RCTree<int>>(n);
-        std::cout << "TopologyTree  ";
-        dynamic_tree_benchmark::binary_tree_benchmark<TopologyTree<int>>(n);
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::binary_tree_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::binary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;
+      // RC Tree
+      // if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_generator, num_trials);
+      // else time = 0;
+      // std::cout << "RCTree        : " << time << std::endl;
+      // output_csv << time << ",";
+      // Topology Tree
+      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int>>(n, update_generator, num_trials);
+      else time = 0;
+      std::cout << "TopologyTree  : " << time << std::endl;
+      output_csv << time << ",";
+      // UFO Tree
+      time = dynamic_tree_benchmark::get_update_speed<UFOTree<int>>(n, update_generator, num_trials);
+      std::cout << "UFOTree       : " << time << std::endl;
+      output_csv << time << ",";
+      // Euler Tour Tree
+      time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_generator, num_trials);
+      std::cout << "EulerTourTree : " << time << std::endl;
+      output_csv << time << ",";
 
-        test_case = "64ary-tree";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::k_ary_tree_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::k_ary_tree_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;
-
-        test_case = "star";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::star_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::star_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;
-
-        test_case = "random-degree-3";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "RCTree        ";
-        dynamic_tree_benchmark::random_degree3_benchmark<RCTree<int>>(n);
-        std::cout << "TopologyTree  ";
-        dynamic_tree_benchmark::random_degree3_benchmark<TopologyTree<int>>(n);
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::random_degree3_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::random_degree3_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;
-
-        test_case = "random-unbounded";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::random_unbounded_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::random_unbounded_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;
-
-        /*test_case = "preferential-attachment";
-        std::cout << "[ RUNNING " << test_case << " BENCHMARK WITH n=" << n << " ]" << std::endl;
-        std::cout << "UFOTree       ";
-        dynamic_tree_benchmark::preferential_attachment_benchmark<UFOTree<int>>(n);
-        std::cout << "EulerTourTree ";
-        dynamic_tree_benchmark::preferential_attachment_benchmark<skip_list_ett::EulerTourTree>(n);
-        std::cout << std::endl;*/
+      std::cout << std::endl;
+      output_csv << "\n";
     }
-  #ifdef GEN_PLOTS
-    std::cout.rdbuf(oldbuf);
-  #endif
+
+    output_csv.close();
+  }
 }

@@ -226,7 +226,7 @@ TEST(TopologyTreeSuite, random_performance_test) {
 
         auto seed = seeds[trial];
         srand(seed);
-        std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
+        // std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
         int links = 0;
         std::vector<int> vertex_degrees(n,0);
         while (links < n-1) {
