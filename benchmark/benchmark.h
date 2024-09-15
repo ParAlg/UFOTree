@@ -4,7 +4,7 @@
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
 #include <parlay/internal/get_time.h>
-#include "../include/types.h"
+#include "types.h"
 
 
 namespace dynamic_tree_benchmark {

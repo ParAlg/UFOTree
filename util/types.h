@@ -3,9 +3,17 @@
 
 
 typedef uint32_t vertex_t;
+static vertex_t NONE = -1;
+static vertex_t MARK = 0;
+
+struct empty_t {
+};
+static empty_t empty;
+
+typedef uint64_t edge_t;
 
 enum QueryType {
-  NONE,
+  CONNECTIVITY,
   PATH,
   SUBTREE
 };

@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=undefined)
+# add_link_options(-fsanitize=undefined)
+
 FetchContent_Declare(parlaylib
   GIT_REPOSITORY  https://github.com/cmuparlay/parlaylib.git
   GIT_TAG         master
@@ -15,6 +20,17 @@ FetchContent_GetProperties(parlaylib)
 if(NOT parlaylib_POPULATED)
   FetchContent_Populate(parlaylib)  
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
+endif()
+
+FetchContent_Declare(CPAM
+  GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
+  GIT_TAG         cmake
+)
+FetchContent_GetProperties(CPAM)
+if(NOT CPAM_POPULATED)
+  FetchContent_Populate(CPAM)  
+  message(${cpam_SOURCE_DIR})
+  add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
 FetchContent_Declare(googletest
@@ -36,7 +52,15 @@ add_executable(dynamic_tree_tests
   test/ternarization_tests.cpp
 )
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
-target_include_directories(dynamic_tree_tests PRIVATE include)
+target_include_directories(dynamic_tree_tests PRIVATE include util)
+
+add_executable(parallel_dynamic_tree_tests
+  test/parallel_test_runner.cpp
+  test/parallel_topology_tree_tests.cpp
+  test/parallel_ufo_tree_tests.cpp
+)
+target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay CPAM aspen GTest::gtest_main)
+target_include_directories(parallel_dynamic_tree_tests PRIVATE include util include/forest_structures)
 
 add_executable(benchmark_update_speed
   benchmark/benchmark_update_speed.cpp
@@ -44,7 +68,7 @@ add_executable(benchmark_update_speed
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_update_speed PRIVATE parlay absl::flat_hash_map)
-target_include_directories(benchmark_update_speed PRIVATE include baselines)
+target_include_directories(benchmark_update_speed PRIVATE include util baselines)
 
 add_executable(benchmark_query_speed
   benchmark/benchmark_query_speed.cpp
@@ -52,7 +76,7 @@ add_executable(benchmark_query_speed
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_query_speed PRIVATE parlay absl::flat_hash_map)
-target_include_directories(benchmark_query_speed PRIVATE include baselines)
+target_include_directories(benchmark_query_speed PRIVATE include util baselines)
 
 add_executable(benchmark_peak_space
   benchmark/benchmark_peak_space.cpp
@@ -60,4 +84,4 @@ add_executable(benchmark_peak_space
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_peak_space PRIVATE parlay absl::flat_hash_map)
-target_include_directories(benchmark_peak_space PRIVATE include baselines)
+target_include_directories(benchmark_peak_space PRIVATE include util baselines)
