@@ -1,8 +1,9 @@
 #include "benchmark.h"
-#include "../include/util.h"
-#include "../include/ufo_tree.h"
-#include "../include/topology_tree.h"
-#include "../include/rc_tree.h"
+#include "util.h"
+#include "ternarized_tree.h"
+#include "ufo_tree.h"
+#include "topology_tree.h"
+#include "rc_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 #include <fstream>
 
@@ -48,17 +49,17 @@ int main(int argc, char** argv) {
         update_sequences.push_back(updates);
       }
       double time;
-      std::cout << "[ RUNNING " << test_case_name << " BENCHMARK WITH n=" << n << " ]" << std::endl;
+      std::cout << "[ RUNNING " << test_case_name << " UPDATE SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
       // RC Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
-      else time = 0;
+      else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
       std::cout << "RCTree        : " << time << std::endl;
       output_csv << time << ",";
       // Topology Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int>>(n, update_sequences);
-      else time = 0;
+      else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<int>, int>>(n, update_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
       // UFO Tree

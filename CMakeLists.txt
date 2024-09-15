@@ -44,7 +44,7 @@ add_executable(benchmark_update_speed
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
-target_include_directories(benchmark_update_speed PRIVATE baselines)
+target_include_directories(benchmark_update_speed PRIVATE include baselines)
 target_link_libraries(benchmark_update_speed PRIVATE parlay)
 target_link_libraries(benchmark_update_speed PRIVATE absl::flat_hash_map)
 
@@ -53,6 +53,6 @@ add_executable(benchmark_peak_space
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
-target_include_directories(benchmark_peak_space PRIVATE baselines)
+target_include_directories(benchmark_peak_space PRIVATE include baselines)
 target_link_libraries(benchmark_peak_space PRIVATE parlay)
 target_link_libraries(benchmark_peak_space PRIVATE absl::flat_hash_map)
