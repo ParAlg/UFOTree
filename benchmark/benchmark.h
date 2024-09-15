@@ -10,11 +10,10 @@ namespace dynamic_tree_benchmark {
 
 // Returns the average time in seconds to perform all of the updates
 template <typename DynamicTree>
-double get_update_speed(vertex_t n, std::function<std::vector<Update>(vertex_t)> update_generator, int num_trials=1) {
+double get_update_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences) {
     parlay::internal::timer my_timer("");
-    for (int trial = 0; trial < num_trials; trial++) {
+    for (auto updates : update_sequences) {
         DynamicTree tree(n);
-        std::vector<Update> updates = update_generator(n);
         my_timer.start();
         for (Update update : updates) {
             if (update.type == INSERT) {
@@ -28,7 +27,7 @@ double get_update_speed(vertex_t n, std::function<std::vector<Update>(vertex_t)>
         }
         my_timer.stop();
     }
-    return my_timer.total_time()/num_trials;
+    return my_timer.total_time()/update_sequences.size();
 }
 
 // TODO: query speed

@@ -35,26 +35,31 @@ int main(int argc, char** argv) {
       auto update_generator = std::get<1>(test_case);
       bool ternarize = std::get<2>(test_case);
       int num_trials = std::get<3>(test_case);
+      std::vector<std::vector<Update>> update_sequences;
+      for (int i = 0; i < num_trials; i++) {
+        std::vector<Update> updates = update_generator(n);
+        update_sequences.push_back(updates);
+      }
       double time;
       std::cout << "[ RUNNING " << test_case_name << " BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
       // RC Tree
-      // if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_generator, num_trials);
-      // else time = 0;
-      // std::cout << "RCTree        : " << time << std::endl;
-      // output_csv << time << ",";
+      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
+      else time = 0;
+      std::cout << "RCTree        : " << time << std::endl;
+      output_csv << time << ",";
       // Topology Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int>>(n, update_generator, num_trials);
+      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int>>(n, update_sequences);
       else time = 0;
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
       // UFO Tree
-      time = dynamic_tree_benchmark::get_update_speed<UFOTree<int>>(n, update_generator, num_trials);
+      time = dynamic_tree_benchmark::get_update_speed<UFOTree<int>>(n, update_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
       output_csv << time << ",";
       // Euler Tour Tree
-      time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_generator, num_trials);
+      time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_sequences);
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
 
