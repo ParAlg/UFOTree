@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
   };
 
   for (vertex_t n : n_list) {
-    std::string filename = "../results/update_speeds_" + std::to_string(n) + ".csv";
+    std::string filename = "../results/peak_space_" + std::to_string(n) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
     output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,\n";
@@ -45,21 +45,21 @@ int main(int argc, char** argv) {
       output_csv << test_case_name << ",";
 
       // RC Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
+      if (!ternarize) time = dynamic_tree_benchmark::get_peak_space<RCTree<int>>(n, update_sequences);
       else time = 0;
       std::cout << "RCTree        : " << time << std::endl;
       output_csv << time << ",";
       // Topology Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int>>(n, update_sequences);
+      if (!ternarize) time = dynamic_tree_benchmark::get_peak_space<TopologyTree<int>>(n, update_sequences);
       else time = 0;
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
       // UFO Tree
-      time = dynamic_tree_benchmark::get_update_speed<UFOTree<int>>(n, update_sequences);
+      time = dynamic_tree_benchmark::get_peak_space<UFOTree<int>>(n, update_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
       output_csv << time << ",";
       // Euler Tour Tree
-      time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_sequences);
+      time = dynamic_tree_benchmark::get_peak_space<EulerTourTree>(n, update_sequences);
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
 

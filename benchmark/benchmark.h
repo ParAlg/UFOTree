@@ -38,25 +38,27 @@ double get_query_speed(vertex_t n, std::vector<Update> updates) {
 
 // Returns space in bytes usage just before the first deletion
 template <typename DynamicTree>
-size_t get_peak_space(vertex_t n, std::vector<Update> updates) {
-    DynamicTree tree(n);
-    size_t space;
-    bool first_delete = true;
-    for (Update update : updates) {
-        if (update.type == INSERT) {
-            tree->link(update.edge.src, update.edge.dst);
-        } else if (update.type == DELETE) {
-            if (first_delete) {
-                space = tree->space();
-                first_delete = false;
+size_t get_peak_space(vertex_t n, std::vector<std::vector<Update>> update_sequences) {
+    size_t total_space = 0;
+    for (auto updates : update_sequences) {
+        DynamicTree tree(n);
+        bool first_delete = true;
+        for (Update update : updates) {
+            if (update.type == INSERT) {
+                tree.link(update.edge.src, update.edge.dst);
+            } else if (update.type == DELETE) {
+                if (first_delete) {
+                    total_space += tree.space();
+                    first_delete = false;
+                }
+                tree.cut(update.edge.src, update.edge.dst);
+            } else {
+                std::cerr << "Invalid update type: " << update.type << std::endl;
+                std::abort();
             }
-            tree->cut(update.edge.src, update.edge.dst);
-        } else {
-            std::cerr << "Invalid update type: " << update.type << std::endl;
-            std::abort();
         }
     }
-    return space;
+    return total_space/update_sequences.size();
 }
 
 /* ==============================================================================
