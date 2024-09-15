@@ -33,7 +33,7 @@ double get_update_speed(vertex_t n, std::vector<std::vector<Update>> update_sequ
 
 // TODO: query speed
 template <typename DynamicTree>
-double get_query_speed(vertex_t n, std::vector<Update> updates) {
+double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences) {
     return 0;
 }
 

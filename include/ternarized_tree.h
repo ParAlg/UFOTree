@@ -35,6 +35,7 @@ public:
   int get_length_of_chain(vertex_t v);
   bool vertex_on_chain(vertex_t start, vertex_t to_find);
   bool test_vertex_deleted(vertex_t u, vertex_t v);
+  size_t space();
   // Underlying dynamic tree data structure
   DynamicTree tree;
   // Ternarization book-keeping
@@ -55,6 +56,13 @@ TernarizedTree<DynamicTree, aug_t>::TernarizedTree(vertex_t n, QueryType q,
   for(int i = n; i < (2*n); i++) free_ids.push(i);
 }
 
+template<typename DynamicTree, typename aug_t>
+size_t TernarizedTree<DynamicTree, aug_t>::space() {
+  size_t space = tree.space();
+  space += sizeof(vertex_t) + sizeof(aug_t);
+  // TODO: add space for extra bookkeeping
+  return space;
+}
 
 /*** HELPER METHODS ***/
 

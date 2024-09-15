@@ -48,6 +48,15 @@ target_include_directories(benchmark_update_speed PRIVATE include baselines)
 target_link_libraries(benchmark_update_speed PRIVATE parlay)
 target_link_libraries(benchmark_update_speed PRIVATE absl::flat_hash_map)
 
+add_executable(benchmark_query_speed
+  benchmark/benchmark_query_speed.cpp
+  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+)
+target_include_directories(benchmark_query_speed PRIVATE include baselines)
+target_link_libraries(benchmark_query_speed PRIVATE parlay)
+target_link_libraries(benchmark_query_speed PRIVATE absl::flat_hash_map)
+
 add_executable(benchmark_peak_space
   benchmark/benchmark_peak_space.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
