@@ -11,7 +11,14 @@ using namespace skip_list_ett;
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
-  vertex_t n_list[] = {1000};
+  std::vector<vertex_t> n_list = {1000};
+  if (argc < 2) {
+    std::cout << "Using default hard-coded list for values of n." << std::endl;
+  } else {
+    std::cout << "Using command line arguments for values of n." << std::endl;
+    n_list.clear();
+    for (int i = 1; i < argc; ++i) n_list.push_back(std::atoi(argv[i]));
+  }
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t)>, bool, int> test_cases[] = {
