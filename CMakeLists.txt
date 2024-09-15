@@ -35,33 +35,29 @@ add_executable(dynamic_tree_tests
   test/ufo_tree_tests.cpp
   test/ternarization_tests.cpp
 )
-target_link_libraries(dynamic_tree_tests PRIVATE ${JEMALLOC_LIB})
-target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
-target_link_libraries(dynamic_tree_tests PRIVATE absl::flat_hash_map)
+target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
+target_include_directories(dynamic_tree_tests PRIVATE include)
 
 add_executable(benchmark_update_speed
   benchmark/benchmark_update_speed.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
+target_link_libraries(benchmark_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_update_speed PRIVATE include baselines)
-target_link_libraries(benchmark_update_speed PRIVATE parlay)
-target_link_libraries(benchmark_update_speed PRIVATE absl::flat_hash_map)
 
 add_executable(benchmark_query_speed
   benchmark/benchmark_query_speed.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
+target_link_libraries(benchmark_query_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_query_speed PRIVATE include baselines)
-target_link_libraries(benchmark_query_speed PRIVATE parlay)
-target_link_libraries(benchmark_query_speed PRIVATE absl::flat_hash_map)
 
 add_executable(benchmark_peak_space
   benchmark/benchmark_peak_space.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
+target_link_libraries(benchmark_peak_space PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_peak_space PRIVATE include baselines)
-target_link_libraries(benchmark_peak_space PRIVATE parlay)
-target_link_libraries(benchmark_peak_space PRIVATE absl::flat_hash_map)
