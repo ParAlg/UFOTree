@@ -11,7 +11,7 @@ using namespace skip_list_ett;
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
-  vertex_t n_list[] = {1000000};
+  vertex_t n_list[] = {1000};
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t)>, bool, int> test_cases[] = {
