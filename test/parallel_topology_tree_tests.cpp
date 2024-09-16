@@ -121,17 +121,16 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_link(batch);
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
@@ -162,18 +161,17 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_binarytree_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_link(batch);
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
+        tree.batch_link(batch);
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
 
@@ -207,18 +205,17 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_random_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_link(batch);
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             }
         }
-        tree.batch_link(batch, len);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after all links.";
+        tree.batch_link(batch);
+        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
 
@@ -245,30 +242,29 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_linkedlist_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_link(batch);
+                batch.clear();
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
+        batch.clear();
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_cut(batch);
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
@@ -299,30 +295,29 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_binarytree_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_link(batch);
+                batch.clear();
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
+        batch.clear();
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_cut(batch);
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
@@ -357,30 +352,29 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_random_correctness_test) {
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         for (auto edge : edges) updates.push_back({INSERT,edge});
 
-        Edge batch[k];
-        vertex_t len = 0;
+        parlay::sequence<Edge> batch;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_link(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_link(batch);
+                batch.clear();
             }
         }
-        tree.batch_link(batch, len);
+        tree.batch_link(batch);
+        batch.clear();
 
         edges = parlay::random_shuffle(edges, parlay::random(rand()));
         updates.clear();
         for (auto edge : edges) updates.push_back({DELETE,edge});
-        len = 0;
         for (auto update : updates) {
-            batch[len++] = update.edge;
-            if (len == k) {
-                tree.batch_cut(batch, len);
-                len = 0;
+            batch.push_back(update.edge);
+            if (batch.size() == k) {
+                tree.batch_cut(batch);
+                batch.clear();
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch, len);
+        tree.batch_cut(batch);
         ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }

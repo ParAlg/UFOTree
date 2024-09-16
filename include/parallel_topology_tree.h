@@ -1,5 +1,4 @@
 #pragma once
-
 #include <parlay/alloc.h>
 #include <parlay/parallel.h>
 #include <parlay/sequence.h>
@@ -10,7 +9,6 @@
 
 
 using namespace parlay;
-using namespace gbbs;
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -84,8 +82,8 @@ class ParallelTopologyTree {
      },
      aug_t id = 0, aug_t dval = 0);
   ~ParallelTopologyTree();
-  void batch_link(Edge* links, int len);
-  void batch_cut(Edge* cuts, int len);
+  void batch_link(sequence<Edge>& links);
+  void batch_cut(sequence<Edge>& cuts);
   bool connected(vertex_t u, vertex_t v);
   aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
   aug_t path_query(vertex_t u, vertex_t v);
@@ -110,7 +108,7 @@ class ParallelTopologyTree {
                               ParallelTopologyCluster<aug_t>* c2);
 
   // Initializes the tree at the leaves.
-  void initialize_from_leaves(Edge* ops, int len);
+  void initialize_from_leaves(sequence<Edge>& edges);
 };
 
 template <typename aug_t>
@@ -153,14 +151,14 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::initialize_from_leaves(Edge* links, int len) {
+void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<Edge>& edges) {
   START_TIMER(ra_timer);
   // Serial elision.
-  if (len < 5000) {
+  if (edges.size() < 5000) {
     root_clusters.clear();
     del_clusters.clear();
-    for (size_t i=0; i <2*len; ++i) {
-      auto cluster = (i % 2 == 0) ? &leaves[links[i / 2].src] : &leaves[links[i / 2].dst];
+    for (size_t i=0; i <2*edges.size(); ++i) {
+      auto cluster = (i % 2 == 0) ? &leaves[edges[i / 2].src] : &leaves[edges[i / 2].dst];
       for (size_t j=0; j < 3; ++j) {
         auto neighbor = cluster->neighbors[j];
         if (neighbor && neighbor->parent == cluster->parent && !neighbor->del) {
@@ -182,8 +180,8 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(Edge* links, int len) {
       }
     }
   } else {
-    auto all_clusters = parlay::delayed::tabulate(2*len, [&] (size_t i) {
-      auto cluster = (i % 2 == 0) ? &leaves[links[i / 2].src] : &leaves[links[i / 2].dst];
+    auto all_clusters = parlay::delayed::tabulate(2*edges.size(), [&] (size_t i) {
+      auto cluster = (i % 2 == 0) ? &leaves[edges[i / 2].src] : &leaves[edges[i / 2].dst];
       auto ds = parlay::delayed::tabulate(4, [cluster] (size_t j) {
         if (j < 3) {
           auto neighbor = cluster->neighbors[j];
@@ -217,10 +215,10 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(Edge* links, int len) {
 
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::batch_link(Edge* links, int len) {
+void ParallelTopologyTree<aug_t>::batch_link(sequence<Edge>& links) {
   // Generate root clusters.
-  initialize_from_leaves(links, len);
-  parallel_for(0, len, [&](size_t i) {
+  initialize_from_leaves(links);
+  parallel_for(0, links.size(), [&](size_t i) {
     leaves[links[i].src].insert_neighbor(&leaves[links[i].dst], default_value);
     leaves[links[i].dst].insert_neighbor(&leaves[links[i].src], default_value);
   });
@@ -228,9 +226,9 @@ void ParallelTopologyTree<aug_t>::batch_link(Edge* links, int len) {
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::batch_cut(Edge* cuts, int len) {
-  initialize_from_leaves(cuts, len);
-  parallel_for(0, len, [&](size_t i) {
+void ParallelTopologyTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
+  initialize_from_leaves(cuts);
+  parallel_for(0, cuts.size(), [&](size_t i) {
     leaves[cuts[i].src].remove_neighbor(&leaves[cuts[i].dst]);
     leaves[cuts[i].dst].remove_neighbor(&leaves[cuts[i].src]);
   });
@@ -345,7 +343,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
           while (curr && !curr->parent && curr->get_degree() == 2 && next &&
                  next->get_degree() < 3 && !next->contracts()) {
             if (curr->partner ||
-                !CAS(&curr->partner, (ParallelTopologyCluster<aug_t>*)nullptr,
+                !gbbs::CAS(&curr->partner, (ParallelTopologyCluster<aug_t>*)nullptr,
                      next))
               break;
             if (next->get_degree() == 1) {   // If next deg 1 they can combine
@@ -353,7 +351,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
               break;
             }
             if (next->partner ||
-                !CAS(&next->partner, (ParallelTopologyCluster<aug_t>*)nullptr,
+                !gbbs::CAS(&next->partner, (ParallelTopologyCluster<aug_t>*)nullptr,
                      curr)) {   // If the CAS fails next was combined from the
                                 // other side
               if (next->partner != curr)
@@ -383,7 +381,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
             if (neighbor->contracts())
               continue;
             if (neighbor->partner ||
-                !CAS(&neighbor->partner,
+                !gbbs::CAS(&neighbor->partner,
                      (ParallelTopologyCluster<aug_t>*)nullptr, cluster))
               continue;
             cluster->partner = neighbor;
@@ -564,7 +562,7 @@ void ParallelTopologyCluster<aug_t>::insert_neighbor(
   if (this->contains_neighbor(c))
     return;
   for (int i = 0; i < 3; ++i) {
-    if (CAS(&this->neighbors[i], (ParallelTopologyCluster<aug_t>*)nullptr, c)) {
+    if (gbbs::CAS(&this->neighbors[i], (ParallelTopologyCluster<aug_t>*)nullptr, c)) {
       this->edge_values[i] = value;
       return;
     } else if (this->neighbors[i] == c)
@@ -633,7 +631,7 @@ bool ParallelTopologyCluster<aug_t>::try_del() {
 template <typename aug_t>
 bool ParallelTopologyCluster<aug_t>::try_del_atomic() {
   if (!del) {
-    bool ret = CAS(&del, false, true);
+    bool ret = gbbs::CAS(&del, false, true);
     return ret;
   }
   return false;
