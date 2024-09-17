@@ -52,8 +52,9 @@ int main(int argc, char** argv) {
 
       // Euler Tour Tree
       // time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelEulerTourTree>(n, k, update_sequences);
-      // std::cout << "EulerTourTree : " << time << std::endl;
-      // output_csv << time << ",";
+      time = 0;
+      std::cout << "EulerTourTree : " << time << std::endl;
+      output_csv << time << ",";
       // UFO Tree
       time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<int>>(n, k, update_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
