@@ -123,7 +123,7 @@ void ParallelUFOTree<aug_t>::recluster_level() {
     if (level == 0) forests[level].compute_new_degrees(U, update_type);
     R.for_all([&](vertex_t v) {
         vertex_t parent = forests[level].get_parent(v);
-        vertex_t degree = (level == 0) ? forests[0].get_new_degree(v) : forests[level].get_degree(v);
+        vertex_t degree = (update_type == DELETE && level == 0) ? forests[0].get_new_degree(v) : forests[level].get_degree(v);
         if (parent != NONE) {
             bool low_degree = forests[level+1].get_degree(parent) < 3;
             bool low_fanout = forests[level+1].get_child_count(parent) < 3;
@@ -132,6 +132,7 @@ void ParallelUFOTree<aug_t>::recluster_level() {
             }
         }
         // For high degree parentless root clusters add its previous degree 1 neighbors as roots and any of their parents as del
+        degree = (level == 0) ? forests[0].get_new_degree(v) : forests[level].get_degree(v);
         if ((parent == NONE || forests[level].is_marked(v)) && degree >= 3) {
             auto iter = forests[level].get_neighbor_iterator(v);
             for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
