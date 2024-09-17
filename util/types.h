@@ -12,12 +12,6 @@ static empty_t empty;
 
 typedef uint64_t edge_t;
 
-enum QueryType {
-  CONNECTIVITY,
-  PATH,
-  SUBTREE
-};
-
 enum UpdateType {
   INSERT,
   DELETE
@@ -31,4 +25,15 @@ struct Edge {
 struct Update {
   UpdateType type;
   Edge edge;
+};
+
+enum QueryType {
+  CONNECTIVITY,
+  PATH,
+  SUBTREE
+};
+
+struct Query {
+  vertex_t u;
+  vertex_t v;
 };
