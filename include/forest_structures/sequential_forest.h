@@ -146,14 +146,21 @@ public:
         }
     }
 
-    void compute_new_degrees(sequence<Edge>& E) {
+    void compute_new_degrees(sequence<Edge>& E, UpdateType update_type) {
         for (int i = 0; i < E.size(); ++i) {
             vertices[E[i].src]->new_degree = get_degree(E[i].src);
             vertices[E[i].dst]->new_degree = get_degree(E[i].dst);
         }
-        for (int i = 0; i < E.size(); ++i) {
-            vertices[E[i].src]->new_degree--;
-            vertices[E[i].dst]->new_degree--;
+        if (update_type == INSERT) {
+            for (int i = 0; i < E.size(); ++i) {
+                vertices[E[i].src]->new_degree++;
+                vertices[E[i].dst]->new_degree++;
+            }
+        } else {
+            for (int i = 0; i < E.size(); ++i) {
+                vertices[E[i].src]->new_degree--;
+                vertices[E[i].dst]->new_degree--;
+            }
         }
     }
 
