@@ -48,6 +48,7 @@ private:
     void update_tree(sequence<Edge>& updates);
     void recluster_level();
 
+    void spread_roots_and_unset_parents();
     void set_partners();
     void delete_clusters();
     void add_parents();
@@ -118,7 +119,7 @@ void ParallelUFOTree<aug_t>::recluster_level() {
     D.print();
     #endif
     if (R.empty() && D.empty()) return;
-    // Remove the parents of root clusters whose parent will get deleted/unset
+    // Mark clusters whose parent will get deleted or unset
     if (level == 0) forests[level].compute_new_degrees(U, update_type);
     R.for_all([&](vertex_t v) {
         vertex_t parent = forests[level].get_parent(v);
@@ -159,14 +160,44 @@ void ParallelUFOTree<aug_t>::recluster_level() {
         std::swap(R, next_R);
     }
     // Delete the edges from our initial updates that are still in level i+1
-    if (update_type = DELETE) {
+    if (update_type == DELETE) {
         auto next_U = U;
         if (level == 0) next_U = forests[0].map_edges_to_parents(U);
         if (forests.size() > level+1) forests[level+1].delete_edges(next_U);
     }
 
+    /* Determine the new root clusters from deleting clusters, additionally unset the parents
+    of all previously marked clusters or other children of deleted clusters */
+    spread_roots_and_unset_parents();
+
+    // Insert or delete the level 0 edges in the initial batch
+    if (level == 0) {
+        (update_type == INSERT) ? forests[0].insert_edges(U) : forests[0].delete_edges(U);
+        U = forests[0].map_edges_to_parents(U);
+    }
+
+    // Determine the new combinations of the root clusters at this level
+    set_partners();
+
+    // Determine which clusters in D need to be deleted and do so
+    if (update_type == DELETE && forests.size() > level+1) // map the edges to the next level before the clusters
+        U = forests[level+1].map_edges_to_parents(U);
+    delete_clusters();
+
+    // Add the new parents and edges to the next level for the set of combinations determined
+    add_parents();
+    add_adjacency();
+
+    // Check if the update is complete or recursively recluster the next level
+    prepare_next_level();
+    level++;
+    recluster_level();
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::spread_roots_and_unset_parents() {
     // Collect the new level i root clusters that will be formed by deleting some level i+1 clusters
-    // Also mark root clusters whose parents should be deleted/unset
+    // Also unset their parents and unset the parents of marked clusters
     R.for_all([&](vertex_t v) {
         vertex_t parent = forests[level].get_parent(v);
         if (parent != NONE) {
@@ -178,13 +209,13 @@ void ParallelUFOTree<aug_t>::recluster_level() {
                     if (forests[level].get_parent(neighbor) == parent) {
                         if (forests[level].try_set_status_atomic(neighbor, ROOT)) {
                             R.insert(neighbor);
-                            forests[level].mark(neighbor);
+                            forests[level].unset_parent(neighbor);
                             auto iter = forests[level].get_neighbor_iterator(neighbor);
                             for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
                                 if (forests[level].get_parent(grand_neighbor) == parent) {
                                     if (forests[level].try_set_status_atomic(grand_neighbor, ROOT)) {
                                         R.insert(grand_neighbor);
-                                        forests[level].mark(grand_neighbor);
+                                        forests[level].unset_parent(grand_neighbor);
                                     }
                                 }
                             }
@@ -193,42 +224,11 @@ void ParallelUFOTree<aug_t>::recluster_level() {
                 }
             }
         }
-    });
-
-    // Delete the level 0 edges in the initial batch
-    if (level == 0) {
-        if (update_type = DELETE) {
-            forests[0].delete_edges(U);
-        } else {
-            forests[0].insert_edges(U);
-        }
-        U = forests[0].map_edges_to_parents(U);
-    }
-
-    // Unset the parents of all marked clusters
-    R.for_all([&](vertex_t v) {
         if (forests[level].is_marked(v)) {
             forests[level].unset_parent(v);
             forests[level].unmark(v);
         }
     });
-
-    // Determine the new combinations of the root clusters at this level
-    set_partners();
-
-    if (forests.size() > level+1) U = forests[level+1].map_edges_to_parents(U);
-
-    // Determine which clusters in D need to be deleted and do so
-    delete_clusters();
-
-    // Add the new parents and edges to the next level for the set of combinations determined
-    add_parents();
-    add_adjacency();
-
-    // Check if the update is complete or recursively recluster the next level
-    prepare_next_level();
-    level++;
-    recluster_level();
 }
 
 template <typename aug_t>
