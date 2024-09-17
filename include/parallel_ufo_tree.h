@@ -45,15 +45,6 @@ private:
     UpdateType update_type;
     int level;
     // Main batch update functions
-<<<<<<< Updated upstream
-    void update_tree(sequence<Edge>& updates, UpdateType update_type);
-    void recluster_level(int level, UpdateType update_type);
-
-    void set_partners(int level, UpdateType update_type);
-    void add_parents(int level);
-    void add_adjacency(int level);
-    void prepare_next_level(int level);
-=======
     void update_tree(sequence<Edge>& updates);
     void recluster_level();
 
@@ -62,7 +53,6 @@ private:
     void add_parents();
     void add_adjacency();
     void prepare_next_level();
->>>>>>> Stashed changes
 };
 
 template <typename aug_t>
@@ -228,69 +218,17 @@ void ParallelUFOTree<aug_t>::recluster_level() {
 
     if (forests.size() > level+1) U = forests[level+1].map_edges_to_parents(U);
 
-<<<<<<< Updated upstream
-    // Get the next set of del clusters and do the deletion of clusters
-    sequence<vertex_t> del = filter(D.extract_all(), [&] (auto v) {
-        vertex_t parent = forests[level+1].get_parent(v);
-        if (parent != NONE) {
-            if (forests[level+2].try_set_status_atomic(parent, DEL)) { // Parents added to next_D
-                next_D.insert(parent);
-            }
-        }
-        bool low_degree = forests[level+1].get_degree(v) < 3;
-        bool low_fanout = forests[level+1].get_child_count(v) < 3;
-        if (forests[level+1].get_child_count(v) == 0 || low_degree && low_fanout) return true;
-        // Current del clusters that were not deleted added to next_R
-        forests[level+1].set_status(v, ROOT);
-        next_R.insert(v);
-        return false;
-    });
-    sequence<vertex_t> del_parents = parlay::map(del, [&] (auto v) { return forests[level+1].get_parent(v); });
-    if (forests.size() > level+2) forests[level+2].subtract_children(del_parents);
-    D.for_all([&](vertex_t v) { // Non-deleted neighbors of parents that will be deleted added to next_R
-        vertex_t parent = forests[level+1].get_parent(v);
-        if (parent != NONE) {
-            bool p_low_degree = forests[level+2].get_degree(parent) < 3;
-            bool p_low_fanout = forests[level+2].get_child_count(parent) < 3;
-            if (p_low_degree && p_low_fanout) {
-                auto iter = forests[level+1].get_neighbor_iterator(v);
-                for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
-                    if (forests[level+1].get_parent(neighbor) == parent) {
-                        if (forests[level+1].try_set_status_atomic(neighbor, ROOT)) {
-                            next_R.insert(neighbor);
-                            auto iter = forests[level+1].get_neighbor_iterator(neighbor);
-                            for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
-                                if (forests[level+1].get_parent(grand_neighbor) == parent) {
-                                    if (forests[level+1].try_set_status_atomic(grand_neighbor, ROOT)) {
-                                        next_R.insert(grand_neighbor);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-    if (forests.size() > level+1) forests[level+1].delete_vertices(del);
-=======
     // Determine which clusters in D need to be deleted and do so
     delete_clusters();
->>>>>>> Stashed changes
 
     // Add the new parents and edges to the next level for the set of combinations determined
     add_parents();
     add_adjacency();
 
     // Check if the update is complete or recursively recluster the next level
-<<<<<<< Updated upstream
-    prepare_next_level(level);
-    recluster_level(level+1, update_type);
-=======
     prepare_next_level();
     level++;
     recluster_level();
->>>>>>> Stashed changes
 }
 
 template <typename aug_t>
@@ -477,11 +415,7 @@ void ParallelUFOTree<aug_t>::add_adjacency() {
 }
 
 template <typename aug_t>
-<<<<<<< Updated upstream
-void ParallelUFOTree<aug_t>::prepare_next_level(int level) {
-=======
 void ParallelUFOTree<aug_t>::prepare_next_level() {
->>>>>>> Stashed changes
     // Prepare the inputs to the next level
     R.for_all([&](vertex_t v) {
         vertex_t parent = forests[level].get_parent(v);
