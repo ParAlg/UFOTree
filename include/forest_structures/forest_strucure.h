@@ -46,7 +46,7 @@ public:
     virtual void subtract_children(sequence<vertex_t>& V) = 0;
 
     // Compute and store the degrees of of vertices if this set of edges was deleted
-    virtual void compute_new_degrees(sequence<Edge>& E) = 0;
+    virtual void compute_new_degrees(sequence<Edge>& E, UpdateType update_type) = 0;
 
     // Non batch read-only helper functions
     virtual vertex_t get_degree(vertex_t v) = 0;
