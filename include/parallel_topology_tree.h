@@ -19,10 +19,10 @@ std::map<int, int> root_clusters_histogram;
 int max_height = 0;
 #endif
 
-long parallel_topology_remove_ancestor_time = 0;
-long parallel_topology_remove_ancestor_time_2 = 0;
-long parallel_topology_recluster_tree_time = 0;
-long test_time = 0;
+static long parallel_topology_remove_ancestor_time = 0;
+static long parallel_topology_remove_ancestor_time_2 = 0;
+static long parallel_topology_recluster_tree_time = 0;
+static long test_time = 0;
 
 template <typename aug_t>
 struct ParallelTopologyCluster {

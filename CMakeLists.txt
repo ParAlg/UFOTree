@@ -88,8 +88,10 @@ target_include_directories(benchmark_peak_space PRIVATE include util baselines)
 
 add_executable(parallel_benchmark
   benchmark/parallel_benchmark_runner.cpp
+  test/parallel_topology_tree_tests.cpp
+  test/parallel_ufo_tree_tests.cpp
   # baselines/dynamic_trees/parallel_euler_tour_tree/src/euler_tour_tree.cpp
   # baselines/sequence/parallel_skip_list/src/augmented_skip_list.cpp
 )
-target_link_libraries(parallel_benchmark PRIVATE parlay CPAM aspen)
+target_link_libraries(parallel_benchmark PRIVATE parlay CPAM aspen GTest::gtest_main)
 target_include_directories(parallel_benchmark PRIVATE include include/forest_structures util baselines)
