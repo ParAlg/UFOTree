@@ -45,9 +45,11 @@ private:
     // Main batch update functions
     void update_tree(sequence<Edge>& updates, UpdateType update_type);
     void recluster_level(int level, UpdateType update_type);
+
     void set_partners(int level, UpdateType update_type);
     void add_parents(int level);
     void add_adjacency(int level);
+    void prepare_next_level(int level);
 };
 
 template <typename aug_t>
@@ -109,8 +111,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, UpdateType update_type) 
     std::cout << "D ";
     D.print();
     #endif
-    bool next_R_empty = true;
-    bool next_D_empty = true;
+    if (R.empty() && D.empty()) return;
     // Remove the parents of root clusters whose parent will get deleted/unset
     if (level == 0) forests[level].compute_new_degrees(U, update_type);
     R.for_all([&](vertex_t v) {
@@ -141,6 +142,7 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, UpdateType update_type) 
         return std::nullopt;
     });
     if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
+
     // At level 0 remove root clusters whose parent is not unset
     if (level == 0) {
         R.for_all([&](vertex_t v) {
@@ -216,7 +218,6 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, UpdateType update_type) 
         if (parent != NONE) {
             if (forests[level+2].try_set_status_atomic(parent, DEL)) { // Parents added to next_D
                 next_D.insert(parent);
-                next_D_empty = false;
             }
         }
         bool low_degree = forests[level+1].get_degree(v) < 3;
@@ -225,7 +226,6 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, UpdateType update_type) 
         // Current del clusters that were not deleted added to next_R
         forests[level+1].set_status(v, ROOT);
         next_R.insert(v);
-        next_R_empty = false;
         return false;
     });
     sequence<vertex_t> del_parents = parlay::map(del, [&] (auto v) { return forests[level+1].get_parent(v); });
@@ -241,13 +241,11 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, UpdateType update_type) 
                     if (forests[level+1].get_parent(neighbor) == parent) {
                         if (forests[level+1].try_set_status_atomic(neighbor, ROOT)) {
                             next_R.insert(neighbor);
-                            next_R_empty = false;
                             auto iter = forests[level+1].get_neighbor_iterator(neighbor);
                             for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
                                 if (forests[level+1].get_parent(grand_neighbor) == parent) {
                                     if (forests[level+1].try_set_status_atomic(grand_neighbor, ROOT)) {
                                         next_R.insert(grand_neighbor);
-                                        next_R_empty = false;
                                     }
                                 }
                             }
@@ -263,37 +261,8 @@ void ParallelUFOTree<aug_t>::recluster_level(int level, UpdateType update_type) 
     add_parents(level);
     add_adjacency(level);
 
-    // Prepare the inputs to the next level
-    R.for_all([&](vertex_t v) {
-        vertex_t parent = forests[level].get_parent(v);
-        if (parent != NONE) {
-            if (forests[level+1].try_set_status_atomic(parent, ROOT)) {
-                next_R.insert(parent);
-                next_R_empty = false;
-            }
-            vertex_t p_parent = forests[level+1].get_parent(parent);
-            if (p_parent != NONE) {
-                if (forests[level+2].try_set_status_atomic(p_parent, DEL)) {
-                    next_D.insert(p_parent);
-                    next_D_empty = false;
-                }
-            }
-        }
-    });
-    // Cleanup
-    R.for_all([&](vertex_t v) {
-        vertex_t partner = forests[level].get_partner(v);
-        auto iter = forests[level].get_neighbor_iterator(v);
-        for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) forests[level].unset_partner(neighbor);
-        forests[level].unset_partner(v);
-        forests[level].unset_status(v);
-    });
-    R.clear();
-    D.clear();
     // Check if the update is complete or recursively recluster the next level
-    if (next_R_empty && next_D_empty) return;
-    std::swap(R, next_R);
-    std::swap(D, next_D);
+    prepare_next_level(level);
     recluster_level(level+1, update_type);
 }
 
@@ -430,6 +399,35 @@ void ParallelUFOTree<aug_t>::add_adjacency(int level) {
         return std::nullopt;
     });
     if (forests.size() > level+1) forests[level+1].insert_edges(edges);
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::prepare_next_level(int level) {
+    // Prepare the inputs to the next level
+    R.for_all([&](vertex_t v) {
+        vertex_t parent = forests[level].get_parent(v);
+        if (parent != NONE) {
+            if (forests[level+1].try_set_status_atomic(parent, ROOT)) {
+                next_R.insert(parent);
+            }
+            vertex_t p_parent = forests[level+1].get_parent(parent);
+            if (p_parent != NONE) {
+                if (forests[level+2].try_set_status_atomic(p_parent, DEL)) {
+                    next_D.insert(p_parent);
+                }
+            }
+        }
+        // Cleanup
+        vertex_t partner = forests[level].get_partner(v);
+        auto iter = forests[level].get_neighbor_iterator(v);
+        for (vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) forests[level].unset_partner(neighbor);
+        forests[level].unset_partner(v);
+        forests[level].unset_status(v);
+    });
+    R.clear();
+    D.clear();
+    std::swap(R, next_R);
+    std::swap(D, next_D);
 }
 
 template <typename aug_t>

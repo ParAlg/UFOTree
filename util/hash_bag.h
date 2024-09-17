@@ -20,10 +20,11 @@ class hashbag {
 public:
   size_t n;
   double load_factor;
+  bool is_empty = true;
   int pointer;
   int num_hash_bag;
   size_t pool_size;
-  ET empty;
+  ET empty_key;
   sequence<size_t> bag_size;
   sequence<uint32_t> counter;
   sequence<ET> pool;
@@ -43,8 +44,8 @@ public:
     parallel_for(
         0, len,
         [&](size_t i) {
-          if (pool[i] != empty) {
-            pool[i] = empty;
+          if (pool[i] != empty_key) {
+            pool[i] = empty_key;
           }
         },
         hb::BLOCK_SIZE);
@@ -52,22 +53,24 @@ public:
       counter[i] = 0;
     }
     pointer = 1;
+    is_empty = true;
   }
+  bool empty() { return is_empty; }
   void for_all (std::function<void(ET)> f, int b = hb::BLOCK_SIZE) {
     size_t len = bag_size[pointer];
     parallel_for(0, len, [&](size_t i) {
-        if (pool[i] != empty) f(pool[i]);
+        if (pool[i] != empty_key) f(pool[i]);
     }, b);
   }
   sequence<ET> extract_all () {
     return filter(pool, [&](ET element) {
-        return element != empty;
+        return element != empty_key;
     });
   }
   hashbag() = delete;
   hashbag(size_t _n, size_t _min_bag_size = MIN_BAG_SIZE,
-          double _load_factor = 0.5, ET _empty = numeric_limits<ET>::max())
-      : n(_n), load_factor(_load_factor), empty(_empty) {
+          double _load_factor = 0.5, ET _empty_key = numeric_limits<ET>::max())
+      : n(_n), load_factor(_load_factor), empty_key(_empty_key) {
     pointer = 1;
     size_t cur_size = _min_bag_size;
     pool_size = 0;
@@ -79,7 +82,7 @@ public:
     }
     num_hash_bag = bag_size.size();
     counter = sequence<uint32_t>(num_hash_bag, 0);
-    pool = sequence<ET>(pool_size, empty);
+    pool = sequence<ET>(pool_size, empty_key);
   }
   size_t get_bag_capacity() { return pool_size; }
   size_t insert(ET u) {
@@ -105,7 +108,7 @@ public:
       // assert(local_pointer + 1 != num_hash_bag || ret < EXP_SAMPLES);
     }
     for (size_t i = 0;; i++) {
-      if (hb::compare_and_swap(&pool[idx], empty, u)) {
+      if (hb::compare_and_swap(&pool[idx], empty_key, u)) {
         break;
       }
       idx = (idx == bag_size[local_pointer] - 1 ? bag_size[local_pointer - 1]
@@ -123,6 +126,7 @@ public:
         set_values(u, local_pointer, len, idx, rate);
       }
     }
+    is_empty = false;
     return idx;
   }
 
@@ -183,7 +187,7 @@ public:
       size_t len = bag_size[i] - bag_size[i - 1];
       size_t idx = (val & (len - 1)) + bag_size[i - 1];
       size_t num_probes = 0;
-      while (pool[idx] != empty) {
+      while (pool[idx] != empty_key) {
         if (pool[idx] == u) {
           return true;
         } else {
@@ -201,7 +205,7 @@ public:
   size_t pack(Out_Seq out) {
     size_t len = bag_size[pointer];
     auto pred =
-        delayed_seq<bool>(len, [&](size_t i) { return pool[i] != empty; });
+        delayed_seq<bool>(len, [&](size_t i) { return pool[i] != empty_key; });
     size_t ret =
         pack_into_uninitialized(pool.cut(0, len), pred, make_slice(out));
     clear();
@@ -228,7 +232,7 @@ public:
       size_t len = bag_size[i] - bag_size[i - 1];
       size_t occupied = 0;
       for (size_t j = bag_size[i - 1]; j < bag_size[i]; j++) {
-        if (pool[j] != empty) {
+        if (pool[j] != empty_key) {
           occupied++;
         }
       }
