@@ -31,6 +31,7 @@ private:
         vertex_t child_count = 0;
         vertex_t parent = NONE;
         vertex_t partner = NONE;
+        bool marked = false;
         uint32_t priority;
         ClusterStatus status = NORMAL;
         void insert_neighbor(vertex_t neighbor) { neighbors.insert(neighbor); }
@@ -265,14 +266,14 @@ public:
     }
 
     void mark(vertex_t v) {
-        set_partner(v, MARK);
+        vertices[v]->marked = true;
     }
 
     void unmark(vertex_t v) {
-        unset_partner(v);
+        vertices[v]->marked = false;
     }
 
     bool is_marked(vertex_t v) {
-        return vertices[v]->partner == MARK;
+        return vertices[v]->marked;
     }
 };

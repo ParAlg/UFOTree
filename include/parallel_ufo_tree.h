@@ -8,7 +8,7 @@
 #include "sequential_forest.h"
 
 
-// #define PRINT_DEBUG_INFO
+#define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -152,7 +152,7 @@ void ParallelUFOTree<aug_t>::recluster_level() {
     if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
 
     // At level 0 remove root clusters whose parent is not unset
-    if (level == 0) {
+    if (level == 0) { // QUINTEN: WHY ONLY LEVEL 0?
         R.for_all([&](vertex_t v) {
             if (forests[level].get_parent(v) == NONE || forests[level].is_marked(v)) next_R.insert(v);
             else forests[level].unset_status(v);
@@ -211,12 +211,14 @@ void ParallelUFOTree<aug_t>::spread_roots_and_unset_parents() {
                         if (forests[level].try_set_status_atomic(neighbor, ROOT)) {
                             R.insert(neighbor);
                             forests[level].unset_parent(neighbor);
+                            forests[level].mark(neighbor);
                             auto iter = forests[level].get_neighbor_iterator(neighbor);
                             for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
                                 if (forests[level].get_parent(grand_neighbor) == parent) {
                                     if (forests[level].try_set_status_atomic(grand_neighbor, ROOT)) {
                                         R.insert(grand_neighbor);
                                         forests[level].unset_parent(grand_neighbor);
+                                        forests[level].mark(grand_neighbor);
                                     }
                                 }
                             }
@@ -224,10 +226,11 @@ void ParallelUFOTree<aug_t>::spread_roots_and_unset_parents() {
                     }
                 }
             }
+        } else {
+            forests[level].mark(v);
         }
         if (forests[level].is_marked(v)) {
             forests[level].unset_parent(v);
-            forests[level].unmark(v);
         }
     });
 }
@@ -388,8 +391,12 @@ void ParallelUFOTree<aug_t>::add_parents() {
         }
     });
     // Add the parents
-    sequence<vertex_t> P = parlay::map(R.extract_all(), [&](vertex_t v) {
-        return forests[level].get_parent(v);
+    sequence<vertex_t> P = parlay::map_maybe(R.extract_all(), [&](vertex_t v) -> std::optional<vertex_t> {
+        if (forests[level].is_marked(v)) {
+            forests[level].unmark(v);
+            return forests[level].get_parent(v);
+        }
+        return std::nullopt;
     });
     if (forests.size() <= level+1) forests.emplace_back();
     forests[level+1].insert_vertices(P);

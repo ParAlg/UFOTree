@@ -4,7 +4,6 @@
 
 typedef uint32_t vertex_t;
 static vertex_t NONE = -1;
-static vertex_t MARK = 0;
 
 struct empty_t {
 };
