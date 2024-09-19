@@ -164,7 +164,7 @@ void ParallelUFOTree<aug_t>::recluster_level() {
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::mark_remove_parents() {
     // Mark clusters whose parent will get deleted or unset
-    if (level == 0) forests[level].compute_new_degrees(U, update_type);
+    if (level == 0) forests[0].compute_new_degrees(U, update_type);
     R.for_all([&](vertex_t v) {
         vertex_t parent = forests[level].get_parent(v);
         vertex_t degree = (update_type == DELETE && level == 0) ? forests[0].get_new_degree(v) : forests[level].get_degree(v);
@@ -236,6 +236,16 @@ void ParallelUFOTree<aug_t>::spread_roots_and_unset_parents() {
             }
         } else {
             forests[level].mark(v);
+            auto iter = forests[level].get_neighbor_iterator(v);
+            for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
+                vertex_t parent = forests[level].get_parent(neighbor);
+                if (parent != NONE && forests[level+1].get_status(parent) == DEL && forests[level].get_degree(neighbor) == 1
+                && forests[level].try_set_status_atomic(neighbor, ROOT)) {
+                    R.insert(neighbor);
+                    forests[level].unset_parent(neighbor);
+                    forests[level].mark(neighbor);
+                }
+            }
         }
         if (forests[level].is_marked(v)) {
             forests[level].unset_parent(v);
