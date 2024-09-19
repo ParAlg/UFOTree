@@ -151,15 +151,6 @@ void ParallelUFOTree<aug_t>::recluster_level() {
     });
     if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
 
-    // At level 0 remove root clusters whose parent is not unset
-    // if (level == 0) {
-    //     R.for_all([&](vertex_t v) {
-    //         if (forests[level].get_parent(v) == NONE || forests[level].is_marked(v)) next_R.insert(v);
-    //         else forests[level].unset_status(v);
-    //     });
-    //     R.clear();
-    //     std::swap(R, next_R);
-    // }
     // Delete the edges from our initial updates that are still in level i+1
     if (update_type == DELETE) {
         auto next_U = U;
@@ -208,19 +199,19 @@ void ParallelUFOTree<aug_t>::spread_roots_and_unset_parents() {
                 forests[level].mark(v);
                 auto iter = forests[level].get_neighbor_iterator(v);
                 for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
-                    if (forests[level].get_parent(neighbor) == parent) {
+                    if (forests[level].get_parent(neighbor) == parent || forests[level].get_parent(neighbor) == NONE) {
                         if (forests[level].try_set_status_atomic(neighbor, ROOT)) {
                             R.insert(neighbor);
                             forests[level].unset_parent(neighbor);
                             forests[level].mark(neighbor);
-                            auto iter = forests[level].get_neighbor_iterator(neighbor);
-                            for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
-                                if (forests[level].get_parent(grand_neighbor) == parent) {
-                                    if (forests[level].try_set_status_atomic(grand_neighbor, ROOT)) {
-                                        R.insert(grand_neighbor);
-                                        forests[level].unset_parent(grand_neighbor);
-                                        forests[level].mark(grand_neighbor);
-                                    }
+                        }
+                        auto iter = forests[level].get_neighbor_iterator(neighbor);
+                        for(vertex_t grand_neighbor = iter->next(); grand_neighbor != NONE; grand_neighbor = iter->next()) {
+                            if (forests[level].get_parent(grand_neighbor) == parent) {
+                                if (forests[level].try_set_status_atomic(grand_neighbor, ROOT)) {
+                                    R.insert(grand_neighbor);
+                                    forests[level].unset_parent(grand_neighbor);
+                                    forests[level].mark(grand_neighbor);
                                 }
                             }
                         }
