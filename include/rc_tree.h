@@ -4,6 +4,7 @@
 #include <iostream>
 #include <parlay/sequence.h>
 #include <stdexcept>
+#include <sys/param.h>
 #include <unordered_set>
 #include<vector>
 #include "types.h"
@@ -430,7 +431,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
   //Get boundary vertex
   auto neighbors = contraction_tree[vertex][round];
   vertex_t neighbor; //To be initialized later, helpful for doing contractions.
-  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(0); //New augmented cluster to be used for replacement. - Monoid struct in parlay include.
+  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(id); //New augmented cluster to be used for replacement. 
 
   // Go through all neighboring clusters and aggregate values onto self.
   for(int i = 0; i < degree_bound; i++){
@@ -471,7 +472,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
 template<typename aug_t>
 void RCTree<aug_t>::compress(vertex_t vertex, int round){
   auto neighbors = contraction_tree[vertex][round];
-  RCCluster<aug_t>* new_cluster = new RCCluster<aug_t>(0); //New augmented cluster to be used for replacement. 
+  RCCluster<aug_t>* new_cluster = new RCCluster<aug_t>(id); //New augmented cluster to be used for replacement. 
 
   // Exactly the same as rake, but instead of a unary cluster being added to the list of 1 boundary vertex, it is a now 
   // a new binary cluster being added to the adjacency lists of both of its boundary_vertexes.
@@ -515,7 +516,7 @@ void RCTree<aug_t>::finalize(vertex_t vertex, int round){
   // vertex which serves as the root of a particular RCTree in the forest.
 
   auto neighbors = contraction_tree[vertex][round];
-  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(0, MAX_VERTEX_T);  
+  RCCluster<aug_t> *new_cluster = new RCCluster<aug_t>(id, MAX_VERTEX_T);  
   for(int i = 0; i < degree_bound; i++){
     if(neighbors[i] == nullptr) continue;
     new_cluster->aug_val = f(new_cluster->aug_val, neighbors[i]->aug_val); // Needs to be a associative binary op passed in by the user.
@@ -648,5 +649,200 @@ void RCTree<aug_t>::update() {
 
 template<typename aug_t>
 aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
+  assert(u != v);
+  vertex_t curr = round_contracted[u] < round_contracted[v] ? v : u;
+  vertex_t curr2 = curr == u? v : u;
+  std::vector<vertex_t> parents1;
+  std::vector<vertex_t> parents2;
+  // Find LCA
+  while(curr != MAX_VERTEX_T){
+    parents1.push_back(curr);
+    curr = representative_clusters[curr]->parent;
+  }
+  while(curr2 != MAX_VERTEX_T){ 
+    parents2.push_back(curr2);
+    curr2 = representative_clusters[curr2]->parent;
+  } 
+  int i = parents1.size() - 1, j = parents2.size() - 1;
+  /*for(int i = 0; i < parents1.size(); i++){
+    std::cout << parents1[i] << " ";
+  }
+  std::cout << "\n";
+  for(int i = 0; i < parents2.size(); i++){
+    std::cout << parents2[i] << " ";
+  }
+  std::cout << "\n";*/
+  while(j > 0 && i > 0 && parents1[i-1] == parents2[j-1]){
+    i-=1;
+    j-=1;
+  } 
+  vertex_t lca;
+  if(i == 0){lca = parents1[i];} else {lca = parents2[j];}
   
+  aug_t path_u1,path_u2, path_v1, path_v2; 
+  path_u1 = path_u2 = path_v1 = path_v2 = id;
+  // Compute initial cluster paths - base case of induction.
+  for(int i = 0; i < DEGREE_BOUND;i++){
+    auto cluster = contraction_tree[u][round_contracted[u]][i];
+    if(cluster && cluster->boundary_vertexes.size() == 2){
+      if(path_u1 == id){
+        path_u1 = cluster->aug_val; 
+      } else{
+        path_u2 = cluster->aug_val;
+      }
+    }
+  }
+
+  for(int i = 0; i < DEGREE_BOUND;i++){
+    auto cluster = contraction_tree[v][round_contracted[v]][i];
+    if(cluster && cluster->boundary_vertexes.size() == 2){
+      if(path_v1 == id){
+        path_v1 = cluster->aug_val; 
+      } else{
+        path_v2 = cluster->aug_val;
+      }
+    }
+  }
+
+  vertex_t boundary_u_1, boundary_u_2, boundary_v_1, boundary_v_2; 
+  if(get_degree(u, round_contracted[u]) >= 1){
+    boundary_u_1 = representative_clusters[u]->boundary_vertexes[0];
+    if(get_degree(u, round_contracted[u]) == 2) boundary_u_2 = representative_clusters[u]->boundary_vertexes[1];
+  }
+  if(get_degree(v, round_contracted[v]) >= 1){
+    boundary_v_1 = representative_clusters[v]->boundary_vertexes[0];
+    if(get_degree(v, round_contracted[v]) == 2) boundary_v_2 = representative_clusters[v]->boundary_vertexes[1];
+  } 
+  curr = u; curr2 = v;
+  
+  //std::cout << lca << "\n";
+  // Compute Path query.
+  while((representative_clusters[curr]->parent != lca && curr != lca) || (representative_clusters[curr2]->parent != lca && curr2 != lca)){
+    //std::cout << curr << " " << curr2 << "\n";
+    if(representative_clusters[curr]->parent != lca && curr != lca){
+      auto parent = representative_clusters[curr]->parent;
+      int degree_u = get_degree(curr, round_contracted[curr]), degree_parent = get_degree(parent, round_contracted[parent]);
+       
+      // Binary to Binary
+      if(degree_u == 2 && degree_parent == 2){
+        aug_t incorrect_boundary = boundary_u_1 != parent ? boundary_u_1 : boundary_u_2;
+        for(int i = 0; i < DEGREE_BOUND; i++) {
+          auto cluster = contraction_tree[parent][round_contracted[parent]][i];
+          if(cluster && cluster->boundary_vertexes.size() == 2){
+            vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
+            if(neighbor != incorrect_boundary){
+              if(incorrect_boundary != boundary_u_1){
+                path_u1 = f(path_u1, cluster->aug_val);
+                boundary_u_1 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+              } else{
+                path_u2 = f(path_u2, cluster->aug_val);
+                boundary_u_2 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+              }
+            }
+          }
+        } 
+        //Binary to Unary
+      } else if(degree_u == 2 && degree_parent == 1){
+        if(boundary_u_1 == parent){ 
+          path_u1 = path_u2;
+          boundary_u_1 = boundary_u_2;
+        }
+        path_u2 = id; boundary_u_2 = -1;
+      } 
+      // Unary to Binary
+      else if(degree_u == 1 && degree_parent == 2){
+        boundary_u_1 = representative_clusters[parent]->boundary_vertexes[0];
+        boundary_u_2 = representative_clusters[parent]->boundary_vertexes[1];
+
+        for(int i = 0; i < DEGREE_BOUND; i++){
+          auto cluster = contraction_tree[parent][round_contracted[parent]][i];
+          if(cluster && cluster->boundary_vertexes.size() == 2){
+            vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
+            if(neighbor == boundary_u_1){
+              path_u1 = f(path_u1, cluster->aug_val);
+            } else {
+              path_u2 = f(path_u2, cluster->aug_val);
+            }
+          }
+        }
+      } // Unary to Unary
+      else {
+        for(int i = 0; i < DEGREE_BOUND; i++){
+          auto cluster = contraction_tree[parent][round_contracted[parent]][i];
+          if(cluster && cluster->boundary_vertexes.size() == 2){
+            path_u1 = f(path_u1, cluster->aug_val);
+            boundary_u_1 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+          }
+        } 
+      }
+      curr = parent;
+    }
+
+    if(representative_clusters[curr2]->parent != lca && curr2 != lca){ 
+      auto parent = representative_clusters[curr2]->parent;
+      int degree_v = get_degree(curr2, round_contracted[curr2]), degree_parent = get_degree(parent, round_contracted[parent]);
+
+      // Binary to Binary
+      if(degree_v == 2 && degree_parent == 2){
+        aug_t incorrect_boundary = boundary_v_1 != parent ? boundary_v_1 : boundary_v_2;
+        for(int i = 0; i < DEGREE_BOUND; i++) {
+          auto cluster = contraction_tree[parent][round_contracted[parent]][i];
+          if(cluster && cluster->boundary_vertexes.size() == 2){
+            vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
+            if(neighbor != incorrect_boundary){
+              if(incorrect_boundary != boundary_v_1){
+                path_v1 = f(path_v1, cluster->aug_val);
+                boundary_v_1 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+              } else{
+                path_v2 = f(path_v2, cluster->aug_val);
+                boundary_v_2 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+              }
+            }
+          }
+        } 
+        //Binary to Unary
+      } else if(degree_v == 2 && degree_parent == 1){ 
+        if(boundary_v_1 == parent){ 
+          path_v1 = path_v2;
+          boundary_v_1 = boundary_v_2;
+        }
+        path_v2 = id; boundary_v_2 = -1;
+
+      } 
+      // Unary to Binary
+      else if(degree_v == 1 && degree_parent == 2){
+        boundary_v_1 = representative_clusters[parent]->boundary_vertexes[0];
+        boundary_v_2 = representative_clusters[parent]->boundary_vertexes[1];
+
+        for(int i = 0; i < DEGREE_BOUND; i++){
+          auto cluster = contraction_tree[parent][round_contracted[parent]][i];
+          if(cluster && cluster->boundary_vertexes.size() == 2){
+            vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
+            if(neighbor == boundary_v_1){
+              path_v1 = f(path_v1, cluster->aug_val);
+            } else {
+              path_v2 = f(path_v2, cluster->aug_val);
+            }
+          }
+        }
+      } // Unary to Unary
+      else {
+        for(int i = 0; i < DEGREE_BOUND; i++){
+          auto cluster = contraction_tree[parent][round_contracted[parent]][i];
+          if(cluster && cluster->boundary_vertexes.size() == 2){
+            path_v1 = f(path_v1, cluster->aug_val);
+            boundary_v_1 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
+          }
+        } 
+      }
+      curr2 = parent;
+    }
+    if(representative_clusters[curr]->parent != lca || representative_clusters[curr2]->parent != lca){
+      continue;
+    }
+  }
+  aug_t final_path = id;
+  if(boundary_u_1 == lca){final_path = f(final_path, path_u1);} else if(boundary_u_2 == lca){final_path = f(final_path, path_u2);}
+  if(boundary_v_1 == lca){final_path = f(final_path, path_v1);} else if(boundary_v_2 == lca){final_path = f(final_path, path_v2);}
+  return final_path;
 };

@@ -1,10 +1,11 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include <limits>
 #include <stdexcept>
 #include <unordered_set>
 #include "../include/rc_tree.h"
 void create_tree1();
-void print_tree(RCTree<int> *tree, int round);
+void print_tree(RCTree<int> *tree);
 //RCTree<int> *treeptr = nullptr;
 
 void create_tree1() {
@@ -48,23 +49,31 @@ void create_tree1() {
   //print_tree(tree, 0);  
 }
 
-void print_tree(RCTree<int> *tree, int round){
-  std::cout << "Round: " << round << "\n";
-  for(int i = 0; i < tree->n; i++){
-    if(tree->contraction_tree[i].size() >= round + 1 && tree->contraction_tree[i][round] != nullptr){
-      std::cout << "Vertex: " << i << " :[";
-      for(int j = 0; j < tree->degree_bound; j++){
-        if(tree->contraction_tree[i][round][j] != nullptr){
-          //std::cout << "HERE!";
-          auto cluster = tree->contraction_tree[i][round][j];
-          std::cout << "[";
-          for(int k = 0; k < cluster->boundary_vertexes.size(); k++){
-            std::cout << cluster->boundary_vertexes[k] << ", "; 
+void print_tree(RCTree<int> *tree){
+  int max_round = 0;
+  for(int round : tree->round_contracted){
+    max_round = std::max(max_round, round);
+  }
+
+  for(int round = 0; round <= max_round; round++){
+    std::cout << "Round: " << round << "\n";
+    for(int i = 0; i < tree->n; i++){
+      if(tree->contraction_tree[i].size() >= round + 1 && tree->contraction_tree[i][round] != nullptr){
+        std::cout << "Vertex: " << i << " :[";
+        for(int j = 0; j < tree->degree_bound; j++){
+          if(tree->contraction_tree[i][round][j] != nullptr){
+            //std::cout << "HERE!";
+            auto cluster = tree->contraction_tree[i][round][j];
+            std::cout << "[";
+            for(int k = 0; k < cluster->boundary_vertexes.size(); k++){
+              std::cout << cluster->boundary_vertexes[k];
+              if(k < cluster->boundary_vertexes.size() - 1){std::cout << ", ";}
+            }
+            std::cout << "]";
           }
-          std::cout << "]";
         }
+        std::cout << "] \n";
       }
-      std::cout << "] \n";
     }
   } 
 }
@@ -117,7 +126,7 @@ void RCTree<aug_t>::is_valid_induced_tree(int round){
             throw std::invalid_argument("Same cluster has been added twice");
           }
         }
-        
+
         if(round > 0){
           bool in_prev_round = false;
           for(int i = 0; i < degree_bound; i++){
@@ -174,7 +183,7 @@ void RCTree<aug_t>::is_valid_MIS(int round){
         // If 2 adjacent neighbors have been added then also throw an exception.
         // as the set is not independent.
         if(maximal_set.count(vertex) == 1 && 
-            maximal_set.count(neighbor) != 0){
+          maximal_set.count(neighbor) != 0){
           throw std::invalid_argument("2 adjacent vertices have been added to the MIS");
         }
       }
@@ -196,7 +205,7 @@ void print_cluster(RCCluster<aug_t>* cluster){
   std::cout << "Parent:" << cluster->parent << "\n";
   std::cout << "Aug_val : " << cluster->aug_val << "\n";
   std::cout << "boundary_vertexes: ";
-  
+
   for(int i = 0; i < cluster->boundary_vertexes.size(); i++){
     std::cout << cluster->boundary_vertexes[i] << " ";
   } 
@@ -363,10 +372,7 @@ TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
       try{
         tree.link(i , i + 1, i + 1);
       } catch(std::invalid_argument){
-        auto height = tree.round_contracted[tree.roots[0]];
-        for(int j = 0; j < height; j++){
-          print_tree(&tree, j);
-        }
+        print_tree(&tree);
         FAIL();
       }
     }
@@ -470,7 +476,7 @@ TEST(RCTreeSuite, randomIncrementalTests){
           links++;
         } catch(std::invalid_argument){
           std::cout << "Tree invalid after linking " << u << " and " << v << ".\n";
-          print_tree(&tree, 0);
+          print_tree(&tree);
           break;
         }
       }
@@ -507,9 +513,89 @@ TEST(RCTreeSuite, decremental_random_correctness_test) {
         ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
       } catch(std::invalid_argument){
         std::cout << "Tree invalid after cutting " << u << " and " << v << ".\n";
-        print_tree(&tree, 0);
+        print_tree(&tree);
         break;
       }
+    }
+  }
+}
+
+
+// Test Path queries
+
+TEST(RCTreeQuerySuite, BasicLinkedListQuery){
+  std::vector<int> test_vals = {10, 100, 1000, 10000};
+  srand(time(NULL));
+  int seed = rand(); 
+  srand(seed);
+  int num_trials = 10;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      RCTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
+      //vertex_t u = 4, v = 7;
+      if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+    std::cout << "u = " << u << "v = " << v << "\n";*/
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < n-1; i++){
+        int new_edge = rand() % 100;
+        tree.link(i, i+1, new_edge);
+        if(i >= u && i < v) min_edge_val = std::min(min_edge_val, new_edge);
+      }
+
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        print_tree(&tree);
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
+
+TEST(RCTreeQuerySuite, BinaryTreeQueryTest){
+  std::vector<int> test_vals = {31, 1023, 8191};
+  srand(time(NULL));
+  int seed = rand(); 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      RCTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      std::vector<int> path;
+      path.push_back(0);
+      
+      vertex_t upper = 2, lower = (n - 3)/2; //if(v == u){v++;}
+      //vertex_t u = 4, v = 7;
+      //if(v < u) std::swap(u,v);
+
+      /*std::cout << "Seed: " << seed << "\n";
+      std::cout << "u = " << u << "v = " << v << "\n";*/
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < (n/2); i++){ 
+        auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
+        tree.link(i, (2*i) + 1, new_edge);
+        tree.link(i, (2*i) + 2, new_edge2);
+        if(i == path.back()){
+          if(i >= upper && i < lower){
+            min_edge_val = std::min(min_edge_val, new_edge2);
+          }
+          path.push_back(2*i + 2);
+        }
+      }
+
+      // Test return of min_edge_value.
+      auto u = upper, v = lower;
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        print_tree(&tree);
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
     }
   }
 }
