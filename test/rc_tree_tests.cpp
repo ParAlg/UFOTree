@@ -570,13 +570,12 @@ TEST(RCTreeQuerySuite, BinaryTreeQueryTest){
         path.push_back(i);
       }
       
-      vertex_t upper = rand() % (path.size() - 1), lower = (rand() % (upper+1)) + upper; 
-      if(lower >= path.size()) lower = path.size() - 1;
-      if(lower == upper) lower++;
-      auto u = path[upper], v = path[lower];
-      //vertex_t u = 4, v = 7;
-      //if(v < u) std::swap(u,v);
+      vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
+      if(lower < upper) std::swap(lower, upper);
 
+      auto u = path[upper], v = path[lower];
+      //ASSERT_TRUE(u < v);
+      //vertex_t u = 4, v = 7;
       /*std::cout << "Seed: " << seed << "\n";
       std::cout << "u = " << u << "v = " << v << "\n";*/
       int j = 0;
