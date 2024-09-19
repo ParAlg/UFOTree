@@ -216,7 +216,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
-        vertex_t fanout = 64; // K-ary tree
+        vertex_t fanout = 32; // K-ary tree
         vertex_t k = 16; // batch size
         QueryType qt = PATH;
         auto f = [](int x, int y)->int {return x + y;};
@@ -443,7 +443,7 @@ TEST(ParallelUFOTreeSuite, batch_decremental_karytree_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
-        vertex_t fanout = 64; // K-ary tree
+        vertex_t fanout = 32; // K-ary tree
         vertex_t k = 16; // batch size
         QueryType qt = PATH;
         auto f = [](int x, int y)->int {return x + y;};

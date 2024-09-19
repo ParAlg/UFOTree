@@ -8,7 +8,7 @@
 #include "sequential_forest.h"
 
 
-#define PRINT_DEBUG_INFO
+// #define PRINT_DEBUG_INFO
 
 using namespace parlay;
 
@@ -205,6 +205,7 @@ void ParallelUFOTree<aug_t>::spread_roots_and_unset_parents() {
             bool low_degree = forests[level+1].get_degree(parent) < 3;
             bool low_fanout = forests[level+1].get_child_count(parent) < 3;
             if (low_degree && low_fanout) {
+                forests[level].mark(v);
                 auto iter = forests[level].get_neighbor_iterator(v);
                 for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next()) {
                     if (forests[level].get_parent(neighbor) == parent) {
