@@ -135,14 +135,12 @@ public:
 
     void add_children(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
-            if (V[i] == NONE) continue;
             vertices[V[i]]->child_count += 1;
         }
     }
 
     void subtract_children(sequence<vertex_t>& V) {
         for (int i = 0; i < V.size(); ++i) {
-            if (V[i] == NONE) continue;
             vertices[V[i]]->child_count -= 1;
         }
     }

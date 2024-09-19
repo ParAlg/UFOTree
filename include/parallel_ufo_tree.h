@@ -193,8 +193,10 @@ void ParallelUFOTree<aug_t>::mark_remove_parents() {
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::update_child_counts() {
+    // Extract all marked clusters and map to their parent if any
     sequence<vertex_t> disconnect_from_parent = parlay::map_maybe(R.extract_all(), [&](auto v)->std::optional<vertex_t> {
-        if (forests[level].is_marked(v)) return forests[level].get_parent(v);
+        vertex_t parent = forests[level].get_parent(v);
+        if (forests[level].is_marked(v) && parent != NONE) return parent;
         return std::nullopt;
     });
     if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
@@ -322,7 +324,11 @@ void ParallelUFOTree<aug_t>::delete_clusters() {
         next_R.insert(v);
         return false;
     });
-    sequence<vertex_t> del_parents = parlay::map(del, [&] (auto v) { return forests[level+1].get_parent(v); });
+    sequence<vertex_t> del_parents = parlay::map_maybe(del, [&] (auto v) -> std::optional<vertex_t> {
+        vertex_t parent = forests[level+1].get_parent(v);
+        if (parent != NONE) return parent;
+        return std::nullopt;
+    });
     if (forests.size() > level+2) forests[level+2].subtract_children(del_parents);
     D.for_all([&](vertex_t v) { // Non-deleted neighbors of parents that will be deleted added to next_R
         vertex_t parent = forests[level+1].get_parent(v);
@@ -402,7 +408,8 @@ void ParallelUFOTree<aug_t>::add_parents() {
     sequence<vertex_t> P = parlay::map_maybe(R.extract_all(), [&](vertex_t v) -> std::optional<vertex_t> {
         if (forests[level].is_marked(v)) {
             forests[level].unmark(v);
-            return forests[level].get_parent(v);
+            vertex_t parent = forests[level].get_parent(v);
+            if (parent != NONE) return forests[level].get_parent(v);
         }
         return std::nullopt;
     });
