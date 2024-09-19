@@ -48,6 +48,8 @@ private:
     void update_tree(sequence<Edge>& updates);
     void recluster_level();
 
+    void mark_remove_parents();
+    void update_child_counts();
     void spread_roots_and_unset_parents();
     void set_partners();
     void delete_clusters();
@@ -111,6 +113,7 @@ void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates) {
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::recluster_level() {
+    if (R.empty() && D.empty()) return;
     #ifdef PRINT_DEBUG_INFO
     std::cout << "RECLUSTER LEVEL " << level << std::endl;
     std::cout << "R ";
@@ -118,7 +121,48 @@ void ParallelUFOTree<aug_t>::recluster_level() {
     std::cout << "D ";
     D.print();
     #endif
-    if (R.empty() && D.empty()) return;
+
+    // Mark clusters whose parent will get deleted or unset, update the child counts of their parents
+    mark_remove_parents();
+    update_child_counts();
+
+    // Delete the edges from our initial updates that are still in level i+1
+    if (update_type == DELETE) {
+        auto next_U = U;
+        if (level == 0) next_U = forests[0].map_edges_to_parents(U);
+        if (forests.size() > level+1) forests[level+1].delete_edges(next_U);
+    }
+
+    /* Determine the new root clusters from deleting clusters, additionally unset the parents
+    of all previously marked clusters or other children of deleted clusters */
+    spread_roots_and_unset_parents();
+
+    // Insert or delete the level 0 edges in the initial batch
+    if (level == 0) {
+        (update_type == INSERT) ? forests[0].insert_edges(U) : forests[0].delete_edges(U);
+        U = forests[0].map_edges_to_parents(U);
+    }
+    if (update_type == DELETE && forests.size() > level+1) // map the edges to the next level
+        U = forests[level+1].map_edges_to_parents(U);
+
+    // Determine the new combinations of the root clusters at this level
+    set_partners();
+
+    // Determine which clusters in D need to be deleted and do so
+    delete_clusters();
+
+    // Add the new parents and edges to the next level for the set of combinations determined
+    add_parents();
+    add_adjacency();
+
+    // Check if the update is complete or recursively recluster the next level
+    prepare_next_level();
+    level++;
+    recluster_level();
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::mark_remove_parents() {
     // Mark clusters whose parent will get deleted or unset
     if (level == 0) forests[level].compute_new_degrees(U, update_type);
     R.for_all([&](vertex_t v) {
@@ -145,45 +189,15 @@ void ParallelUFOTree<aug_t>::recluster_level() {
             }
         }
     });
+}
+
+template <typename aug_t>
+void ParallelUFOTree<aug_t>::update_child_counts() {
     sequence<vertex_t> disconnect_from_parent = parlay::map_maybe(R.extract_all(), [&](auto v)->std::optional<vertex_t> {
         if (forests[level].is_marked(v)) return forests[level].get_parent(v);
         return std::nullopt;
     });
     if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
-
-    // Delete the edges from our initial updates that are still in level i+1
-    if (update_type == DELETE) {
-        auto next_U = U;
-        if (level == 0) next_U = forests[0].map_edges_to_parents(U);
-        if (forests.size() > level+1) forests[level+1].delete_edges(next_U);
-    }
-
-    /* Determine the new root clusters from deleting clusters, additionally unset the parents
-    of all previously marked clusters or other children of deleted clusters */
-    spread_roots_and_unset_parents();
-
-    // Insert or delete the level 0 edges in the initial batch
-    if (level == 0) {
-        (update_type == INSERT) ? forests[0].insert_edges(U) : forests[0].delete_edges(U);
-        U = forests[0].map_edges_to_parents(U);
-    }
-
-    // Determine the new combinations of the root clusters at this level
-    set_partners();
-
-    // Determine which clusters in D need to be deleted and do so
-    if (update_type == DELETE && forests.size() > level+1) // map the edges to the next level before the clusters
-        U = forests[level+1].map_edges_to_parents(U);
-    delete_clusters();
-
-    // Add the new parents and edges to the next level for the set of combinations determined
-    add_parents();
-    add_adjacency();
-
-    // Check if the update is complete or recursively recluster the next level
-    prepare_next_level();
-    level++;
-    recluster_level();
 }
 
 template <typename aug_t>
