@@ -152,14 +152,14 @@ void ParallelUFOTree<aug_t>::recluster_level() {
     if (forests.size() > level+1) forests[level+1].subtract_children(disconnect_from_parent);
 
     // At level 0 remove root clusters whose parent is not unset
-    if (level == 0) {
-        R.for_all([&](vertex_t v) {
-            if (forests[level].get_parent(v) == NONE || forests[level].is_marked(v)) next_R.insert(v);
-            else forests[level].unset_status(v);
-        });
-        R.clear();
-        std::swap(R, next_R);
-    }
+    // if (level == 0) {
+    //     R.for_all([&](vertex_t v) {
+    //         if (forests[level].get_parent(v) == NONE || forests[level].is_marked(v)) next_R.insert(v);
+    //         else forests[level].unset_status(v);
+    //     });
+    //     R.clear();
+    //     std::swap(R, next_R);
+    // }
     // Delete the edges from our initial updates that are still in level i+1
     if (update_type == DELETE) {
         auto next_U = U;
