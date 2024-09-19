@@ -292,3 +292,80 @@ TEST(TopologyTreeSuite, path_query_test) {
             ASSERT_EQ(tree.path_query(u,v), v-u);
     }
 }
+
+TEST(TopologyTreeQuerySuite, BasicLinkedListQuery){
+  std::vector<int> test_vals = {10, 100, 1000, 10000};
+  srand(time(NULL));
+  int seed = rand(); 
+  srand(seed);
+  int num_trials = 10;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
+      //vertex_t u = 4, v = 7;
+      if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+    std::cout << "u = " << u << "v = " << v << "\n";*/
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < n-1; i++){
+        int new_edge = rand() % 100;
+        tree.link(i, i+1, new_edge);
+        if(i >= u && i < v) min_edge_val = std::min(min_edge_val, new_edge);
+      }
+
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        tree.print_tree();
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
+
+TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
+  std::vector<int> test_vals = {31, 1023, 8191};
+  srand(time(NULL));
+  int seed = rand(); 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      std::vector<int> path;
+      path.push_back(0);
+      
+      vertex_t upper = 2, lower = (n - 3)/2; //if(v == u){v++;}
+      //vertex_t u = 4, v = 7;
+      //if(v < u) std::swap(u,v);
+
+      /*std::cout << "Seed: " << seed << "\n";
+      std::cout << "u = " << u << "v = " << v << "\n";*/
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < (n/2); i++){ 
+        auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
+        tree.link(i, (2*i) + 1, new_edge);
+        tree.link(i, (2*i) + 2, new_edge2);
+        if(i == path.back()){
+          if(i >= upper && i < lower){
+            min_edge_val = std::min(min_edge_val, new_edge2);
+          }
+          path.push_back(2*i + 2);
+        }
+      }
+
+      // Test return of min_edge_value.
+      auto u = upper, v = lower;
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        tree.print_tree();
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}

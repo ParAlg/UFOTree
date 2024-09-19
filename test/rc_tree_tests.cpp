@@ -566,29 +566,34 @@ TEST(RCTreeQuerySuite, BinaryTreeQueryTest){
     for(int trial = 0; trial < num_trials; ++trial){
       RCTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
       std::vector<int> path;
-      path.push_back(0);
+      for(int i = 0; i < n - 1; i = (2*i) + 2){
+        path.push_back(i);
+      }
       
-      vertex_t upper = 2, lower = (n - 3)/2; //if(v == u){v++;}
+      vertex_t upper = rand() % (path.size() - 1), lower = (rand() % (upper+1)) + upper; 
+      if(lower >= path.size()) lower = path.size() - 1;
+      if(lower == upper) lower++;
+      auto u = path[upper], v = path[lower];
       //vertex_t u = 4, v = 7;
       //if(v < u) std::swap(u,v);
 
       /*std::cout << "Seed: " << seed << "\n";
       std::cout << "u = " << u << "v = " << v << "\n";*/
+      int j = 0;
       int min_edge_val = std::numeric_limits<int>::max();
       for(int i = 0; i < (n/2); i++){ 
         auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
         tree.link(i, (2*i) + 1, new_edge);
         tree.link(i, (2*i) + 2, new_edge2);
-        if(i == path.back()){
-          if(i >= upper && i < lower){
+        if(i == path[j]){
+          if(i >= u && i < v){
             min_edge_val = std::min(min_edge_val, new_edge2);
           }
-          path.push_back(2*i + 2);
+          j++;
         }
       }
 
       // Test return of min_edge_value.
-      auto u = upper, v = lower;
       auto returned_query = tree.path_query(u, v);
       if(returned_query != min_edge_val){
         print_tree(&tree);
