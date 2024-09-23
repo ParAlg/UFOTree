@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <limits>
 #include <unordered_set>
 #include "../include/topology_tree.h"
 
@@ -298,12 +299,12 @@ TEST(TopologyTreeQuerySuite, BasicLinkedListQuery){
   srand(time(NULL));
   int seed = rand(); 
   srand(seed);
-  int num_trials = 1;
+  int num_trials = 100;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
-      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
       vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
-      //vertex_t u = 4, v = 7;
+      //vertex_t u = 5, v = 7;
       if(v < u) std::swap(u,v);
       /*std::cout << "Seed: " << seed << "\n";
     std::cout << "u = " << u << "v = " << v << "\n";*/
@@ -327,15 +328,19 @@ TEST(TopologyTreeQuerySuite, BasicLinkedListQuery){
 }
 
 TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
-  std::vector<int> test_vals = {31, 1023, 8191};
+  std::vector<int> test_vals = {7, 31, 1023, 8191};
   srand(time(NULL));
   int seed = rand(); 
   srand(seed);
   int num_trials = 100;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
-      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
       std::vector<int> path; 
+      for(int i = 0; i < n - 1; i = (2*i) + 2){
+        path.push_back(i);
+      }
+
       vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
       if(lower < upper) std::swap(lower, upper);
 
