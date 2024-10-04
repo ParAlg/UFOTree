@@ -17,10 +17,11 @@ int main(int argc, char** argv) {
     n_list.clear();
     for (int i = 1; i < argc; ++i) n_list.push_back(std::atoi(argv[i]));
   }
+  srand(time(NULL));
   vertex_t k = 100;
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
-  std::tuple<std::string, std::function<std::vector<Update>(vertex_t)>, bool, int> test_cases[] = {
+  std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
     {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
     {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
     {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
@@ -43,7 +44,7 @@ int main(int argc, char** argv) {
       int num_trials = std::get<3>(test_case);
       std::vector<std::vector<Update>> update_sequences;
       for (int i = 0; i < num_trials; i++) {
-        std::vector<Update> updates = update_generator(n);
+        std::vector<Update> updates = update_generator(n, rand());
         update_sequences.push_back(updates);
       }
       double time;

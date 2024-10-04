@@ -66,10 +66,10 @@ size_t get_peak_space(vertex_t n, std::vector<std::vector<Update>> update_sequen
 Each benchmark class returns a randomly ordered list of updates for its test case
 ============================================================================== */
 
-std::vector<Update> linked_list_benchmark(vertex_t n) {
+std::vector<Update> linked_list_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
@@ -83,10 +83,10 @@ std::vector<Update> linked_list_benchmark(vertex_t n) {
     return updates;
 }
 
-std::vector<Update> binary_tree_benchmark(vertex_t n) {
+std::vector<Update> binary_tree_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
@@ -102,11 +102,11 @@ std::vector<Update> binary_tree_benchmark(vertex_t n) {
     return updates;
 }
 
-std::vector<Update> k_ary_tree_benchmark(vertex_t n) {
+std::vector<Update> k_ary_tree_benchmark(vertex_t n, long seed) {
     vertex_t k = 64;
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
@@ -120,10 +120,10 @@ std::vector<Update> k_ary_tree_benchmark(vertex_t n) {
     return updates;
 }
 
-std::vector<Update> star_benchmark(vertex_t n) {
+std::vector<Update> star_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
@@ -137,10 +137,10 @@ std::vector<Update> star_benchmark(vertex_t n) {
     return updates;
 }
 
-std::vector<Update> random_degree3_benchmark(vertex_t n) {
+std::vector<Update> random_degree3_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
@@ -161,10 +161,10 @@ std::vector<Update> random_degree3_benchmark(vertex_t n) {
     return updates;
 }
 
-std::vector<Update> random_unbounded_benchmark(vertex_t n) {
+std::vector<Update> random_unbounded_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
@@ -181,24 +181,25 @@ std::vector<Update> random_unbounded_benchmark(vertex_t n) {
     return updates;
 }
 
-std::vector<Update> preferential_attachment_benchmark(vertex_t n) {
+std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
-    srand(time(NULL));
+    srand(seed);
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
-    std::vector<int> vertex_degrees(n,0);
     while (edges.size() < n-1) {
         vertex_t u = edges.size()+1;
         vertex_t v = 0;
         if (edges.size() > 0) {
             auto rand_edge = edges[rand() % edges.size()];
-            vertex_t v = rand()%2 ? rand_edge.src : rand_edge.dst;
+            v = rand()%2 ? rand_edge.src : rand_edge.dst;
         }
-        edges.push_back({ids[u],ids[v]});
-        vertex_degrees[u]++;
-        vertex_degrees[v]++;
+        edges.push_back({u,v});
+    }
+    for (int i = 0; i < edges.size(); i++) {
+        auto edge = edges[i];
+        edges[i] = {ids[edge.src],ids[edge.dst]};
     }
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
