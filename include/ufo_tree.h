@@ -24,10 +24,10 @@ static long ufo_recluster_tree_time = 0;
 template<typename aug_t>
 struct UFOCluster {
     // UFO cluster data
-    UFOCluster<aug_t>* neighbors[UFO_ARRAY_MAX];
-    absl::flat_hash_set<UFOCluster<aug_t>*> neighbors_set;
-    aug_t value; // Stores subtree values or cluster path values
     UFOCluster<aug_t>* parent = nullptr;
+    UFOCluster<aug_t>* neighbors[UFO_ARRAY_MAX];
+    absl::flat_hash_set<UFOCluster<aug_t>*>* neighbors_set = nullptr;
+    aug_t value; // Stores subtree values or cluster path values
     // Constructor
     UFOCluster(aug_t value) : neighbors(), parent(), value(value) {};
     // Helper functions
@@ -40,10 +40,10 @@ struct UFOCluster {
     void remove_neighbor(UFOCluster<aug_t>* c);
     UFOCluster<aug_t>* get_neighbor();
     UFOCluster<aug_t>* get_root();
-
     size_t calculate_size(){
         size_t memory = sizeof(UFOCluster<aug_t>);
-        memory += (neighbors_set.size() * sizeof(void*));
+        if (neighbors_set)
+            memory += (neighbors_set->size() * sizeof(void*));
         return memory;
     }
 };
@@ -374,7 +374,8 @@ void UFOTree<aug_t>::recluster_tree() {
                         neighbor->parent->insert_neighbor(parent);
                     }
                 }
-                for(auto neighbor : c1 -> neighbors_set){
+                if(c1->neighbors_set)
+                for(auto neighbor : *c1->neighbors_set){
                     if (neighbor && neighbor != c2 && parent != neighbor->parent) {
                         parent->insert_neighbor(neighbor->parent);
                         neighbor->parent->insert_neighbor(parent);
@@ -387,7 +388,8 @@ void UFOTree<aug_t>::recluster_tree() {
                         neighbor->parent->insert_neighbor(parent);
                     }
                 }
-                for(auto neighbor : c2->neighbors_set){
+                if(c2->neighbors_set)
+                for(auto neighbor : *c2->neighbors_set){
                     if (neighbor && neighbor != c1 && parent != neighbor->parent) {
                         parent->insert_neighbor(neighbor->parent);
                         neighbor->parent->insert_neighbor(parent);
@@ -448,7 +450,8 @@ void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
             }
-            for(auto neighbor : center->neighbors_set){
+            if(center->neighbors_set)
+            for(auto neighbor : *center->neighbors_set){
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
@@ -465,7 +468,8 @@ void UFOTree<aug_t>::disconnect_siblings(UFOCluster<aug_t>* c, int level) {
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
         }
-        for(auto neighbor : c->neighbors_set){
+        if(c->neighbors_set)
+        for(auto neighbor : *c->neighbors_set){
             if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
@@ -478,7 +482,8 @@ template<typename aug_t>
 int UFOCluster<aug_t>::get_degree() {
     int deg = 0;
     for (auto neighbor : this->neighbors) if (neighbor) deg++;
-    return deg + neighbors_set.size();
+    if (neighbors_set) deg += neighbors_set->size();
+    return deg;
 }
 
 /* Helper function which determines if the parent of a cluster is high fanout. This
@@ -509,7 +514,7 @@ template<typename aug_t>
 bool UFOCluster<aug_t>::contains_neighbor(UFOCluster<aug_t>* c) {
     // This should only be used in testing
     for (auto neighbor : neighbors) if (neighbor && neighbor == c) return true;
-    if (neighbors_set.find(c) != neighbors_set.end()) return true;
+    if (neighbors_set && neighbors_set->find(c) != neighbors_set->end()) return true;
     return false;
 }
 
@@ -523,7 +528,9 @@ void UFOCluster<aug_t>::insert_neighbor(UFOCluster<aug_t>* c, aug_t value) {
             return;
         }
     }
-    neighbors_set.insert(c);
+    if (!neighbors_set)
+        neighbors_set = new absl::flat_hash_set<UFOCluster<aug_t>*>();
+    neighbors_set->insert(c);
 }
 
 template<typename aug_t>
@@ -532,15 +539,23 @@ void UFOCluster<aug_t>::remove_neighbor(UFOCluster<aug_t>* c) {
     for (int i = 0; i < 3; ++i) {
         if (this->neighbors[i] == c) {
             this->neighbors[i] = nullptr;
-            if (!neighbors_set.empty()) { // Put an element from the set into the array
-                auto replacement = *neighbors_set.begin();
-                this->neighbors[i] = replacement;
-                neighbors_set.erase(replacement);
+            if (neighbors_set) { // Put an element from the set into the array
+                auto replacement = neighbors_set->begin();
+                this->neighbors[i] = *replacement;
+                neighbors_set->erase(replacement);
+                if (neighbors_set->empty()) {
+                    delete neighbors_set;
+                    neighbors_set = nullptr;
+                }
             }
             return;
         }
     }
-    neighbors_set.erase(c);
+    neighbors_set->erase(c);
+    if (neighbors_set->empty()) {
+        delete neighbors_set;
+        neighbors_set = nullptr;
+    }
 }
 
 template<typename aug_t>
