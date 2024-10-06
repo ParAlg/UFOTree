@@ -48,6 +48,13 @@ target_include_directories(benchmark_dynamic_trees PRIVATE baselines)
 target_link_libraries(benchmark_dynamic_trees PRIVATE parlay)
 target_link_libraries(benchmark_dynamic_trees PRIVATE absl::flat_hash_map)
 
+add_executable(test_ufo
+  test/ufo_tree_tests.cpp
+)
+
+target_link_libraries(test_ufo PRIVATE parlay GTest::gtest_main)
+target_link_libraries(test_ufo PRIVATE absl::flat_hash_map)
+
 if(FALSE)
 add_executable(benchmark_dynamic_trees_2
   benchmark/abseil_only.cpp

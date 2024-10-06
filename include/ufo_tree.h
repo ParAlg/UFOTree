@@ -60,7 +60,11 @@ public:
     void link(vertex_t u, vertex_t v, aug_t value);
     void link(vertex_t u, vertex_t v) { link(u,v,default_value); };
     void cut(vertex_t u, vertex_t v);
+
+    // Queries
     bool connected(vertex_t u, vertex_t v);
+    aug_t path_query(vertex_t u, vertex_t v);
+
     // Testing helpers
     bool is_valid();
     int get_height(vertex_t v);
@@ -578,4 +582,138 @@ UFOCluster<aug_t>* UFOCluster<aug_t>::get_root() {
     UFOCluster<aug_t>* curr = this;
     while (curr->parent) curr = curr->parent;
     return curr;
+}
+
+template<typename aug_t>
+aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
+  assert(u < leaves.size()-1 && v > 0 && u < v && connected(u, v)); 
+
+    aug_t path_u1, path_u2, path_v1, path_v2;
+    path_u1 = path_u2 = path_v1 = path_v2 = identity;
+    UFOCluster<aug_t> *bdry_u1, *bdry_u2, *bdry_v1, *bdry_v2;
+    bdry_u1 = bdry_u2 = bdry_v1 = bdry_v2 = nullptr;
+    if (leaves[u].get_degree() == 2) {
+        bdry_u1 = leaves[u].neighbors[0] ? leaves[u].neighbors[0] : leaves[u].neighbors[1];
+        bdry_u2 = leaves[u].neighbors[2] ? leaves[u].neighbors[2] : leaves[u].neighbors[1];
+    }
+    if (leaves[v].get_degree() == 2) {
+        bdry_v1 = leaves[v].neighbors[0] ? leaves[v].neighbors[0] : leaves[v].neighbors[1];
+        bdry_v2 = leaves[v].neighbors[2] ? leaves[v].neighbors[2] : leaves[v].neighbors[1];
+    }
+    auto curr_u = &leaves[u];
+    auto curr_v = &leaves[v];
+    while (curr_u->parent != curr_v->parent) { 
+        // NOTE(ATHARVA): Make this all into one function.
+        for (int i = 0; i < 3; i++) {
+            auto neighbor = curr_u->neighbors[i];
+            if (neighbor && neighbor->parent == curr_u->parent) {
+                if (curr_u->get_degree() == 2) {
+                    if (curr_u->parent->get_degree() == 2) {
+                        // Binary to Binary
+                        if (neighbor == bdry_u1) {
+                            path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
+                            bdry_u2 = bdry_u2->parent;
+                            for (int i = 0; i < 3; i++)
+                                if(curr_u->parent->neighbors[i] && curr_u->parent->neighbors[i] != bdry_u2)
+                                    bdry_u1 = curr_u->parent->neighbors[i];
+                        } else {
+                            path_u2 = f(path_u2, f(curr_u->edge_values[i], neighbor->value));
+                            bdry_u1 = bdry_u1->parent;
+                            for (int i = 0; i < 3; i++)
+                                if(curr_u->parent->neighbors[i] && curr_u->parent->neighbors[i] != bdry_u1)
+                                    bdry_u2 = curr_u->parent->neighbors[i];
+                        }
+                    } else {
+                        // Binary to Unary
+                        path_u1 = (neighbor == bdry_u1) ? path_u2 : path_u1;
+                    }
+                } else if(curr_u->get_degree() >= 2){
+                    if(curr_u->parent->get_degree() == 2){ 
+                      // Superunary to Superunary/Binary
+                      bdry_u1 = curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1];
+                      bdry_u2 = curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1];
+                    } 
+                }else {
+                    if (curr_u->parent->get_degree() == 2) {
+                        // Unary to Binary
+                        path_u1 = path_u2 = f(path_u1, curr_u->edge_values[i]);
+                        bdry_u1 = curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1];
+                        bdry_u2 = curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1];
+                    } else {
+                        // Unary to Unary and Unary to Superunary.
+                        path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
+                    }
+                }
+                break;
+            }
+        }
+        if (!curr_u->contracts()) {
+            if (bdry_u1) bdry_u1 = bdry_u1->parent;
+            if (bdry_u2) bdry_u2 = bdry_u2->parent;
+        }
+        curr_u = curr_u->parent;
+        for (int i = 0; i < 3; i++) {
+            auto neighbor = curr_v->neighbors[i];
+            if (neighbor && neighbor->parent == curr_v->parent) {
+                if (curr_v->get_degree() == 2) {
+                    if (curr_v->parent->get_degree() == 2) {
+                        // Binary to Binary
+                        if (neighbor == bdry_v1) {
+                            path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
+                            bdry_v2 = bdry_v2->parent;
+                            for (int i = 0; i < 3; i++)
+                                if(curr_v->parent->neighbors[i] && curr_v->parent->neighbors[i] != bdry_v2)
+                                    bdry_v1 = curr_v->parent->neighbors[i];
+                        } else {
+                            path_v2 = f(path_v2, f(curr_v->edge_values[i], neighbor->value));
+                            bdry_v1 = bdry_v1->parent;
+                            for (int i = 0; i < 3; i++)
+                                if(curr_v->parent->neighbors[i] && curr_v->parent->neighbors[i] != bdry_v1)
+                                    bdry_v2 = curr_v->parent->neighbors[i];
+                        }
+                    } else {
+                        // Binary to Unary
+                        path_v1 = (neighbor == bdry_v1) ? path_v2 : path_v1;
+                    }
+                } else if(curr_v->get_degree() >= 2){
+                    if(curr_v->parent->get_degree() == 2){ 
+                      // Superunary to Superunary/Binary
+                      bdry_v1 = curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1];
+                      bdry_v2 = curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1];
+                    } 
+                }else {
+                    if (curr_v->parent->get_degree() == 2) {
+                        // Unary to Binary
+                        if(curr_v->get_degree() != 3) 
+                          path_v1 = path_v2 = f(path_v1, curr_v->edge_values[i]);
+                        bdry_v1 = curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1];
+                        bdry_v2 = curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1];
+                    } else {
+                        // Unary to Unary
+                        path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
+                    }
+                }
+                break;
+            }
+        }
+        if (!curr_v->contracts()) {
+            if (bdry_v1) bdry_v1 = bdry_v1->parent;
+            if (bdry_v2) bdry_v2 = bdry_v2->parent;
+        }
+        curr_v = curr_v->parent;
+    }
+    // Get the correct path sides when the two vertices meet at the LCA
+    aug_t total = identity;
+    if (curr_u->get_degree() == 2)
+        total = f(total, (curr_v == bdry_u1) ? path_u1 : path_u2);
+    else
+        total = f(total, path_u1);
+    if (curr_v->get_degree() == 2)
+        total = f(total, (curr_u == bdry_v1) ? path_v1 : path_v2);
+    else
+        total = f(total, path_v1);
+    // Add the value of the last edge
+    for (int i = 0; i < 3; i++) if (curr_u->neighbors[i] == curr_v)
+        total = f(total, curr_u->edge_values[i]);
+    return total;
 }

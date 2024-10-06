@@ -18,17 +18,20 @@ template<typename aug_t>
 struct RCCluster {
 public:
   aug_t aug_val; 
-  std::vector<vertex_t> boundary_vertexes;
+  vertex_t boundary_vertexes[2];
 
   vertex_t parent;
-  vertex_t rep_vertex;
+  vertex_t rep_vertex; // For testing purposes mainly. Maybe necessary for subtree queries?
 
-  RCCluster(aug_t _aug_val){ aug_val = _aug_val; parent = MAX_VERTEX_T; rep_vertex = MAX_VERTEX_T;}
+  RCCluster(aug_t _aug_val){ aug_val = _aug_val; parent = MAX_VERTEX_T; rep_vertex = MAX_VERTEX_T;boundary_vertexes[0] = MAX_VERTEX_T; boundary_vertexes[1] = MAX_VERTEX_T;}
   RCCluster(aug_t _aug_val, vertex_t _parent){
     aug_val = _aug_val;
     parent = _parent;
     rep_vertex = MAX_VERTEX_T;
+    boundary_vertexes[0] = MAX_VERTEX_T; boundary_vertexes[1] = MAX_VERTEX_T;
   }
+  int bv_size();
+  void add_boundary(vertex_t v);
   
   bool operator==(const RCCluster<aug_t> &other){
     return (aug_val == other.aug_val && 
@@ -169,9 +172,9 @@ template<typename aug_t>
 void RCTree<aug_t>::add_neighbor(int round, RCCluster<aug_t> *cluster, vertex_t contracted_v){
   /* Add a cluster into the adjacency list of its boundary vertex(es) at a particular
    * round*/
-  for(vertex_t boundary_v : cluster->boundary_vertexes){
+  for(int i = 0; i < cluster->bv_size();i++){
     //Get adjacency list of a boundary vertex of the cluster at a round.
-    auto adjacencies = contraction_tree[boundary_v][round]; 
+    auto adjacencies = contraction_tree[cluster->boundary_vertexes[i]][round]; 
     auto vertex_added = false;
 
     for(int i = 0; i < degree_bound; i++){
@@ -219,7 +222,7 @@ bool RCTree<aug_t>::connected(vertex_t u, vertex_t v){
 template<typename aug_t>
 bool RCTree<aug_t>::is_edge(RCCluster<aug_t> *cluster){
   // Check to see if an RCCluster is a binary cluster.
-  return cluster != nullptr && cluster->boundary_vertexes.size() == 2;
+  return cluster != nullptr && cluster->bv_size() == 2;
 }
 
 template<typename aug_t>
@@ -379,8 +382,8 @@ void RCTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
 
   // Create RC cluster to represent edge at level 0 between u and v.
   RCCluster<aug_t>* new_edge = (RCCluster<aug_t>*) new RCCluster<aug_t>(weight);
-  new_edge->boundary_vertexes.push_back(u);
-  new_edge->boundary_vertexes.push_back(v);
+  new_edge->add_boundary(u);
+  new_edge->add_boundary(v);
 
   add_neighbor(0, new_edge, MAX_VERTEX_T);
   affected.insert(u);          // Insert initial affected vertices u and v.
@@ -401,14 +404,14 @@ void RCTree<aug_t>::cut(vertex_t u, vertex_t v) {
     // and delete the edge(u,v) between them.
     auto neighbor_cluster_u = contraction_tree[u][0][i];
     auto neighbor_cluster_v = contraction_tree[v][0][i];
-    if(neighbor_cluster_u != nullptr && neighbor_cluster_u->boundary_vertexes.size() == 2){
+    if(neighbor_cluster_u != nullptr && neighbor_cluster_u->bv_size() == 2){
       if((GET_NEIGHBOR(u, (*neighbor_cluster_u))) == v){
         edge_to_delete = neighbor_cluster_u;
         contraction_tree[u][0][i] = nullptr;
       }
     }
 
-    if(neighbor_cluster_v != nullptr && neighbor_cluster_v->boundary_vertexes.size() == 2){
+    if(neighbor_cluster_v != nullptr && neighbor_cluster_v->bv_size() == 2){
       auto val = GET_NEIGHBOR(v, (*neighbor_cluster_v));
       if(val == u){
         contraction_tree[v][0][i] = nullptr;
@@ -444,7 +447,7 @@ void RCTree<aug_t>::rake(vertex_t vertex, int round){
     }
   }
 
-  new_cluster->boundary_vertexes.push_back(neighbor);
+  new_cluster->add_boundary(neighbor);
   new_cluster->rep_vertex = vertex;
   //Add to the neighbor this new unary cluster.
 
@@ -483,9 +486,9 @@ void RCTree<aug_t>::compress(vertex_t vertex, int round){
     auto neighboring_cluster = *neighbors[i];
     new_cluster->aug_val = f(new_cluster->aug_val, neighbors[i]->aug_val); // Needs to be a associative binary op passed in by the user.
     neighbors[i]->parent = vertex;
-    if(neighboring_cluster.boundary_vertexes.size() == 2){
+    if(neighboring_cluster.bv_size() == 2){
       auto neighbor = GET_NEIGHBOR(vertex, neighboring_cluster);
-      new_cluster->boundary_vertexes.push_back(neighbor);
+      new_cluster->add_boundary(neighbor);
     }
   }
 
@@ -604,11 +607,11 @@ void RCTree<aug_t>::update() {
 
         if(cluster == nullptr) continue; 
 
-        if(cluster->boundary_vertexes.size() == 1) {
+        if(cluster->bv_size() == 1) {
           add_neighbor(round + 1, cluster, vertex);
         }
 
-        if(cluster->boundary_vertexes.size() == 2) {
+        if(cluster->bv_size() == 2) {
           auto dereferenced_cluster = *cluster;
           auto neighbor = GET_NEIGHBOR(vertex, (*cluster));
           // If unaffected neighbor
@@ -684,7 +687,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
   // Compute initial cluster paths - base case of induction.
   for(int i = 0; i < DEGREE_BOUND;i++){
     auto cluster = contraction_tree[u][round_contracted[u]][i];
-    if(cluster && cluster->boundary_vertexes.size() == 2){
+    if(cluster && cluster->bv_size() == 2){
       if(path_u1 == id){
         path_u1 = cluster->aug_val; 
       } else{
@@ -695,7 +698,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
 
   for(int i = 0; i < DEGREE_BOUND;i++){
     auto cluster = contraction_tree[v][round_contracted[v]][i];
-    if(cluster && cluster->boundary_vertexes.size() == 2){
+    if(cluster && cluster->bv_size() == 2){
       if(path_v1 == id){
         path_v1 = cluster->aug_val; 
       } else{
@@ -722,13 +725,14 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
     if(representative_clusters[curr]->parent != lca && curr != lca){
       auto parent = representative_clusters[curr]->parent;
       int degree_u = get_degree(curr, round_contracted[curr]), degree_parent = get_degree(parent, round_contracted[parent]);
-       
+      
+      // NOTE(ATHARVA): Make this all into one function.
       // Binary to Binary
       if(degree_u == 2 && degree_parent == 2){
         aug_t incorrect_boundary = boundary_u_1 != parent ? boundary_u_1 : boundary_u_2;
         for(int i = 0; i < DEGREE_BOUND; i++) {
           auto cluster = contraction_tree[parent][round_contracted[parent]][i];
-          if(cluster && cluster->boundary_vertexes.size() == 2){
+          if(cluster && cluster->bv_size() == 2){
             vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
             if(neighbor != incorrect_boundary){
               if(incorrect_boundary != boundary_u_1){
@@ -756,7 +760,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
 
         for(int i = 0; i < DEGREE_BOUND; i++){
           auto cluster = contraction_tree[parent][round_contracted[parent]][i];
-          if(cluster && cluster->boundary_vertexes.size() == 2){
+          if(cluster && cluster->bv_size() == 2){
             vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
             if(neighbor == boundary_u_1){
               path_u1 = f(path_u1, cluster->aug_val);
@@ -769,7 +773,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
       else {
         for(int i = 0; i < DEGREE_BOUND; i++){
           auto cluster = contraction_tree[parent][round_contracted[parent]][i];
-          if(cluster && cluster->boundary_vertexes.size() == 2){
+          if(cluster && cluster->bv_size() == 2){
             path_u1 = f(path_u1, cluster->aug_val);
             boundary_u_1 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
           }
@@ -787,7 +791,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
         aug_t incorrect_boundary = boundary_v_1 != parent ? boundary_v_1 : boundary_v_2;
         for(int i = 0; i < DEGREE_BOUND; i++) {
           auto cluster = contraction_tree[parent][round_contracted[parent]][i];
-          if(cluster && cluster->boundary_vertexes.size() == 2){
+          if(cluster && cluster->bv_size() == 2){
             vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
             if(neighbor != incorrect_boundary){
               if(incorrect_boundary != boundary_v_1){
@@ -816,7 +820,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
 
         for(int i = 0; i < DEGREE_BOUND; i++){
           auto cluster = contraction_tree[parent][round_contracted[parent]][i];
-          if(cluster && cluster->boundary_vertexes.size() == 2){
+          if(cluster && cluster->bv_size() == 2){
             vertex_t neighbor = GET_NEIGHBOR(parent, (*cluster));
             if(neighbor == boundary_v_1){
               path_v1 = f(path_v1, cluster->aug_val);
@@ -829,7 +833,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
       else {
         for(int i = 0; i < DEGREE_BOUND; i++){
           auto cluster = contraction_tree[parent][round_contracted[parent]][i];
-          if(cluster && cluster->boundary_vertexes.size() == 2){
+          if(cluster && cluster->bv_size() == 2){
             path_v1 = f(path_v1, cluster->aug_val);
             boundary_v_1 = cluster->boundary_vertexes[0] != parent ? cluster->boundary_vertexes[0] : cluster->boundary_vertexes[1];
           }
@@ -845,4 +849,19 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
   if(boundary_u_1 == lca){final_path = f(final_path, path_u1);} else if(boundary_u_2 == lca){final_path = f(final_path, path_u2);}
   if(boundary_v_1 == lca){final_path = f(final_path, path_v1);} else if(boundary_v_2 == lca){final_path = f(final_path, path_v2);}
   return final_path;
+};
+
+template<typename aug_t>
+int RCCluster<aug_t>::bv_size(){
+  int count = 0;
+  for(int i = 0; i < 2;++i){
+    if(boundary_vertexes[i] != MAX_VERTEX_T) count++;
+  }
+  return count;
+};
+
+template<typename aug_t>
+void RCCluster<aug_t>::add_boundary(vertex_t v){
+  assert(boundary_vertexes[1] == MAX_VERTEX_T);
+  if(boundary_vertexes[0] == MAX_VERTEX_T){boundary_vertexes[0] = v;} else{boundary_vertexes[1] = v;}
 };

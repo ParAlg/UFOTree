@@ -482,6 +482,7 @@ aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
     return total;
 }
 
+
 /* Returns the value of the associative function f applied over
 the augmented values for all the edges on the unique path from
 vertex u to vertex v. */
@@ -505,6 +506,7 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u->parent != curr_v->parent) { 
+        // NOTE(ATHARVA): Make this all into one function.
         for (int i = 0; i < 3; i++) {
             auto neighbor = curr_u->neighbors[i];
             if (neighbor && neighbor->parent == curr_u->parent) {
@@ -570,7 +572,7 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
                         // Binary to Unary
                         path_v1 = (neighbor == bdry_v1) ? path_v2 : path_v1;
                     }
-                } else if(curr_v->get_degree() != 3){
+                } else {
                     if (curr_v->parent->get_degree() == 2) {
                         // Unary to Binary
                         if(curr_v->get_degree() != 3) 

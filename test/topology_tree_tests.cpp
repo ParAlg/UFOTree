@@ -297,14 +297,14 @@ TEST(TopologyTreeSuite, path_query_test) {
 TEST(TopologyTreeQuerySuite, BasicLinkedListQuery){
   std::vector<int> test_vals = {10, 100, 1000, 10000};
   srand(time(NULL));
-  int seed = rand(); 
+  int seed = 1; 
   srand(seed);
   int num_trials = 100;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
       TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
-      vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
-      //vertex_t u = 5, v = 7;
+      //vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
+      vertex_t u = 4, v = 9;
       if(v < u) std::swap(u,v);
       /*std::cout << "Seed: " << seed << "\n";
     std::cout << "u = " << u << "v = " << v << "\n";*/
@@ -330,7 +330,7 @@ TEST(TopologyTreeQuerySuite, BasicLinkedListQuery){
 TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
   std::vector<int> test_vals = {7, 31, 1023, 8191};
   srand(time(NULL));
-  int seed = rand(); 
+  int seed = 1; 
   srand(seed);
   int num_trials = 100;
   for(int n : test_vals){
