@@ -33,8 +33,31 @@ double get_update_speed(vertex_t n, std::vector<std::vector<Update>> update_sequ
 
 // TODO: query speed
 template <typename DynamicTree>
-double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences) {
-    return 0;
+double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences, std::vector<std::vector<Query>> query_sequences) {
+    parlay::internal::timer my_timer("");
+    for (int i = 0; i < update_sequences.size(); ++i) {
+        auto updates = update_sequences[i];
+        auto queries = query_sequences[i];
+        DynamicTree tree(n);
+        bool first_delete = true;
+        for (Update update : updates) {
+            if (update.type == INSERT) {
+                tree.link(update.edge.src, update.edge.dst);
+            } else if (update.type == DELETE) {
+                if (first_delete) {
+                    my_timer.start();
+                    // for (auto query : queries) tree.path_query(query.u, query.v);
+                    my_timer.stop();
+                    first_delete = false;
+                }
+                tree.cut(update.edge.src, update.edge.dst);
+            } else {
+                std::cerr << "Invalid update type: " << update.type << std::endl;
+                std::abort();
+            }
+        }
+    }
+    return my_timer.total_time()/query_sequences.size();
 }
 
 // Returns space in bytes used just before the first deletion
@@ -207,6 +230,14 @@ std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
     for (auto edge : edges) updates.push_back({DELETE,edge});
 
     return updates;
+}
+
+std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {
+    std::vector<Query> queries;
+    srand(time(NULL));
+    for (int i = 0; i < num_queries; ++i)
+        queries.push_back({rand()%n, rand()%n});
+    return queries;
 }
 
 }
