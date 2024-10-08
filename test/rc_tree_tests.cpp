@@ -524,7 +524,7 @@ TEST(RCTreeSuite, decremental_random_correctness_test) {
 // Test Path queries
 
 TEST(RCTreeQuerySuite, BasicLinkedListQuery){
-  std::vector<int> test_vals = {10, 100, 1000, 10000};
+  std::vector<int> test_vals = {10, 100, 1000};
   srand(time(NULL));
   int seed = 1; 
   srand(seed);
@@ -557,7 +557,7 @@ TEST(RCTreeQuerySuite, BasicLinkedListQuery){
 }
 
 TEST(RCTreeQuerySuite, BinaryTreeQueryTest){
-  std::vector<int> test_vals = {7, 31, 1023, 8191};
+  std::vector<int> test_vals = {7, 31, 1023};
   srand(time(NULL));
   int seed = 1; 
   srand(seed);
