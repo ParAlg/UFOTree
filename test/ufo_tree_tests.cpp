@@ -11,8 +11,10 @@ bool UFOTree<aug_t>::is_valid() {
         for (auto neighbor : leaf.neighbors) // This ensures all connectivity is correct by transitivity
             if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
         if (leaf.neighbors_set)
-        for (auto neighbor : *leaf.neighbors_set)
+        for (auto neighbor_pair : *leaf.neighbors_set) {
+            auto neighbor = neighbor_pair.first;
             if (leaf.get_root() != neighbor->get_root()) return false;
+        }
     }
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
     while (!clusters.empty()) {
@@ -20,8 +22,10 @@ bool UFOTree<aug_t>::is_valid() {
             for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
                 if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
             if (cluster->neighbors_set)
-            for (auto neighbor : *cluster->neighbors_set)
+            for (auto neighbor_pair : *cluster->neighbors_set) {
+                auto neighbor = neighbor_pair.first;
                 if (!neighbor->contains_neighbor(cluster)) return false;
+            }
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
                     if (cluster->get_neighbor()->get_degree() > 2) return false;
@@ -33,8 +37,8 @@ bool UFOTree<aug_t>::is_valid() {
                     for (auto neighbor : cluster->neighbors)
                         if (neighbor && neighbor->get_degree() < 2) return false;
                     if (cluster->neighbors_set)
-                    for (auto neighbor : *cluster->neighbors_set)
-                        if (neighbor->get_degree() < 2) return false;
+                    for (auto neighbor_pair : *cluster->neighbors_set)
+                        if (neighbor_pair.first->get_degree() < 2) return false;
                 }
             }
             if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
@@ -70,7 +74,7 @@ void UFOTree<aug_t>::print_tree() {
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
         for (auto neighbor : leaf->neighbors) if (neighbor) std::cout << vertex_map[neighbor] << " ";
         if (leaf->neighbors_set)
-        for (auto neighbor : *leaf->neighbors_set) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor_pair : *leaf->neighbors_set) std::cout << vertex_map[neighbor_pair.first] << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
@@ -245,4 +249,101 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after cutting " << u << " and " << v << ".";
         }
     }
+}
+
+// Query Tests
+
+
+TEST(UFOTreeQuerySuite, LinkedListQueryTest){
+  std::vector<int> test_vals = {10, 100};
+  srand(time(NULL));
+  int seed = 1; 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      UFOTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
+      //vertex_t u = 0, v = 7;
+      if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+    std::cout << "u = " << u << "v = " << v << "\n";*/
+      std::vector<std::tuple<int,int,int>> edges;
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < n-1; i++){
+        int new_edge = rand() % 100;
+        tree.link(i, i+1, new_edge);
+        if(i >= u && i < v) min_edge_val = std::min(min_edge_val, new_edge);
+        edges.push_back({i, i+1, new_edge});
+      }
+
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        tree.print_tree();
+        std::cout << "================ EDGES ================\n";
+        for(auto edge : edges){
+          std::cout << std::get<0>(edge) << " " << std::get<1>(edge) << " " << std::get<2>(edge) << "\n";
+        }
+        std::cout << "=======================================\n";
+        std::cout << "Seed: " << seed << "\n";
+        std::cout << "u = " << u << ", v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
+
+TEST(UFOTreeQuerySuite, BinaryTreeQueryTest){
+  std::vector<int> test_vals = {7, 31, 127};
+  srand(time(NULL));
+  int seed = 1; 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      UFOTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      std::vector<int> path; 
+      for(int i = 0; i < n - 1; i = (2*i) + 2){
+        path.push_back(i);
+      }
+
+      vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
+      if(lower < upper) std::swap(lower, upper);
+
+      auto u = path[upper], v = path[lower];
+      //vertex_t u = 4, v = 7;
+      //if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+      std::cout << "u = " << u << "v = " << v << "\n";*/ 
+      int j = 0;
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < (n/2); i++){ 
+        auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
+        tree.link(i, (2*i) + 1, new_edge);
+        tree.link(i, (2*i) + 2, new_edge2);
+        if(i == path[j]){
+          if(i >= u && i < v){
+            min_edge_val = std::min(min_edge_val, new_edge2);
+          }
+          j++;
+        }
+      }
+
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        tree.print_tree();
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
+
+TEST(UFOTreeQuerySuite, HighDegreeQuery){
+  // Possible experiment setup:
+  // 1) Star graph with a superunary node that continues until the root of the tree.
+  // 2) Query with one node that contracts early and one that stays until the end.
 }

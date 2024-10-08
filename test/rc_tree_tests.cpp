@@ -1,38 +1,39 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include <limits>
 #include <stdexcept>
 #include <unordered_set>
 #include "../include/rc_tree.h"
 void create_tree1();
-void print_tree(RCTree<int> *tree, int round);
+void print_tree(RCTree<int> *tree);
 //RCTree<int> *treeptr = nullptr;
 
 void create_tree1() {
   RCTree<int> tree(7);
   RCCluster<int> edgeAB(9);
-  edgeAB.boundary_vertexes.push_back(2);
-  edgeAB.boundary_vertexes.push_back(0);
+  edgeAB.add_boundary(2);
+  edgeAB.add_boundary(0);
   
 
   RCCluster<int> edgeBC(1);
-  edgeBC.boundary_vertexes.push_back(2);
-  edgeBC.boundary_vertexes.push_back(1);
+  edgeBC.add_boundary(2);
+  edgeBC.add_boundary(1);
 
   RCCluster<int> edgeCE(2);
-  edgeCE.boundary_vertexes.push_back(2);
-  edgeCE.boundary_vertexes.push_back(4);
+  edgeCE.add_boundary(2);
+  edgeCE.add_boundary(4);
   
   RCCluster<int> edgeDE(3);
-  edgeDE.boundary_vertexes.push_back(3);
-  edgeDE.boundary_vertexes.push_back(4);
+  edgeDE.add_boundary(3);
+  edgeDE.add_boundary(4);
 
   RCCluster<int> edgeEF(6);
-  edgeEF.boundary_vertexes.push_back(4);
-  edgeEF.boundary_vertexes.push_back(5);
+  edgeEF.add_boundary(4);
+  edgeEF.add_boundary(5);
 
   RCCluster<int> edgeFG(5);
-  edgeFG.boundary_vertexes.push_back(5);
-  edgeFG.boundary_vertexes.push_back(6);
+  edgeFG.add_boundary(5);
+  edgeFG.add_boundary(6);
 
   tree.add_neighbor(0, &edgeAB, -1);
   //print_tree(tree, 0);
@@ -48,23 +49,31 @@ void create_tree1() {
   //print_tree(tree, 0);  
 }
 
-void print_tree(RCTree<int> *tree, int round){
-  std::cout << "Round: " << round << "\n";
-  for(int i = 0; i < tree->n; i++){
-    if(tree->contraction_tree[i].size() >= round + 1 && tree->contraction_tree[i][round] != nullptr){
-      std::cout << "Vertex: " << i << " :[";
-      for(int j = 0; j < tree->degree_bound; j++){
-        if(tree->contraction_tree[i][round][j] != nullptr){
-          //std::cout << "HERE!";
-          auto cluster = tree->contraction_tree[i][round][j];
-          std::cout << "[";
-          for(int k = 0; k < cluster->boundary_vertexes.size(); k++){
-            std::cout << cluster->boundary_vertexes[k] << ", "; 
+void print_tree(RCTree<int> *tree){
+  int max_round = 0;
+  for(int round : tree->round_contracted){
+    max_round = std::max(max_round, round);
+  }
+
+  for(int round = 0; round <= max_round; round++){
+    std::cout << "Round: " << round << "\n";
+    for(int i = 0; i < tree->n; i++){
+      if(tree->contraction_tree[i].size() >= round + 1 && tree->contraction_tree[i][round] != nullptr){
+        std::cout << "Vertex: " << i << " :[";
+        for(int j = 0; j < tree->degree_bound; j++){
+          if(tree->contraction_tree[i][round][j] != nullptr){
+            //std::cout << "HERE!";
+            auto cluster = tree->contraction_tree[i][round][j];
+            std::cout << "[";
+            for(int k = 0; k < cluster->bv_size(); k++){
+              std::cout << cluster->boundary_vertexes[k];
+              if(k < cluster->bv_size() - 1){std::cout << ", ";}
+            }
+            std::cout << "]";
           }
-          std::cout << "]";
         }
+        std::cout << "] \n";
       }
-      std::cout << "] \n";
     }
   } 
 }
@@ -117,7 +126,7 @@ void RCTree<aug_t>::is_valid_induced_tree(int round){
             throw std::invalid_argument("Same cluster has been added twice");
           }
         }
-        
+
         if(round > 0){
           bool in_prev_round = false;
           for(int i = 0; i < degree_bound; i++){
@@ -174,7 +183,7 @@ void RCTree<aug_t>::is_valid_MIS(int round){
         // If 2 adjacent neighbors have been added then also throw an exception.
         // as the set is not independent.
         if(maximal_set.count(vertex) == 1 && 
-            maximal_set.count(neighbor) != 0){
+          maximal_set.count(neighbor) != 0){
           throw std::invalid_argument("2 adjacent vertices have been added to the MIS");
         }
       }
@@ -196,8 +205,8 @@ void print_cluster(RCCluster<aug_t>* cluster){
   std::cout << "Parent:" << cluster->parent << "\n";
   std::cout << "Aug_val : " << cluster->aug_val << "\n";
   std::cout << "boundary_vertexes: ";
-  
-  for(int i = 0; i < cluster->boundary_vertexes.size(); i++){
+
+  for(int i = 0; i < cluster->bv_size(); i++){
     std::cout << cluster->boundary_vertexes[i] << " ";
   } 
 }
@@ -212,11 +221,11 @@ TEST(RCTreeSuite, test_helper_methods){
   RCCluster<int> edge1(9);
   RCCluster<int> unary1(13);
   RCCluster<int> unary2(14);
-  edge1.boundary_vertexes.push_back(0);
-  edge1.boundary_vertexes.push_back(1);
+  edge1.add_boundary(0);
+  edge1.add_boundary(1);
 
-  unary1.boundary_vertexes.push_back(0);
-  unary2.boundary_vertexes.push_back(0);
+  unary1.add_boundary(0);
+  unary2.add_boundary(0);
 
   //2 unary, 1 binary cluster. Degree = 1.
   tree.add_neighbor(0, &edge1, -1);
@@ -242,9 +251,9 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   RCTree<int> tree(4);
 
   RCCluster<int> e1(9);
-  e1.boundary_vertexes = std::vector<vertex_t>({1,2});
+  e1.boundary_vertexes[0] = 1; e1.boundary_vertexes[1] = 2; 
   RCCluster<int> e2(2);
-  e2.boundary_vertexes = std::vector<vertex_t>({1,3});
+  e2.boundary_vertexes[0] = 1; e2.boundary_vertexes[1] = 3;
 
   //Degree 1
   tree.round_contracted[1] = 0;
@@ -274,7 +283,7 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   //Degree 3
   RCTree<int> tree3(5);
   RCCluster<int> e3(2);
-  e3.boundary_vertexes = std::vector<vertex_t>({1,0});
+  e3.boundary_vertexes[0] = 1; e3.boundary_vertexes[1] = 3;
   tree3.add_neighbor(0, &e1, -1);
   tree3.add_neighbor(0, &e2, -1);
   tree3.add_neighbor(0, &e3, -1);
@@ -296,11 +305,11 @@ TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
   RCTree<int> tree(5);
 
   RCCluster<int> e1(9);
-  e1.boundary_vertexes = std::vector<vertex_t>({1,2});
+  e1.boundary_vertexes[0] = 1; e1.boundary_vertexes[1] = 2;
   RCCluster<int> e2(2);
-  e2.boundary_vertexes = std::vector<vertex_t>({1,3});
+  e2.boundary_vertexes[0] = 1; e2.boundary_vertexes[1] = 3;
   RCCluster<int> e3(3);
-  e3.boundary_vertexes = std::vector<vertex_t>({0,1});
+  e3.boundary_vertexes[0] = 0; e3.boundary_vertexes[1] = 1;
 
   //Degree 2
   tree.round_contracted[1] = 0;
@@ -363,10 +372,7 @@ TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
       try{
         tree.link(i , i + 1, i + 1);
       } catch(std::invalid_argument){
-        auto height = tree.round_contracted[tree.roots[0]];
-        for(int j = 0; j < height; j++){
-          print_tree(&tree, j);
-        }
+        print_tree(&tree);
         FAIL();
       }
     }
@@ -470,7 +476,7 @@ TEST(RCTreeSuite, randomIncrementalTests){
           links++;
         } catch(std::invalid_argument){
           std::cout << "Tree invalid after linking " << u << " and " << v << ".\n";
-          print_tree(&tree, 0);
+          print_tree(&tree);
           break;
         }
       }
@@ -507,9 +513,93 @@ TEST(RCTreeSuite, decremental_random_correctness_test) {
         ASSERT_FALSE(tree.connected(u,v)) << "Vertex " << u << " and " << v << " connected.";
       } catch(std::invalid_argument){
         std::cout << "Tree invalid after cutting " << u << " and " << v << ".\n";
-        print_tree(&tree, 0);
+        print_tree(&tree);
         break;
       }
+    }
+  }
+}
+
+
+// Test Path queries
+
+TEST(RCTreeQuerySuite, BasicLinkedListQuery){
+  std::vector<int> test_vals = {10, 100};
+  srand(time(NULL));
+  int seed = 1; 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      RCTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
+      //vertex_t u = 4, v = 7;
+      if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+    std::cout << "u = " << u << "v = " << v << "\n";*/
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < n-1; i++){
+        int new_edge = rand() % 100;
+        tree.link(i, i+1, new_edge);
+        if(i >= u && i < v) min_edge_val = std::min(min_edge_val, new_edge);
+      }
+
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        print_tree(&tree);
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
+
+TEST(RCTreeQuerySuite, BinaryTreeQueryTest){
+  std::vector<int> test_vals = {7, 31, 127};
+  srand(time(NULL));
+  int seed = 1; 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      RCTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), 0);
+      std::vector<int> path;
+      for(int i = 0; i < n - 1; i = (2*i) + 2){
+        path.push_back(i);
+      }
+      
+      vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
+      if(lower < upper) std::swap(lower, upper);
+
+      auto u = path[upper], v = path[lower];
+      //ASSERT_TRUE(u < v);
+      //vertex_t u = 4, v = 7;
+      /*std::cout << "Seed: " << seed << "\n";
+      std::cout << "u = " << u << "v = " << v << "\n";*/
+      int j = 0;
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < (n/2); i++){ 
+        auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
+        tree.link(i, (2*i) + 1, new_edge);
+        tree.link(i, (2*i) + 2, new_edge2);
+        if(i == path[j]){
+          if(i >= u && i < v){
+            min_edge_val = std::min(min_edge_val, new_edge2);
+          }
+          j++;
+        }
+      }
+
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        print_tree(&tree);
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
     }
   }
 }

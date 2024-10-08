@@ -18,13 +18,13 @@ static long topology_recluster_tree_time = 0;
 template<typename aug_t>
 struct TopologyCluster {
     // Topology cluster data
+    TopologyCluster<aug_t>* parent;
     TopologyCluster<aug_t>* neighbors[3];
     aug_t edge_values[3];   // Only for path queries
     aug_t value;            // Stores subtree values or cluster path values
-    TopologyCluster<aug_t>* parent;
     // Constructor
   TopologyCluster(aug_t value)
-      : neighbors(), edge_values(), parent(), value(value){};
+      : parent(), neighbors(), edge_values(), value(value){};
     // Helper functions
     int get_degree();
     bool contracts();
@@ -535,6 +535,7 @@ aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
     return total;
 }
 
+
 /* Returns the value of the associative function f applied over
 the augmented values for all the edges on the unique path from
 vertex u to vertex v. */
@@ -562,6 +563,7 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u->parent != curr_v->parent) { 
+        // NOTE(ATHARVA): Make this all into one function.
         for (int i = 0; i < 3; i++) {
             auto neighbor = curr_u->neighbors[i];
             if (neighbor && neighbor->parent == curr_u->parent) {
@@ -589,14 +591,10 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
                     }
                 } else {
                     if (curr_u->parent->get_degree() == 2) {
-                        // Unary to Binary
-                        path_u1 = path_u2 = f(path_u1, curr_u->edge_values[i]);
-            bdry_u1 = curr_u->parent->neighbors[0]
-                         ? curr_u->parent->neighbors[0]
-                         : curr_u->parent->neighbors[1];
-            bdry_u2 = curr_u->parent->neighbors[2]
-                         ? curr_u->parent->neighbors[2]
-                         : curr_u->parent->neighbors[1];
+                        // Unary to Binary and degree 3 case
+                        if(curr_u->get_degree() != 3) path_u1 = path_u2 = f(path_u1, curr_u->edge_values[i]);
+                        bdry_u1 = curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1];
+                        bdry_u2 = curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1];
                     } else {
                         // Unary to Unary
                         path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
@@ -640,13 +638,10 @@ aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
                 } else {
                     if (curr_v->parent->get_degree() == 2) {
                         // Unary to Binary
-                        path_v1 = path_v2 = f(path_v1, curr_v->edge_values[i]);
-            bdry_v1 = curr_v->parent->neighbors[0]
-                         ? curr_v->parent->neighbors[0]
-                         : curr_v->parent->neighbors[1];
-            bdry_v2 = curr_v->parent->neighbors[2]
-                         ? curr_v->parent->neighbors[2]
-                         : curr_v->parent->neighbors[1];
+                        if(curr_v->get_degree() != 3) 
+                          path_v1 = path_v2 = f(path_v1, curr_v->edge_values[i]);
+                        bdry_v1 = curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1];
+                        bdry_v2 = curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1];
                     } else {
                         // Unary to Unary
                         path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
