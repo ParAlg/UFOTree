@@ -104,14 +104,16 @@ TopologyTree<aug_t>::~TopologyTree() {
 
 template<typename aug_t>
 size_t TopologyTree<aug_t>::space(){ 
-    std::unordered_set<TopologyCluster<aug_t>*> visited;
     size_t memory = sizeof(TopologyTree<aug_t>);
+    memory += clusters.size() * sizeof(std::vector<TopologyCluster<aug_t>>);
     for (auto leaf : clusters) {
         memory += sizeof(leaf);
         memory += leaf.size() * sizeof(TopologyCluster<aug_t>);
     }
+    memory += parents.size() * sizeof(vertex_t);
     return memory;
 }
+
 /* Link vertex u and vertex v in the tree. Optionally include an
 augmented value for the new edge (u,v). If no augmented value is
 provided, the default value is 1. */
