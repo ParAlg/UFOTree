@@ -474,74 +474,83 @@ at v with respect to its parent p. If p = -1 (MAX_VERTEX_T) then
 return the sum over the entire tree containing v. */
 template<typename aug_t>
 aug_t TopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
-    return default_value;
-//   assert(v >= 0 && v < clusters.size() && p >= 0 &&
-//          (p < clusters.size() || p == MAX_VERTEX_T));
-//   if (p == MAX_VERTEX_T)
-//     return clusters[v].get_root()->value;
-//     assert(clusters[v].contains_neighbor(&clusters[p]));
-//     // Get the total up until the LCA of v and p
-//     aug_t total = f(identity, clusters[v].value);
-//     auto curr_v = &clusters[v];
-//     auto curr_p = &clusters[p];
-//     while (curr_v->parent != curr_p->parent) {
-//     for (auto neighbor : curr_v->neighbors)
-//       if (neighbor && neighbor->parent == curr_v->parent)
-//         total =
-//            f(total, neighbor->value);   // Only count vertices on the side of v
-//         curr_v = curr_v->parent;
-//         curr_p = curr_p->parent;
-//     }
-//     // Add the total after the LCA of v and p
-//   if (curr_v->get_degree() == 1)
-//     return total;
-//     if (curr_v->get_degree() == 3) {
-//         curr_v = curr_v->parent;
-//         while (curr_v->parent) {
-//       for (auto neighbor : curr_v->neighbors)
-//         if (neighbor && neighbor->parent == curr_v->parent)
-//           total =
-//              f(total, neighbor->value);   // Count all remaining root clusters
-//             curr_v = curr_v->parent;
-//         }
-//         return total;
-//     }
-//   // If the cluster of v was deg 2 when it combined, only count the clusters on
-//   // the side of v
-//     TopologyCluster<aug_t>* curr_u;
-//   for (auto neighbor : curr_v->neighbors)
-//     if (neighbor && neighbor != curr_p)
-//         curr_u = neighbor; // Find the neighbor of curr_v that is not curr_p
-//     while (curr_v->parent) {
-//         if (curr_u->parent == curr_v->parent) {
-//       total = f(
-//          total,
-//          curr_u->value);   // Count the remaining root clusters on the side of v
-//       if (curr_u->get_degree() == 1)
-//         return total;
-//             if (curr_u->get_degree() == 3) {
-//                 curr_v = curr_v->parent;
-//                 while (curr_v->parent) {
-//           for (auto neighbor : curr_v->neighbors)
-//             if (neighbor && neighbor->parent == curr_v->parent)
-//               total = f(total,
-//                         neighbor->value);   // Count all remaining root clusters
-//                     curr_v = curr_v->parent;
-//                 }
-//                 return total;
-//             }
-//       for (auto neighbor : curr_u->neighbors)
-//         if (neighbor && neighbor != curr_v)
-//           curr_u =
-//              neighbor
-//                 ->parent;   // Find the neighbor of curr_u that is not curr_v
-//             curr_v = curr_v->parent;
-//         } else {
-//             curr_u = curr_u->parent;
-//             curr_v = curr_v->parent;
-//         }
-//     }
-//     return total;
+    assert(v >= 0 && v < clusters.size() && p >= 0 && (p < clusters.size() || p == MAX_VERTEX_T));
+    if (p == MAX_VERTEX_T) return clusters[get_root(v)].back().value;
+    assert(clusters[v][0].contains_neighbor(p));
+    // Get the total up until the LCA of v and p
+    aug_t total = f(identity, clusters[v][0].value);
+    auto curr_v = v;
+    auto curr_p = p;
+    int level = 0;
+    auto parent_v = get_parent(curr_v, level);
+    auto parent_p = get_parent(curr_p, level);
+    while (parent_v != parent_p) {
+        for (auto neighbor : clusters[curr_v][level].neighbors)
+            if (neighbor != NONE && get_parent(neighbor, level) == parent_v)
+                total = f(total, clusters[neighbor][level].value);   // Only count vertices on the side of v
+        curr_v = parent_v;
+        curr_p = parent_p;
+        level++;
+        parent_v = get_parent(curr_v, level);
+        parent_p = get_parent(curr_p, level);
+    }
+    // Add the total after the LCA of v and p
+    if (clusters[curr_v][level].get_degree() == 1) return total;
+    if (clusters[curr_v][level].get_degree() == 3) {
+        curr_v = parent_v;
+        level++;
+        parent_v = get_parent(parent_v, level);
+        while (parent_v != NONE) {
+            for (auto neighbor : clusters[curr_v][level].neighbors)
+                if (neighbor != NONE && get_parent(neighbor, level) == parent_v)
+                    total = f(total, clusters[neighbor][level].value);   // Count all remaining root clusters
+            curr_v = parent_v;
+            level++;
+            parent_v = get_parent(curr_v, level);
+        }
+        return total;
+    }
+    // If the cluster of v was deg 2 when it combined, only count the clusters on the side of v
+    vertex_t curr_u;
+    for (auto neighbor : clusters[curr_v][level].neighbors)
+        if (neighbor != NONE && neighbor != curr_p)
+            curr_u = neighbor; // Find the neighbor of curr_v that is not curr_p
+    vertex_t parent_u = get_parent(curr_u, level);
+    while (parent_v != NONE) {
+        if (parent_u == parent_v) {
+            total = f(total, clusters[curr_u][level].value); // Count remaining root clusters on the side of v
+            if (clusters[curr_u][level].get_degree() == 1) return total;
+            if (clusters[curr_u][level].get_degree() == 3) {
+                curr_v = parent_v;
+                level++;
+                parent_v = get_parent(parent_v, level);
+                while (parent_v != NONE) {
+                    for (auto neighbor : clusters[curr_v][level].neighbors)
+                        if (neighbor != NONE && get_parent(neighbor, level) == parent_v)
+                            total = f(total, clusters[neighbor][level].value);   // Count all remaining root clusters
+                    curr_v = parent_v;
+                    level++;
+                    parent_v = get_parent(curr_v, level);
+                }
+                return total;
+            }
+            for (auto neighbor : clusters[curr_u][level].neighbors)
+                if (neighbor != NONE && neighbor != curr_v)
+                    curr_u = neighbor; // Find the neighbor of curr_u that is not curr_v
+            curr_u = get_parent(curr_u, level);
+            curr_v = parent_v;
+            level++;
+            parent_u = get_parent(curr_u, level);
+            parent_v = get_parent(curr_v, level);
+        } else {
+            curr_u = parent_u;
+            curr_v = parent_v;
+            level++;
+            parent_u = get_parent(curr_u, level);
+            parent_v = get_parent(curr_v, level);
+        }
+    }
+    return total;
 }
 
 

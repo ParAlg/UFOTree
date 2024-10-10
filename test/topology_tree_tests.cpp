@@ -216,125 +216,125 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
     }
 }
 
-// TEST(TopologyTreeSuite, subtree_query_test) {
-//     vertex_t n = 256;
-//     QueryType qt = SUBTREE;
-//     auto f = [](int x, int y)->int {return x + y;};
-//     int id = 0;
-//     int d = 1;
-//     TopologyTree<int> tree(n, qt, f, id, d);
+TEST(TopologyTreeSuite, subtree_query_test) {
+    vertex_t n = 256;
+    QueryType qt = SUBTREE;
+    auto f = [](int x, int y)->int {return x + y;};
+    int id = 0;
+    int d = 1;
+    TopologyTree<int> tree(n, qt, f, id, d);
 
-//     for (vertex_t i = 0; i < n-1; i++) {
-//         tree.link(i,i+1);
-//         for (vertex_t v = 0; v <= i+1; v++) {
-//             ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : MAX_VERTEX_T)), i+2-v);
-//             ASSERT_EQ(tree.subtree_query(v, (v <= i ? v+1 : MAX_VERTEX_T)), v+1);
-//         }
-//     }
-//     for (vertex_t i = n-1; i > 0; i--) {
-//         tree.cut(i-1,i);
-//         for (vertex_t v = 0; v < i; v++) {
-//             ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : MAX_VERTEX_T)), i-v);
-//             ASSERT_EQ(tree.subtree_query(v, (v < i-1 ? v+1 : MAX_VERTEX_T)), v+1);
-//         }
-//     }
-// }
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.link(i,i+1);
+        for (vertex_t v = 0; v <= i+1; v++) {
+            ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : MAX_VERTEX_T)), i+2-v);
+            ASSERT_EQ(tree.subtree_query(v, (v <= i ? v+1 : MAX_VERTEX_T)), v+1);
+        }
+    }
+    for (vertex_t i = n-1; i > 0; i--) {
+        tree.cut(i-1,i);
+        for (vertex_t v = 0; v < i; v++) {
+            ASSERT_EQ(tree.subtree_query(v, (v > 0 ? v-1 : MAX_VERTEX_T)), i-v);
+            ASSERT_EQ(tree.subtree_query(v, (v < i-1 ? v+1 : MAX_VERTEX_T)), v+1);
+        }
+    }
+}
 
-// TEST(TopologyTreeSuite, path_query_test) {
-//     vertex_t n = 64;
-//     QueryType qt = PATH;
-//     auto f = [](int x, int y)->int {return x + y;};
-//     int id = 0;
-//     int d = 0;
-//     TopologyTree<int> tree(n, qt, f, id, d);
+TEST(TopologyTreeSuite, path_query_test) {
+    vertex_t n = 64;
+    QueryType qt = PATH;
+    auto f = [](int x, int y)->int {return x + y;};
+    int id = 0;
+    int d = 0;
+    TopologyTree<int> tree(n, qt, f, id, d);
 
-//     for (vertex_t i = 0; i < n-1; i++) {
-//         tree.link(i,i+1,1);
-//         for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
-//             ASSERT_EQ(tree.path_query(u,v), v-u);
-//     }
-//     for (vertex_t i = 0; i < n-1; i++) {
-//         tree.cut(i,i+1);
-//         for (vertex_t u = i+1; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
-//             ASSERT_EQ(tree.path_query(u,v), v-u);
-//     }
-// }
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.link(i,i+1,1);
+        for (vertex_t u = 0; u < i+1; u++) for (vertex_t v = u+1; v <= i+1; v++)
+            ASSERT_EQ(tree.path_query(u,v), v-u);
+    }
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.cut(i,i+1);
+        for (vertex_t u = i+1; u < n-1; u++) for (vertex_t v = u+1; v < n; v++)
+            ASSERT_EQ(tree.path_query(u,v), v-u);
+    }
+}
 
-// TEST(TopologyTreeQuerySuite, LinkedListQueryTest){
-//   std::vector<int> test_vals = {10, 100};
-//   srand(time(NULL));
-//   int seed = 1; 
-//   srand(seed);
-//   int num_trials = 100;
-//   for(int n : test_vals){
-//     for(int trial = 0; trial < num_trials; ++trial){
-//       TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
-//       //vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
-//       vertex_t u = 4, v = 9;
-//       if(v < u) std::swap(u,v);
-//       /*std::cout << "Seed: " << seed << "\n";
-//     std::cout << "u = " << u << "v = " << v << "\n";*/
-//       int min_edge_val = std::numeric_limits<int>::max();
-//       for(int i = 0; i < n-1; i++){
-//         int new_edge = rand() % 100;
-//         tree.link(i, i+1, new_edge);
-//         if(i >= u && i < v) min_edge_val = std::min(min_edge_val, new_edge);
-//       }
+TEST(TopologyTreeQuerySuite, LinkedListQueryTest){
+  std::vector<int> test_vals = {10, 100};
+  srand(time(NULL));
+  int seed = 1; 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      //vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
+      vertex_t u = 4, v = 9;
+      if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+    std::cout << "u = " << u << "v = " << v << "\n";*/
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < n-1; i++){
+        int new_edge = rand() % 100;
+        tree.link(i, i+1, new_edge);
+        if(i >= u && i < v) min_edge_val = std::min(min_edge_val, new_edge);
+      }
 
-//       // Test return of min_edge_value.
-//       auto returned_query = tree.path_query(u, v);
-//       if(returned_query != min_edge_val){
-//         std::cout << seed << "\n";
-//         std::cout << "u = " << u << "v = " << v << "\n";
-//       }
-//       ASSERT_EQ(returned_query, min_edge_val);
-//     }
-//   }
-// }
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
 
-// TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
-//   std::vector<int> test_vals = {7, 31, 127};
-//   srand(time(NULL));
-//   int seed = 1; 
-//   srand(seed);
-//   int num_trials = 100;
-//   for(int n : test_vals){
-//     for(int trial = 0; trial < num_trials; ++trial){
-//       TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
-//       std::vector<int> path; 
-//       for(int i = 0; i < n - 1; i = (2*i) + 2){
-//         path.push_back(i);
-//       }
+TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
+  std::vector<int> test_vals = {7, 31, 127};
+  srand(time(NULL));
+  int seed = 1; 
+  srand(seed);
+  int num_trials = 100;
+  for(int n : test_vals){
+    for(int trial = 0; trial < num_trials; ++trial){
+      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      std::vector<int> path; 
+      for(int i = 0; i < n - 1; i = (2*i) + 2){
+        path.push_back(i);
+      }
 
-//       vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
-//       if(lower < upper) std::swap(lower, upper);
+      vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
+      if(lower < upper) std::swap(lower, upper);
 
-//       auto u = path[upper], v = path[lower];
-//       //vertex_t u = 4, v = 7;
-//       //if(v < u) std::swap(u,v);
-//       /*std::cout << "Seed: " << seed << "\n";
-//       std::cout << "u = " << u << "v = " << v << "\n";*/ 
-//       int j = 0;
-//       int min_edge_val = std::numeric_limits<int>::max();
-//       for(int i = 0; i < (n/2); i++){ 
-//         auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
-//         tree.link(i, (2*i) + 1, new_edge);
-//         tree.link(i, (2*i) + 2, new_edge2);
-//         if(i == path[j]){
-//           if(i >= u && i < v){
-//             min_edge_val = std::min(min_edge_val, new_edge2);
-//           }
-//           j++;
-//         }
-//       }
+      auto u = path[upper], v = path[lower];
+      //vertex_t u = 4, v = 7;
+      //if(v < u) std::swap(u,v);
+      /*std::cout << "Seed: " << seed << "\n";
+      std::cout << "u = " << u << "v = " << v << "\n";*/ 
+      int j = 0;
+      int min_edge_val = std::numeric_limits<int>::max();
+      for(int i = 0; i < (n/2); i++){ 
+        auto new_edge = rand() % 100, new_edge2 = rand() % 100; 
+        tree.link(i, (2*i) + 1, new_edge);
+        tree.link(i, (2*i) + 2, new_edge2);
+        if(i == path[j]){
+          if(i >= u && i < v){
+            min_edge_val = std::min(min_edge_val, new_edge2);
+          }
+          j++;
+        }
+      }
 
-//       // Test return of min_edge_value.
-//       auto returned_query = tree.path_query(u, v);
-//       if(returned_query != min_edge_val){
-//         std::cout << seed << "\n";
-//         std::cout << "u = " << u << "v = " << v << "\n";
-//       }
-//       ASSERT_EQ(returned_query, min_edge_val);
-//     }
-//   }
-// }
+      // Test return of min_edge_value.
+      auto returned_query = tree.path_query(u, v);
+      if(returned_query != min_edge_val){
+        std::cout << seed << "\n";
+        std::cout << "u = " << u << "v = " << v << "\n";
+      }
+      ASSERT_EQ(returned_query, min_edge_val);
+    }
+  }
+}
