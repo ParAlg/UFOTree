@@ -559,137 +559,133 @@ the augmented values for all the edges on the unique path from
 vertex u to vertex v. */
 template<typename aug_t>
 aug_t TopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
-    return default_value;
-//     assert(u >= 0 && u < clusters.size() && v >= 0 && v < clusters.size());
-//     assert(u != v && connected(u,v));
-//     // Compute the path on both sides for both vertices until they combine
-//     aug_t path_u1, path_u2, path_v1, path_v2;
-//     path_u1 = path_u2 = path_v1 = path_v2 = identity;
-//     TopologyCluster<aug_t> *bdry_u1, *bdry_u2, *bdry_v1, *bdry_v2;
-//     bdry_u1 = bdry_u2 = bdry_v1 = bdry_v2 = nullptr;
-//     if (clusters[u].get_degree() == 2) {
-//     bdry_u1 =
-//        clusters[u].neighbors[0] ? clusters[u].neighbors[0] : clusters[u].neighbors[1];
-//     bdry_u2 =
-//        clusters[u].neighbors[2] ? clusters[u].neighbors[2] : clusters[u].neighbors[1];
-//     }
-//     if (clusters[v].get_degree() == 2) {
-//     bdry_v1 =
-//        clusters[v].neighbors[0] ? clusters[v].neighbors[0] : clusters[v].neighbors[1];
-//     bdry_v2 =
-//        clusters[v].neighbors[2] ? clusters[v].neighbors[2] : clusters[v].neighbors[1];
-//     }
-//     auto curr_u = &clusters[u];
-//     auto curr_v = &clusters[v];
-//     while (curr_u->parent != curr_v->parent) { 
-//         // NOTE(ATHARVA): Make this all into one function.
-//         for (int i = 0; i < 3; i++) {
-//             auto neighbor = curr_u->neighbors[i];
-//             if (neighbor && neighbor->parent == curr_u->parent) {
-//                 if (curr_u->get_degree() == 2) {
-//                     if (curr_u->parent->get_degree() == 2) {
-//                         // Binary to Binary
-//                         if (neighbor == bdry_u1) {
-//                             path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
-//                             bdry_u2 = bdry_u2->parent;
-//                             for (int i = 0; i < 3; i++)
-//                 if (curr_u->parent->neighbors[i] &&
-//                     curr_u->parent->neighbors[i] != bdry_u2)
-//                                     bdry_u1 = curr_u->parent->neighbors[i];
-//                         } else {
-//                             path_u2 = f(path_u2, f(curr_u->edge_values[i], neighbor->value));
-//                             bdry_u1 = bdry_u1->parent;
-//                             for (int i = 0; i < 3; i++)
-//                 if (curr_u->parent->neighbors[i] &&
-//                     curr_u->parent->neighbors[i] != bdry_u1)
-//                                     bdry_u2 = curr_u->parent->neighbors[i];
-//                         }
-//                     } else {
-//                         // Binary to Unary
-//                         path_u1 = (neighbor == bdry_u1) ? path_u2 : path_u1;
-//                     }
-//                 } else {
-//                     if (curr_u->parent->get_degree() == 2) {
-//                         // Unary to Binary and degree 3 case
-//                         if(curr_u->get_degree() != 3) path_u1 = path_u2 = f(path_u1, curr_u->edge_values[i]);
-//                         bdry_u1 = curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1];
-//                         bdry_u2 = curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1];
-//                     } else {
-//                         // Unary to Unary
-//                         path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
-//                     }
-//                 }
-//                 break;
-//             }
-//         }
-//         if (!curr_u->contracts()) {
-//       if (bdry_u1)
-//         bdry_u1 = bdry_u1->parent;
-//       if (bdry_u2)
-//         bdry_u2 = bdry_u2->parent;
-//         }
-//         curr_u = curr_u->parent;
-//         for (int i = 0; i < 3; i++) {
-//             auto neighbor = curr_v->neighbors[i];
-//             if (neighbor && neighbor->parent == curr_v->parent) {
-//                 if (curr_v->get_degree() == 2) {
-//                     if (curr_v->parent->get_degree() == 2) {
-//                         // Binary to Binary
-//                         if (neighbor == bdry_v1) {
-//                             path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
-//                             bdry_v2 = bdry_v2->parent;
-//                             for (int i = 0; i < 3; i++)
-//                 if (curr_v->parent->neighbors[i] &&
-//                     curr_v->parent->neighbors[i] != bdry_v2)
-//                                     bdry_v1 = curr_v->parent->neighbors[i];
-//                         } else {
-//                             path_v2 = f(path_v2, f(curr_v->edge_values[i], neighbor->value));
-//                             bdry_v1 = bdry_v1->parent;
-//                             for (int i = 0; i < 3; i++)
-//                 if (curr_v->parent->neighbors[i] &&
-//                     curr_v->parent->neighbors[i] != bdry_v1)
-//                                     bdry_v2 = curr_v->parent->neighbors[i];
-//                         }
-//                     } else {
-//                         // Binary to Unary
-//                         path_v1 = (neighbor == bdry_v1) ? path_v2 : path_v1;
-//                     }
-//                 } else {
-//                     if (curr_v->parent->get_degree() == 2) {
-//                         // Unary to Binary
-//                         if(curr_v->get_degree() != 3) 
-//                           path_v1 = path_v2 = f(path_v1, curr_v->edge_values[i]);
-//                         bdry_v1 = curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1];
-//                         bdry_v2 = curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1];
-//                     } else {
-//                         // Unary to Unary
-//                         path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
-//                     }
-//                 }
-//                 break;
-//             }
-//         }
-//         if (!curr_v->contracts()) {
-//       if (bdry_v1)
-//         bdry_v1 = bdry_v1->parent;
-//       if (bdry_v2)
-//         bdry_v2 = bdry_v2->parent;
-//         }
-//         curr_v = curr_v->parent;
-//     }
-//     // Get the correct path sides when the two vertices meet at the LCA
-//     aug_t total = identity;
-//     if (curr_u->get_degree() == 2)
-//         total = f(total, (curr_v == bdry_u1) ? path_u1 : path_u2);
-//     else
-//         total = f(total, path_u1);
-//     if (curr_v->get_degree() == 2)
-//         total = f(total, (curr_u == bdry_v1) ? path_v1 : path_v2);
-//     else
-//         total = f(total, path_v1);
-//     // Add the value of the last edge
-//   for (int i = 0; i < 3; i++)
-//     if (curr_u->neighbors[i] == curr_v)
-//         total = f(total, curr_u->edge_values[i]);
-//     return total;
+    assert(u >= 0 && u < clusters.size() && v >= 0 && v < clusters.size());
+    assert(u != v && connected(u,v));
+    // Compute the path on both sides for both vertices until they combine
+    aug_t path_u1, path_u2, path_v1, path_v2;
+    path_u1 = path_u2 = path_v1 = path_v2 = identity;
+    vertex_t bdry_u1, bdry_u2, bdry_v1, bdry_v2;
+    bdry_u1 = bdry_u2 = bdry_v1 = bdry_v2 = NONE;
+    if (clusters[u][0].get_degree() == 2) {
+        bdry_u1 = clusters[u][0].neighbors[0] != NONE ? clusters[u][0].neighbors[0] : clusters[u][0].neighbors[1];
+        bdry_u2 = clusters[u][0].neighbors[2] != NONE ? clusters[u][0].neighbors[2] : clusters[u][0].neighbors[1];
+    }
+    if (clusters[v][0].get_degree() == 2) {
+        bdry_v1 = clusters[v][0].neighbors[0] != NONE ? clusters[v][0].neighbors[0] : clusters[v][0].neighbors[1];
+        bdry_v2 = clusters[v][0].neighbors[2] != NONE ? clusters[v][0].neighbors[2] : clusters[v][0].neighbors[1];
+    }
+    auto curr_u = u;
+    auto curr_v = v;
+    int level = 0;
+    auto parent_u = get_parent(curr_u, level);
+    auto parent_v = get_parent(curr_v, level);
+    while (parent_u != parent_v) { 
+        // NOTE(ATHARVA): Make this all into one function.
+        for (int i = 0; i < 3; i++) {
+            auto neighbor = clusters[curr_u][level].neighbors[i];
+            if (neighbor == NONE) continue;
+            auto parent_n = get_parent(neighbor, level);
+            if (parent_n == parent_u) {
+                if (clusters[curr_u][level].get_degree() == 2) {
+                    if (clusters[parent_u][level+1].get_degree() == 2) {
+                        // Binary to Binary
+                        if (neighbor == bdry_u1) {
+                            path_u1 = f(path_u1, f(clusters[curr_u][level].edge_values[i], clusters[neighbor][level].value));
+                            bdry_u2 = get_parent(bdry_u2, level);
+                            for (auto parent_neighbor : clusters[parent_u][level+1].neighbors)
+                                if (parent_neighbor != NONE && parent_neighbor != bdry_u2)
+                                    bdry_u1 = parent_neighbor;
+                        } else {
+                            path_u2 = f(path_u2, f(clusters[curr_u][level].edge_values[i], clusters[neighbor][level].value));
+                            bdry_u1 = get_parent(bdry_u1, level);
+                            for (auto parent_neighbor : clusters[parent_u][level+1].neighbors)
+                                if (parent_neighbor != NONE && parent_neighbor != bdry_u1)
+                                    bdry_u2 = parent_neighbor;
+                        }
+                    } else {
+                        // Binary to Unary
+                        path_u1 = (neighbor == bdry_u1) ? path_u2 : path_u1;
+                    }
+                } else {
+                    if (clusters[parent_u][level+1].get_degree() == 2) {
+                        // Unary to Binary and degree 3 case
+                        if(clusters[curr_u][level].get_degree() != 3) path_u1 = path_u2 = f(path_u1, clusters[curr_u][level].edge_values[i]);
+                        bdry_u1 = clusters[parent_u][level+1].neighbors[0] ? clusters[parent_u][level+1].neighbors[0] : clusters[parent_u][level+1].neighbors[1];
+                        bdry_u2 = clusters[parent_u][level+1].neighbors[2] ? clusters[parent_u][level+1].neighbors[2] : clusters[parent_u][level+1].neighbors[1];
+                    } else {
+                        // Unary to Unary
+                        path_u1 = f(path_u1, f(clusters[curr_u][level].edge_values[i], clusters[neighbor][level].value));
+                    }
+                }
+                break;
+            }
+        }
+        for (int i = 0; i < 3; i++) {
+            auto neighbor = clusters[curr_v][level].neighbors[i];
+            if (neighbor == NONE) continue;
+            auto parent_n = get_parent(neighbor, level);
+            if (parent_n == parent_v) {
+                if (clusters[curr_v][level].get_degree() == 2) {
+                    if (clusters[parent_v][level+1].get_degree() == 2) {
+                        // Binary to Binary
+                        if (neighbor == bdry_v1) {
+                            path_v1 = f(path_v1, f(clusters[curr_v][level].edge_values[i], clusters[neighbor][level].value));
+                            bdry_v2 = get_parent(bdry_v2, level);
+                            for (auto parent_neighbor : clusters[parent_v][level+1].neighbors)
+                                if (parent_neighbor != NONE && parent_neighbor != bdry_v2)
+                                    bdry_v1 = parent_neighbor;
+                        } else {
+                            path_v2 = f(path_v2, f(clusters[curr_v][level].edge_values[i], clusters[neighbor][level].value));
+                            bdry_v1 = get_parent(bdry_v1, level);
+                            for (auto parent_neighbor : clusters[parent_v][level+1].neighbors)
+                                if (parent_neighbor != NONE && parent_neighbor != bdry_v1)
+                                    bdry_v2 = parent_neighbor;
+                        }
+                    } else {
+                        // Binary to Unary
+                        path_v1 = (neighbor == bdry_v1) ? path_v2 : path_v1;
+                    }
+                } else {
+                    if (clusters[parent_v][level+1].get_degree() == 2) {
+                        // Unary to Binary and degree 3 case
+                        if(clusters[curr_v][level].get_degree() != 3) path_v1 = path_v2 = f(path_v1, clusters[curr_v][level].edge_values[i]);
+                        bdry_v1 = clusters[parent_v][level+1].neighbors[0] ? clusters[parent_v][level+1].neighbors[0] : clusters[parent_v][level+1].neighbors[1];
+                        bdry_v2 = clusters[parent_v][level+1].neighbors[2] ? clusters[parent_v][level+1].neighbors[2] : clusters[parent_v][level+1].neighbors[1];
+                    } else {
+                        // Unary to Unary
+                        path_v1 = f(path_v1, f(clusters[curr_v][level].edge_values[i], clusters[neighbor][level].value));
+                    }
+                }
+                break;
+            }
+        }
+        if (!contracts(curr_u, level)) {
+            if (bdry_u1 != NONE) bdry_u1 = get_parent(bdry_u1, level);
+            if (bdry_u2 != NONE) bdry_u2 = get_parent(bdry_u2, level);
+        }
+        if (!contracts(curr_v, level)) {
+            if (bdry_v1 != NONE) bdry_v1 = get_parent(bdry_v1, level);
+            if (bdry_v2 != NONE) bdry_v2 = get_parent(bdry_v2, level);
+        }
+        curr_u = parent_u;
+        curr_v = parent_v;
+        level++;
+        parent_u = get_parent(curr_u, level);
+        parent_v = get_parent(curr_v, level);
+    }
+    // Get the correct path sides when the two vertices meet at the LCA
+    aug_t total = identity;
+    if (clusters[curr_u][level].get_degree() == 2)
+        total = f(total, (curr_v == bdry_u1) ? path_u1 : path_u2);
+    else
+        total = f(total, path_u1);
+    if (clusters[curr_v][level].get_degree() == 2)
+        total = f(total, (curr_u == bdry_v1) ? path_v1 : path_v2);
+    else
+        total = f(total, path_v1);
+    // Add the value of the last edge
+    for (int i = 0; i < 3; i++)
+        if (clusters[curr_u][level].neighbors[i] == curr_v)
+            total = f(total, clusters[curr_u][level].edge_values[i]);
+    return total;
 }
