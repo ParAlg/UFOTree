@@ -4,10 +4,10 @@
 #include "../include/topology_tree.h"
 
 
-template<typename aug_t>
-bool TopologyTree<aug_t>::is_valid() {
-    std::unordered_set<TopologyCluster<aug_t>*> clusters;
-    std::unordered_set<TopologyCluster<aug_t>*> next_clusters;
+template<typename v_t, typename e_t>
+bool TopologyTree<v_t, e_t>::is_valid() {
+    std::unordered_set<TopologyCluster<v_t, e_t>*> clusters;
+    std::unordered_set<TopologyCluster<v_t, e_t>*> next_clusters;
     for (auto leaf : leaves) // Ensure that every pair of incident vertices are in the same component
         for (auto neighbor : leaf.neighbors) // This ensures all connectivity is correct by transitivity
             if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
@@ -36,10 +36,10 @@ bool TopologyTree<aug_t>::is_valid() {
     return true;
 }
 
-template<typename aug_t>
-int TopologyTree<aug_t>::get_height(vertex_t v) {
+template<typename v_t, typename e_t>
+int TopologyTree<v_t, e_t>::get_height(vertex_t v) {
     int height = 0;
-    TopologyCluster<aug_t>* curr = &leaves[v];
+    TopologyCluster<v_t, e_t>* curr = &leaves[v];
     while (curr) {
         height++;
         curr = curr->parent;
@@ -47,12 +47,12 @@ int TopologyTree<aug_t>::get_height(vertex_t v) {
     return height;
 }
 
-template<typename aug_t>
-void TopologyTree<aug_t>::print_tree() {
-    std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> clusters;
-    std::multimap<TopologyCluster<aug_t>*, TopologyCluster<aug_t>*> next_clusters;
+template<typename v_t, typename e_t>
+void TopologyTree<v_t, e_t>::print_tree() {
+    std::multimap<TopologyCluster<v_t, e_t>*, TopologyCluster<v_t, e_t>*> clusters;
+    std::multimap<TopologyCluster<v_t, e_t>*, TopologyCluster<v_t, e_t>*> next_clusters;
     std::cout << "========================= LEAVES =========================" << std::endl;
-    std::unordered_map<TopologyCluster<aug_t>*, vertex_t> vertex_map;
+    std::unordered_map<TopologyCluster<v_t, e_t>*, vertex_t> vertex_map;
     for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
     for (auto entry : clusters) {
@@ -84,9 +84,7 @@ void TopologyTree<aug_t>::print_tree() {
 
 TEST(TopologyTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f, 0, 0);
+    TopologyTree<empty_t, empty_t> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -96,9 +94,7 @@ TEST(TopologyTreeSuite, incremental_linkedlist_correctness_test) {
 
 TEST(TopologyTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f, 0, 0);
+    TopologyTree<empty_t, empty_t> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -116,9 +112,7 @@ TEST(TopologyTreeSuite, incremental_random_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        TopologyTree<int> tree(n, qt, f, 0, 0);
+        TopologyTree<empty_t, empty_t> tree(n);
 
         auto seed = seeds[trial];
         srand(seed);
@@ -141,10 +135,8 @@ TEST(TopologyTreeSuite, incremental_random_correctness_test) {
 }
 
 TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
-    vertex_t n = 128;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f, 0, 0);
+    vertex_t n = 256;
+    TopologyTree<empty_t, empty_t> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -157,9 +149,7 @@ TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
 
 TEST(TopologyTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
-    TopologyTree<int> tree(n, qt, f, 0, 0);
+    TopologyTree<empty_t, empty_t> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -182,9 +172,7 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        TopologyTree<int> tree(n, qt, f, 0, 0);
+        TopologyTree<empty_t, empty_t> tree(n);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
         auto seed = seeds[trial];
@@ -213,50 +201,13 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
     }
 }
 
-TEST(TopologyTreeSuite, random_performance_test) {
-    int num_trials = 1; // 100;
-    int seeds[num_trials];
-    srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 1000; // 1000000;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        TopologyTree<int> tree(n, qt, f, 0, 0);
-        std::pair<vertex_t, vertex_t> edges[n-1];
-
-        auto seed = seeds[trial];
-        srand(seed);
-        // std::cout << std::endl << "Trial " << trial << ", Seed: " << seed << std::endl;
-        int links = 0;
-        std::vector<int> vertex_degrees(n,0);
-        while (links < n-1) {
-            vertex_t u = rand() % n;
-            vertex_t v = rand() % n;
-            if (vertex_degrees[u] >= 3) continue;
-            if (vertex_degrees[v] >= 3) continue;
-            if (u != v && !tree.connected(u,v)) {
-                tree.link(u,v);
-                edges[links++] = {u,v};
-                vertex_degrees[u]++;
-                vertex_degrees[v]++;
-            }
-        }
-        for (auto edge : edges) {
-            auto u = edge.first;
-            auto v = edge.second;
-            tree.cut(u,v);
-        }
-    }
-}
-
 TEST(TopologyTreeSuite, subtree_query_test) {
     vertex_t n = 256;
     QueryType qt = SUBTREE;
     auto f = [](int x, int y)->int{return x + y;};
     int id = 0;
     int d = 1;
-    TopologyTree<int> tree(n, qt, f, id, d);
+    TopologyTree<int, empty_t> tree(n, qt, f, id, d);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -280,7 +231,7 @@ TEST(TopologyTreeSuite, path_query_test) {
     auto f = [](int x, int y)->int{return x + y;};
     int id = 0;
     int d = 0;
-    TopologyTree<int> tree(n, qt, f, id, d);
+    TopologyTree<int, int> tree(n, qt, f, f, id, id, d, d);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1,1);
@@ -302,12 +253,16 @@ TEST(TopologyTreeQuerySuite, LinkedListQueryTest){
   int num_trials = 100;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
-      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      QueryType qt = PATH;
+      auto f = [](int x, int y)->int{return std::min(x,y);};
+      int id = std::numeric_limits<int>::max();
+      int d = std::numeric_limits<int>::max();
+      TopologyTree<int, int> tree(n, qt, f, f, id, id, d, d);
       //vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
       vertex_t u = 4, v = 9;
       if(v < u) std::swap(u,v);
       /*std::cout << "Seed: " << seed << "\n";
-    std::cout << "u = " << u << "v = " << v << "\n";*/
+      std::cout << "u = " << u << "v = " << v << "\n";*/
       int min_edge_val = std::numeric_limits<int>::max();
       for(int i = 0; i < n-1; i++){
         int new_edge = rand() % 100;
@@ -335,7 +290,11 @@ TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
   int num_trials = 100;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
-      TopologyTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      QueryType qt = PATH;
+      auto f = [](int x, int y)->int{return std::min(x,y);};
+      int id = std::numeric_limits<int>::max();
+      int d = std::numeric_limits<int>::max();
+      TopologyTree<int, int> tree(n, qt, f, f, id, id, d, d);
       std::vector<int> path; 
       for(int i = 0; i < n - 1; i = (2*i) + 2){
         path.push_back(i);

@@ -23,7 +23,7 @@ struct TopologyCluster {
     e_t edge_values[3];   // Only for path queries
     v_t value;            // Stores subtree values or cluster path values
     // Constructor
-    TopologyCluster(v_t value) : parent(), neighbors(), edge_values(), value(value){};
+    TopologyCluster() : parent(), neighbors(), edge_values(), value(){};
     // Helper functions
     int get_degree();
     bool contracts();
@@ -40,14 +40,14 @@ struct TopologyCluster<v_t, empty_t> {
     TopologyCluster<v_t, empty_t>* neighbors[3];
     v_t value;            // Stores subtree values or cluster path values
     // Constructor
-    TopologyCluster(v_t value) : parent(), neighbors(), value(value){};
+    TopologyCluster() : parent(), neighbors(), value(){};
     // Helper functions
     int get_degree();
     bool contracts();
     bool contains_neighbor(TopologyCluster<v_t, empty_t>* c);
     void insert_neighbor(TopologyCluster<v_t, empty_t>* c);
     void remove_neighbor(TopologyCluster<v_t, empty_t>* c);
-    TopologyCluster<v_t, e_t>* get_root();
+    TopologyCluster<v_t, empty_t>* get_root();
 };
 
 template<>
@@ -113,55 +113,57 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
-
-    template<typename U = e_t>
-    void recompute_parent_value(Cluster* c1, Cluster* c2, typename std::enable_if_t<!std::is_same<U, empty_t>::value>* = 0);
-    // {
-    //     assert(c1->parent == c2->parent);
-    //     auto parent = c1->parent;
-    //     if (query_type == SUBTREE) {
-    //         parent->value = f_v(c1->value, c2->value);
-    //     } else if (query_type == PATH && c1->get_degree() == 2 && c2->get_degree() == 2) {
-    //         e_t edge_val;
-    //         for (int i = 0; i < 3; i++)
-    //             if (c1->neighbors[i] == c2)
-    //                 edge_val = c1->edge_values[i];
-    //         parent->value = f_e(f_e(c1->value, c2->value), edge_val);
-    //     }
-    // }
-
-    template<typename U = e_t>
-    recompute_parent_value(Cluster* c1, Cluster* c2, typename std::enable_if_t<std::is_same<U, empty_t>::value>* = 0);
-    // {
-    //     assert(c1->parent == c2->parent);
-    //     auto parent = c1->parent;
-    //     if (query_type == SUBTREE) {
-    //         parent->value = f_v(c1->value, c2->value);
-    //     }
-    // }
-
+    void add_parents_adjacency(Cluster* c1, Cluster* c2, int i);
+    void recompute_parent_value(Cluster* c1, Cluster* c2);
 };
 
-template<typename v_t, typename e_t, typename U = e_t>
-void TopologyTree<v_t, e_t>::recompute_parent_value(Cluster* c1, Cluster* c2, typename std::enable_if_t<!std::is_same<U, empty_t>::value>*) {
-    assert(c1->parent == c2->parent);
-    auto parent = c1->parent;
-    if (query_type == SUBTREE) {
-        parent->value = f_v(c1->value, c2->value);
-    } else if (query_type == PATH && c1->get_degree() == 2 && c2->get_degree() == 2) {
-        e_t edge_val;
-        for (int i = 0; i < 3; i++)
-            if (c1->neighbors[i] == c2)
-                edge_val = c1->edge_values[i];
-        parent->value = f_e(f_e(c1->value, c2->value), edge_val);
+template<typename v_t>
+class TopologyTree<v_t, empty_t> : ITernarizable {
+using Cluster = TopologyCluster<v_t, empty_t>;
+public:
+    // Topology tree interface
+    TopologyTree(
+        vertex_t n, QueryType q = CONNECTIVITY,
+        std::function<v_t(v_t, v_t)> f_v = [](v_t x, v_t y) -> v_t {return x;});
+    TopologyTree(
+        vertex_t n, QueryType q,
+        std::function<v_t(v_t, v_t)> f_v, v_t id_v, v_t dval_v);
+    ~TopologyTree();
+    void link(vertex_t u, vertex_t v);
+    void cut(vertex_t u, vertex_t v);
+    bool connected(vertex_t u, vertex_t v);
+    v_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
+    //Interface methods overriden.
+    short get_degree(vertex_t v) override {return leaves[v].get_degree();}
+    std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+      return std::pair(leaves[v].neighbors[0] - &leaves[0], 0); 
     }
-}
+    // Testing helpers
+    bool is_valid();
+    int get_height(vertex_t v);
+    void print_tree();
+    size_t space();
+private:
+    // Class data and parameters
+    std::vector<Cluster> leaves;
+    std::vector<std::vector<Cluster*>> root_clusters;
+    std::vector<std::pair<std::pair<Cluster*, Cluster*>, bool>> contractions;
+    QueryType query_type;
+    std::function<v_t(v_t, v_t)> f_v;
+    v_t identity_v;
+    v_t default_v;
+    // Helper functions
+    void remove_ancestors(Cluster* c, int start_level = 0);
+    void recluster_tree();
+    void add_parents_adjacency(Cluster* c1, Cluster* c2, int i);
+    void recompute_parent_value(Cluster* c1, Cluster* c2);
+};
 
 template<typename v_t, typename e_t>
 TopologyTree<v_t, e_t>::TopologyTree(vertex_t n, QueryType q,
         std::function<v_t(v_t, v_t)> f_v, std::function<e_t(e_t, e_t)> f_e)
     : query_type(q), f_v(f_v), f_e(f_e) {
-    leaves.resize(n, dval_v);
+    leaves.resize(n);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
@@ -172,7 +174,7 @@ TopologyTree<v_t, e_t>::TopologyTree(vertex_t n, QueryType q,
         v_t id_v, e_t id_e, v_t dval_v, e_t dval_e)
     : query_type(q), f_v(f_v), f_e(f_e), identity_v(id_v), identity_e(id_e),
      default_v(dval_v), default_e(dval_e) {
-    leaves.resize(n, dval_v);
+    leaves.resize(n);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
@@ -230,6 +232,25 @@ void TopologyTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
         max_height = std::max(max_height, get_height(v));
     #endif
 }
+template<typename v_t>
+void TopologyTree<v_t, empty_t>::link(vertex_t u, vertex_t v) {
+    assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
+    assert(u != v && !connected(u,v));
+    START_TIMER(topology_remove_ancestor_timer);
+    remove_ancestors(&leaves[u]);
+    remove_ancestors(&leaves[v]);
+    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
+    leaves[u].insert_neighbor(&leaves[v]);
+    leaves[v].insert_neighbor(&leaves[u]);
+    START_TIMER(topology_recluster_tree_timer);
+    recluster_tree();
+    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
+    // Collect tree height stats at the end of each update
+    #ifdef COLLECT_HEIGHT_STATS
+        max_height = std::max(max_height, get_height(u));
+        max_height = std::max(max_height, get_height(v));
+    #endif
+}
 
 /* Cut vertex u and vertex v in the tree. */
 template<typename v_t, typename e_t>
@@ -250,42 +271,6 @@ void TopologyTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
         max_height = std::max(max_height, get_height(u));
         max_height = std::max(max_height, get_height(v));
     #endif
-}
-
-template<typename v_t, typename e_t>
-void TopologyTree<v_t, e_t>::batch_link(Edge* links, int len) {
-    START_TIMER(topology_remove_ancestor_timer);
-    for (int i = 0; i < len; i++) {
-        Edge e = links[i];
-        vertex_t u = e.src;
-        vertex_t v = e.dst;
-        remove_ancestors(&leaves[u]);
-        remove_ancestors(&leaves[v]);
-        leaves[u].insert_neighbor(&leaves[v], default_value);
-        leaves[v].insert_neighbor(&leaves[u], default_value);
-    }
-    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
-    START_TIMER(topology_recluster_tree_timer);
-    recluster_tree();
-    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-}
-
-template<typename v_t, typename e_t>
-void TopologyTree<v_t, e_t>::batch_cut(Edge* cuts, int len) {
-    START_TIMER(topology_remove_ancestor_timer);
-    for (int i = 0; i < len; i++) {
-        Edge e = cuts[i];
-        vertex_t u = e.src;
-        vertex_t v = e.dst;
-        remove_ancestors(&leaves[u]);
-        remove_ancestors(&leaves[v]);
-        leaves[u].remove_neighbor(&leaves[v]);
-        leaves[v].remove_neighbor(&leaves[u]);
-    }
-    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
-    START_TIMER(topology_recluster_tree_timer);
-    recluster_tree();
-    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
 }
 
 template<typename v_t, typename e_t>
@@ -343,7 +328,7 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
                         auto parent = neighbor->parent;
                         bool new_parent = (parent == nullptr);
                         if (new_parent) { // If neighbor is a root cluster
-                            parent = new Cluster(default_value);
+                            parent = new Cluster();
                             root_clusters[level+1].push_back(parent);
                         }
                         cluster->parent = parent;
@@ -353,13 +338,12 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
                         break;
                     }
                 }
-      } else if (cluster->get_degree() == 2 && !cluster->parent) {
+            } else if (cluster->get_degree() == 2 && !cluster->parent) {
                 // Combine deg 2 root clusters with deg 1 or 2 root clusters
                 for (int i = 0; i < 3; i++) {
                     auto neighbor = cluster->neighbors[i];
-          if (neighbor && !neighbor->parent &&
-              (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
-                        auto parent = new Cluster(default_value);
+                    if (neighbor && !neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
+                        auto parent = new Cluster();
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
@@ -370,30 +354,29 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
                 }
                 // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
                 if (!cluster->parent)
-                for (int i = 0; i < 3; i++) {
-                    auto neighbor = cluster->neighbors[i];
-            if (neighbor && neighbor->parent &&
-                (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
-              if (neighbor->contracts())
-                continue;
-                        auto parent = neighbor->parent;
-              if (!parent)
-                parent = new Cluster(default_value);
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        recompute_parent_value(cluster, neighbor);
-                        contractions.push_back({{cluster,neighbor},false});
-                        break;
+                    for (int i = 0; i < 3; i++) {
+                        auto neighbor = cluster->neighbors[i];
+                        if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
+                            if (neighbor->contracts())
+                                continue;
+                            auto parent = neighbor->parent;
+                            if (!parent)
+                                parent = new Cluster();
+                            cluster->parent = parent;
+                            neighbor->parent = parent;
+                            recompute_parent_value(cluster, neighbor);
+                            contractions.push_back({{cluster,neighbor},false});
+                            break;
+                        }
                     }
-                }
-      } else if (cluster->get_degree() == 1 && !cluster->parent) {
+            } else if (cluster->get_degree() == 1 && !cluster->parent) {
                 // Combine deg 1 root clusters with deg 1 root or non-root clusters
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->get_degree() == 1) {
                         auto parent = neighbor->parent;
                         bool new_parent = (parent == nullptr);
                         if (new_parent) { // If neighbor is a root cluster
-                            parent = new Cluster(default_value);
+                            parent = new Cluster();
                             root_clusters[level+1].push_back(parent);
                         }
                         cluster->parent = parent;
@@ -406,13 +389,12 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
                 // Combine deg 1 root clusters with deg 2 or 3 non-root clusters
                 if (!cluster->parent)
                 for (auto neighbor : cluster->neighbors) {
-            if (neighbor && neighbor->parent &&
-                (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
-              if (neighbor->contracts())
-                continue;
+                    if (neighbor && neighbor->parent && (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
+                        if (neighbor->contracts())
+                            continue;
                         auto parent = neighbor->parent;
-              if (!parent)
-                parent = new Cluster(default_value);
+                        if (!parent)
+                            parent = new Cluster();
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         recompute_parent_value(cluster, neighbor);
@@ -423,9 +405,10 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
             }
             // Add remaining uncombined clusters to the next level
             if (!cluster->parent && cluster->get_degree() > 0) {
-                auto parent = new Cluster(default_value);
+                auto parent = new Cluster();
                 parent->value = cluster->value;
                 cluster->parent = parent;
+                recompute_parent_value(cluster, cluster);
                 root_clusters[level+1].push_back(parent);
                 contractions.push_back({{cluster,cluster},true});
             }
@@ -436,29 +419,74 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
             auto c2 = contraction.first.second;
             auto parent = c1->parent;
             bool new_parent = contraction.second;
-      for (int i = 0; i < 3; ++i)
-        parent->neighbors[i] = nullptr;
-            for (int i = 0; i < 3; ++i) {
-        if (c1->neighbors[i] &&
-            c1->neighbors[i] != c2) {   // Don't add c2's parent (itself)
-                    parent->insert_neighbor(c1->neighbors[i]->parent, c1->edge_values[i]);
-                    c1->neighbors[i]->parent->insert_neighbor(parent, c1->edge_values[i]);
-                }
-            }
-            for (int i = 0; i < 3; ++i) {
-        if (c2->neighbors[i] &&
-            c2->neighbors[i] != c1) {   // Don't add c1's parent (itself)
-                    parent->insert_neighbor(c2->neighbors[i]->parent, c2->edge_values[i]);
-                    c2->neighbors[i]->parent->insert_neighbor(parent, c2->edge_values[i]);
-                }
-            }
-      if (!new_parent)
-        remove_ancestors(parent, level + 1);
+            for (int i = 0; i < 3; ++i)
+                parent->neighbors[i] = nullptr;
+            for (int i = 0; i < 3; ++i)
+                if (c1->neighbors[i] && c1->neighbors[i] != c2)   // Don't add c2's parent (itself)
+                    add_parents_adjacency(c1, c1->neighbors[i], i);
+            for (int i = 0; i < 3; ++i)
+                if (c2->neighbors[i] && c2->neighbors[i] != c1)   // Don't add c1's parent (itself)
+                    add_parents_adjacency(c2, c2->neighbors[i], i);
+            if (!new_parent)
+                remove_ancestors(parent, level + 1);
         }
         // Clear the contents of this level
         root_clusters[level].clear();
         contractions.clear();
     }
+}
+
+template<typename v_t, typename e_t>
+void TopologyTree<v_t, e_t>::add_parents_adjacency(Cluster* c1, Cluster* c2, int i) {
+    assert(c1->neighbors[i] == c2);
+    assert(c1->parent != c2->parent);
+    c1->parent->insert_neighbor(c2->parent, c1->edge_values[i]);
+    c2->parent->insert_neighbor(c1->parent, c1->edge_values[i]);
+}
+
+template<typename v_t>
+void TopologyTree<v_t, empty_t>::add_parents_adjacency(Cluster* c1, Cluster* c2, int i) {
+    assert(c1->neighbors[i] == c2);
+    assert(c1->parent != c2->parent);
+    c1->parent->insert_neighbor(c2->parent);
+    c2->parent->insert_neighbor(c1->parent);
+}
+
+template<typename v_t, typename e_t>
+void TopologyTree<v_t, e_t>::recompute_parent_value(Cluster* c1, Cluster* c2) {
+    assert(c1->parent == c2->parent);
+    auto parent = c1->parent;
+    if (c1 == c2) {
+        parent->value = c1->value;
+        return;
+    }
+    if (query_type == SUBTREE) {
+        parent->value = f_v(c1->value, c2->value);
+    } else if (query_type == PATH && c1->get_degree() == 2 && c2->get_degree() == 2) {
+        e_t edge_val;
+        for (int i = 0; i < 3; i++)
+            if (c1->neighbors[i] == c2)
+                edge_val = c1->edge_values[i];
+        parent->value = f_e(f_e(c1->value, c2->value), edge_val);
+    }
+}
+
+template<typename v_t>
+void TopologyTree<v_t, empty_t>::recompute_parent_value(Cluster* c1, Cluster* c2) {
+    assert(c1->parent == c2->parent);
+    auto parent = c1->parent;
+    if (c1 == c2) {
+        parent->value = c1->value;
+        return;
+    }
+    if (query_type == SUBTREE) {
+        parent->value = f_v(c1->value, c2->value);
+    }
+}
+
+template<>
+void TopologyTree<empty_t, empty_t>::recompute_parent_value(Cluster* c1, Cluster* c2) {
+    assert(c1->parent == c2->parent);
 }
 
 template<typename v_t, typename e_t>
@@ -504,10 +532,10 @@ void TopologyCluster<v_t, e_t>::insert_neighbor(TopologyCluster<v_t, e_t>* c, e_
 
 template<typename v_t>
 void TopologyCluster<v_t, empty_t>::insert_neighbor(TopologyCluster<v_t, empty_t>* c) {
-    if (this->contains_neighbor(v)) return;
+    if (this->contains_neighbor(c)) return;
     for (int i = 0; i < 3; ++i) {
-        if (this->neighbors[i] == NONE) {
-            this->neighbors[i] = v;
+        if (this->neighbors[i] == nullptr) {
+            this->neighbors[i] = c;
             return;
         }
     }
@@ -527,7 +555,7 @@ void TopologyCluster<v_t, e_t>::remove_neighbor(TopologyCluster<v_t, e_t>* c) {
 
 template<typename v_t, typename e_t>
 TopologyCluster<v_t, e_t>* TopologyCluster<v_t, e_t>::get_root() {
-    TopologyCluster<v_t, e_t>* c* curr = this;
+    TopologyCluster<v_t, e_t>* curr = this;
     while (curr->parent) curr = curr->parent;
     return curr;
 }
@@ -558,7 +586,7 @@ v_t TopologyTree<v_t, e_t>::subtree_query(vertex_t v, vertex_t p) {
     for (auto neighbor : curr_v->neighbors)
       if (neighbor && neighbor->parent == curr_v->parent)
         total =
-           f(total, neighbor->value);   // Only count vertices on the side of v
+           f_v(total, neighbor->value);   // Only count vertices on the side of v
         curr_v = curr_v->parent;
         curr_p = curr_p->parent;
     }
@@ -571,7 +599,7 @@ v_t TopologyTree<v_t, e_t>::subtree_query(vertex_t v, vertex_t p) {
       for (auto neighbor : curr_v->neighbors)
         if (neighbor && neighbor->parent == curr_v->parent)
           total =
-             f(total, neighbor->value);   // Count all remaining root clusters
+             f_v(total, neighbor->value);   // Count all remaining root clusters
             curr_v = curr_v->parent;
         }
         return total;
@@ -584,7 +612,7 @@ v_t TopologyTree<v_t, e_t>::subtree_query(vertex_t v, vertex_t p) {
         curr_u = neighbor; // Find the neighbor of curr_v that is not curr_p
     while (curr_v->parent) {
         if (curr_u->parent == curr_v->parent) {
-      total = f(
+      total = f_v(
          total,
          curr_u->value);   // Count the remaining root clusters on the side of v
       if (curr_u->get_degree() == 1)
@@ -594,7 +622,7 @@ v_t TopologyTree<v_t, e_t>::subtree_query(vertex_t v, vertex_t p) {
                 while (curr_v->parent) {
           for (auto neighbor : curr_v->neighbors)
             if (neighbor && neighbor->parent == curr_v->parent)
-              total = f(total,
+              total = f_v(total,
                         neighbor->value);   // Count all remaining root clusters
                     curr_v = curr_v->parent;
                 }
@@ -650,13 +678,13 @@ e_t TopologyTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                     if (curr_u->parent->get_degree() == 2) {
                         // Binary to Binary
                         if (neighbor == bdry_u1) {
-                            path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
+                            path_u1 = f_e(path_u1, f_e(curr_u->edge_values[i], neighbor->value));
                             bdry_u2 = bdry_u2->parent;
                             for (int i = 0; i < 3; i++)
                             if (curr_u->parent->neighbors[i] && curr_u->parent->neighbors[i] != bdry_u2)
                                 bdry_u1 = curr_u->parent->neighbors[i];
                         } else {
-                            path_u2 = f(path_u2, f(curr_u->edge_values[i], neighbor->value));
+                            path_u2 = f_e(path_u2, f_e(curr_u->edge_values[i], neighbor->value));
                             bdry_u1 = bdry_u1->parent;
                             for (int i = 0; i < 3; i++)
                 if (curr_u->parent->neighbors[i] &&
@@ -670,12 +698,12 @@ e_t TopologyTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                 } else {
                     if (curr_u->parent->get_degree() == 2) {
                         // Unary to Binary and degree 3 case
-                        if(curr_u->get_degree() != 3) path_u1 = path_u2 = f(path_u1, curr_u->edge_values[i]);
+                        if (curr_u->get_degree() != 3) path_u1 = path_u2 = f_e(path_u1, curr_u->edge_values[i]);
                         bdry_u1 = curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1];
                         bdry_u2 = curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1];
                     } else {
                         // Unary to Unary
-                        path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
+                        path_u1 = f_e(path_u1, f_e(curr_u->edge_values[i], neighbor->value));
                     }
                 }
                 break;
@@ -695,13 +723,13 @@ e_t TopologyTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                     if (curr_v->parent->get_degree() == 2) {
                         // Binary to Binary
                         if (neighbor == bdry_v1) {
-                            path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
+                            path_v1 = f_e(path_v1, f_e(curr_v->edge_values[i], neighbor->value));
                             bdry_v2 = bdry_v2->parent;
                             for (int i = 0; i < 3; i++)
                             if (curr_v->parent->neighbors[i] && curr_v->parent->neighbors[i] != bdry_v2)
                                 bdry_v1 = curr_v->parent->neighbors[i];
                         } else {
-                            path_v2 = f(path_v2, f(curr_v->edge_values[i], neighbor->value));
+                            path_v2 = f_e(path_v2, f_e(curr_v->edge_values[i], neighbor->value));
                             bdry_v1 = bdry_v1->parent;
                             for (int i = 0; i < 3; i++)
                             if (curr_v->parent->neighbors[i] && curr_v->parent->neighbors[i] != bdry_v1)
@@ -714,13 +742,13 @@ e_t TopologyTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                 } else {
                     if (curr_v->parent->get_degree() == 2) {
                         // Unary to Binary
-                        if(curr_v->get_degree() != 3) 
-                            path_v1 = path_v2 = f(path_v1, curr_v->edge_values[i]);
+                        if (curr_v->get_degree() != 3) 
+                            path_v1 = path_v2 = f_e(path_v1, curr_v->edge_values[i]);
                         bdry_v1 = curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1];
                         bdry_v2 = curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1];
                     } else {
                         // Unary to Unary
-                        path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
+                        path_v1 = f_e(path_v1, f_e(curr_v->edge_values[i], neighbor->value));
                     }
                 }
                 break;
