@@ -113,7 +113,7 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
-    void add_parents_adjacency(Cluster* c1, Cluster* c2, int i);
+    void add_parent_adjacency(Cluster* c1, Cluster* c2, int i);
     void recompute_parent_value(Cluster* c1, Cluster* c2);
 };
 
@@ -155,7 +155,41 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
-    void add_parents_adjacency(Cluster* c1, Cluster* c2, int i);
+    void add_parent_adjacency(Cluster* c1, Cluster* c2, int i);
+    void recompute_parent_value(Cluster* c1, Cluster* c2);
+};
+
+template<>
+class TopologyTree<empty_t, empty_t> : ITernarizable {
+using Cluster = TopologyCluster<empty_t, empty_t>;
+public:
+    // Topology tree interface
+    TopologyTree(
+        vertex_t n, QueryType q = CONNECTIVITY);
+    ~TopologyTree();
+    void link(vertex_t u, vertex_t v);
+    void cut(vertex_t u, vertex_t v);
+    bool connected(vertex_t u, vertex_t v);
+    //Interface methods overriden.
+    short get_degree(vertex_t v) override {return leaves[v].get_degree();}
+    std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+      return std::pair(leaves[v].neighbors[0] - &leaves[0], 0);
+    }
+    // Testing helpers
+    bool is_valid();
+    int get_height(vertex_t v);
+    void print_tree();
+    size_t space();
+private:
+    // Class data and parameters
+    std::vector<Cluster> leaves;
+    std::vector<std::vector<Cluster*>> root_clusters;
+    std::vector<std::pair<std::pair<Cluster*, Cluster*>, bool>> contractions;
+    QueryType query_type;
+    // Helper functions
+    void remove_ancestors(Cluster* c, int start_level = 0);
+    void recluster_tree();
+    void add_parent_adjacency(Cluster* c1, Cluster* c2, int i);
     void recompute_parent_value(Cluster* c1, Cluster* c2);
 };
 
@@ -423,10 +457,10 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
                 parent->neighbors[i] = nullptr;
             for (int i = 0; i < 3; ++i)
                 if (c1->neighbors[i] && c1->neighbors[i] != c2)   // Don't add c2's parent (itself)
-                    add_parents_adjacency(c1, c1->neighbors[i], i);
+                    add_parent_adjacency(c1, c1->neighbors[i], i);
             for (int i = 0; i < 3; ++i)
                 if (c2->neighbors[i] && c2->neighbors[i] != c1)   // Don't add c1's parent (itself)
-                    add_parents_adjacency(c2, c2->neighbors[i], i);
+                    add_parent_adjacency(c2, c2->neighbors[i], i);
             if (!new_parent)
                 remove_ancestors(parent, level + 1);
         }
@@ -437,7 +471,7 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
 }
 
 template<typename v_t, typename e_t>
-void TopologyTree<v_t, e_t>::add_parents_adjacency(Cluster* c1, Cluster* c2, int i) {
+void TopologyTree<v_t, e_t>::add_parent_adjacency(Cluster* c1, Cluster* c2, int i) {
     assert(c1->neighbors[i] == c2);
     assert(c1->parent != c2->parent);
     c1->parent->insert_neighbor(c2->parent, c1->edge_values[i]);
@@ -445,7 +479,14 @@ void TopologyTree<v_t, e_t>::add_parents_adjacency(Cluster* c1, Cluster* c2, int
 }
 
 template<typename v_t>
-void TopologyTree<v_t, empty_t>::add_parents_adjacency(Cluster* c1, Cluster* c2, int i) {
+void TopologyTree<v_t, empty_t>::add_parent_adjacency(Cluster* c1, Cluster* c2, int i) {
+    assert(c1->neighbors[i] == c2);
+    assert(c1->parent != c2->parent);
+    c1->parent->insert_neighbor(c2->parent);
+    c2->parent->insert_neighbor(c1->parent);
+}
+
+void TopologyTree<empty_t, empty_t>::add_parent_adjacency(Cluster* c1, Cluster* c2, int i) {
     assert(c1->neighbors[i] == c2);
     assert(c1->parent != c2->parent);
     c1->parent->insert_neighbor(c2->parent);
@@ -484,9 +525,9 @@ void TopologyTree<v_t, empty_t>::recompute_parent_value(Cluster* c1, Cluster* c2
     }
 }
 
-template<>
 void TopologyTree<empty_t, empty_t>::recompute_parent_value(Cluster* c1, Cluster* c2) {
     assert(c1->parent == c2->parent);
+    return;
 }
 
 template<typename v_t, typename e_t>
