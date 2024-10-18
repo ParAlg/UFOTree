@@ -47,12 +47,12 @@ class ElementBase {
  
   // Calculate the size of a single node in the skip list.
   size_t calculate_size();
+  int height;
   
  protected:
   // neighbors[i] holds neighbors at level i, where level 0 is the lowest level
   // and is the level at which the list contains all elements
   Neighbors<Derived>* neighbors;
-  int height;
 
   static pbbs::random default_random;
 

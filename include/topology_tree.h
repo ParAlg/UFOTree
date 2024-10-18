@@ -7,10 +7,6 @@
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     static std::map<int, int> root_clusters_histogram;
 #endif
-// #define COLLECT_HEIGHT_STATS
-#ifdef COLLECT_HEIGHT_STATS
-    static int max_height = 0;
-#endif
 
 static long topology_remove_ancestor_time = 0;
 static long topology_recluster_tree_time = 0;
@@ -32,6 +28,7 @@ struct TopologyCluster {
 
 template<typename aug_t>
 class TopologyTree : ITernarizable {
+using Cluster = TopologyCluster<aug_t>;
 public:
     // Topology tree interface
     TopologyTree(
@@ -55,12 +52,13 @@ public:
     }
     // Testing helpers
     bool is_valid();
-    int get_height(vertex_t v);
     void print_tree();
     size_t space();
+    size_t count_nodes();
+    size_t get_height();
 private:
     // Class data and parameters
-    std::vector<std::vector<TopologyCluster<aug_t>>> clusters;
+    std::vector<std::vector<Cluster>> clusters;
     std::vector<vertex_t> parents;
     QueryType query_type;
     std::function<aug_t(aug_t, aug_t)> f;
@@ -94,16 +92,13 @@ TopologyTree<aug_t>::~TopologyTree() {
         for (auto entry : root_clusters_histogram)
             std::cout << entry.first << "\t" << entry.second << std::endl;
     #endif
-    #ifdef COLLECT_HEIGHT_STATS
-        std::cout << "Maximum height of the tree: " << max_height << std::endl;
-    #endif
     PRINT_TIMER("REMOVE ANCESTORS TIME", topology_remove_ancestor_time);
     PRINT_TIMER("RECLUSTER TREE TIME", topology_recluster_tree_time);
     return;
 }
 
 template<typename aug_t>
-size_t TopologyTree<aug_t>::space(){ 
+size_t TopologyTree<aug_t>::space() {
     size_t memory = sizeof(TopologyTree<aug_t>);
     memory += clusters.size() * sizeof(std::vector<TopologyCluster<aug_t>>);
     for (auto leaf : clusters) {
@@ -112,6 +107,23 @@ size_t TopologyTree<aug_t>::space(){
     }
     memory += parents.size() * sizeof(vertex_t);
     return memory;
+}
+
+template<typename aug_t>
+size_t TopologyTree<aug_t>::count_nodes() {
+    size_t node_count = 0;
+    for (auto leaf : clusters)
+        node_count += leaf.size();
+    return node_count;
+}
+
+template<typename aug_t>
+size_t TopologyTree<aug_t>::get_height() {
+    size_t max_height = 0;
+    for (auto leaf : clusters)
+        if (leaf.size() > max_height)
+            max_height = leaf.size();
+    return max_height;
 }
 
 /* Link vertex u and vertex v in the tree. Optionally include an
@@ -130,11 +142,6 @@ void TopologyTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
     START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
     STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect tree height stats at the end of each update
-    #ifdef COLLECT_HEIGHT_STATS
-        max_height = std::max(max_height, get_height(u));
-        max_height = std::max(max_height, get_height(v));
-    #endif
 }
 
 /* Cut vertex u and vertex v in the tree. */
@@ -151,11 +158,6 @@ void TopologyTree<aug_t>::cut(vertex_t u, vertex_t v) {
     START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
     STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect tree height stats at the end of each update
-    #ifdef COLLECT_HEIGHT_STATS
-        max_height = std::max(max_height, get_height(u));
-        max_height = std::max(max_height, get_height(v));
-    #endif
 }
 
 template<typename aug_t>

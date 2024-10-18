@@ -41,13 +41,6 @@ bool TopologyTree<aug_t>::is_valid() {
 }
 
 template<typename aug_t>
-int TopologyTree<aug_t>::get_height(vertex_t v) {
-    int height = 0;
-    vertex_t p = get_root(v);
-    return clusters[p].size();
-}
-
-template<typename aug_t>
 void TopologyTree<aug_t>::print_tree() {
     std::multimap<vertex_t, vertex_t> cluster_set;
     std::multimap<vertex_t, vertex_t> next_cluster_set;
