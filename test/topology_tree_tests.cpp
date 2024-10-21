@@ -73,7 +73,7 @@ void TopologyTree<v_t, e_t>::print_tree() {
 
 TEST(TopologyTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
-    TopologyTree<empty_t, empty_t> tree(n);
+    TopologyTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -83,7 +83,7 @@ TEST(TopologyTreeSuite, incremental_linkedlist_correctness_test) {
 
 TEST(TopologyTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    TopologyTree<empty_t, empty_t> tree(n);
+    TopologyTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -98,10 +98,10 @@ TEST(TopologyTreeSuite, incremental_random_correctness_test) {
     int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
+    for (int trial = 0; trial < num_trials; ++trial) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; ++trial) {
         vertex_t n = 256;
-        TopologyTree<empty_t, empty_t> tree(n);
+        TopologyTree<int, int> tree(n);
 
         auto seed = seeds[trial];
         srand(seed);
@@ -125,7 +125,7 @@ TEST(TopologyTreeSuite, incremental_random_correctness_test) {
 
 TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 256;
-    TopologyTree<empty_t, empty_t> tree(n);
+    TopologyTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -138,7 +138,7 @@ TEST(TopologyTreeSuite, decremental_linkedlist_correctness_test) {
 
 TEST(TopologyTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    TopologyTree<empty_t, empty_t> tree(n);
+    TopologyTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -158,10 +158,10 @@ TEST(TopologyTreeSuite, decremental_random_correctness_test) {
     int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
-    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-    for (int trial = 0; trial < num_trials; trial++) {
+    for (int trial = 0; trial < num_trials; ++trial) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; ++trial) {
         vertex_t n = 256;
-        TopologyTree<empty_t, empty_t> tree(n);
+        TopologyTree<int, int> tree(n);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
         auto seed = seeds[trial];
@@ -196,7 +196,7 @@ TEST(TopologyTreeSuite, subtree_query_test) {
     auto f = [](int x, int y)->int{return x + y;};
     int id = 0;
     int d = 1;
-    TopologyTree<int, empty_t> tree(n, qt, f, id, d);
+    TopologyTree<int, int> tree(n, qt, f, f, id, id, d, d);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -235,23 +235,22 @@ TEST(TopologyTreeSuite, path_query_test) {
 }
 
 TEST(TopologyTreeQuerySuite, LinkedListQueryTest){
-  std::vector<int> test_vals = {10, 100};
+  std::vector<int> test_vals = {10, 100, 1000};
+  int num_trials = 1;
+  int seeds[num_trials];
   srand(time(NULL));
-  int seed = 1; 
-  srand(seed);
-  int num_trials = 100;
+  for (int trial = 0; trial < num_trials; ++trial) seeds[trial] = rand();
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
+      int seed = seeds[trial];
+      srand(seed);
       QueryType qt = PATH;
-      auto f = [](int x, int y)->int{return std::min(x,y);};
+      auto f = [](int x, int y)->int {return std::min(x,y);};
       int id = std::numeric_limits<int>::max();
       int d = std::numeric_limits<int>::max();
       TopologyTree<int, int> tree(n, qt, f, f, id, id, d, d);
-      //vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
-      vertex_t u = 4, v = 9;
+      vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
       if(v < u) std::swap(u,v);
-      /*std::cout << "Seed: " << seed << "\n";
-      std::cout << "u = " << u << "v = " << v << "\n";*/
       int min_edge_val = std::numeric_limits<int>::max();
       for(int i = 0; i < n-1; i++){
         int new_edge = rand() % 100;
@@ -263,8 +262,8 @@ TEST(TopologyTreeQuerySuite, LinkedListQueryTest){
       auto returned_query = tree.path_query(u, v);
       if(returned_query != min_edge_val){
         tree.print_tree();
-        std::cout << seed << "\n";
-        std::cout << "u = " << u << "v = " << v << "\n";
+        std::cout << "SEED: " << seed << std::endl;
+        std::cout << "u = " << u << ", v = " << v << std::endl;
       }
       ASSERT_EQ(returned_query, min_edge_val);
     }
@@ -272,15 +271,17 @@ TEST(TopologyTreeQuerySuite, LinkedListQueryTest){
 }
 
 TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
-  std::vector<int> test_vals = {7, 31, 127};
+  std::vector<int> test_vals = {15, 127, 1023};
+  int num_trials = 1;
+  int seeds[num_trials];
   srand(time(NULL));
-  int seed = 1; 
-  srand(seed);
-  int num_trials = 100;
+  for (int trial = 0; trial < num_trials; ++trial) seeds[trial] = rand();
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
+      int seed = seeds[trial];
+      srand(seed);
       QueryType qt = PATH;
-      auto f = [](int x, int y)->int{return std::min(x,y);};
+      auto f = [](int x, int y)->int {return std::min(x,y);};
       int id = std::numeric_limits<int>::max();
       int d = std::numeric_limits<int>::max();
       TopologyTree<int, int> tree(n, qt, f, f, id, id, d, d);
@@ -288,15 +289,9 @@ TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
       for(int i = 0; i < n - 1; i = (2*i) + 2){
         path.push_back(i);
       }
-
       vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();if(lower == upper) lower++;
       if(lower < upper) std::swap(lower, upper);
-
       auto u = path[upper], v = path[lower];
-      //vertex_t u = 4, v = 7;
-      //if(v < u) std::swap(u,v);
-      /*std::cout << "Seed: " << seed << "\n";
-      std::cout << "u = " << u << "v = " << v << "\n";*/ 
       int j = 0;
       int min_edge_val = std::numeric_limits<int>::max();
       for(int i = 0; i < (n/2); i++){ 
@@ -315,8 +310,8 @@ TEST(TopologyTreeQuerySuite, BinaryTreeQueryTest){
       auto returned_query = tree.path_query(u, v);
       if(returned_query != min_edge_val){
         tree.print_tree();
-        std::cout << seed << "\n";
-        std::cout << "u = " << u << "v = " << v << "\n";
+        std::cout << "SEED: " << seed << std::endl;
+        std::cout << "u = " << u << ", v = " << v << "\n";
       }
       ASSERT_EQ(returned_query, min_edge_val);
     }

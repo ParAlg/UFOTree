@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
       std::cout << "RCTree        : " << time << std::endl;
       output_csv << time << ",";
       // Topology Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_query_speed<TopologyTree<int, empty_t>>(n, update_sequences, query_sequences);
+      if (!ternarize) time = dynamic_tree_benchmark::get_query_speed<TopologyTree<int, int>>(n, update_sequences, query_sequences);
       // else time = dynamic_tree_benchmark::get_query_speed<TernarizedTree<TopologyTree<int>, int>>(n, update_sequences, query_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
