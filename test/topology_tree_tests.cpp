@@ -37,17 +37,6 @@ bool TopologyTree<v_t, e_t>::is_valid() {
 }
 
 template<typename v_t, typename e_t>
-int TopologyTree<v_t, e_t>::get_height(vertex_t v) {
-    int height = 0;
-    TopologyCluster<v_t, e_t>* curr = &leaves[v];
-    while (curr) {
-        height++;
-        curr = curr->parent;
-    }
-    return height;
-}
-
-template<typename v_t, typename e_t>
 void TopologyTree<v_t, e_t>::print_tree() {
     std::multimap<TopologyCluster<v_t, e_t>*, TopologyCluster<v_t, e_t>*> clusters;
     std::multimap<TopologyCluster<v_t, e_t>*, TopologyCluster<v_t, e_t>*> next_clusters;

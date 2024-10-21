@@ -7,13 +7,6 @@
 #ifdef COLLECT_ROOT_CLUSTER_STATS
     static std::map<int, int> root_clusters_histogram;
 #endif
-// #define COLLECT_HEIGHT_STATS
-#ifdef COLLECT_HEIGHT_STATS
-    static int max_height = 0;
-#endif
-
-static long topology_remove_ancestor_time = 0;
-static long topology_recluster_tree_time = 0;
 
 template<typename v_t, typename e_t>
 struct TopologyCluster {
@@ -94,10 +87,11 @@ public:
       return std::pair(leaves[v].neighbors[0] - &leaves[0], 0); 
     }
     // Testing helpers
-    bool is_valid();
-    int get_height(vertex_t v);
-    void print_tree();
     size_t space();
+    size_t count_nodes();
+    size_t get_height();
+    bool is_valid();
+    void print_tree();
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
@@ -139,10 +133,11 @@ public:
       return std::pair(leaves[v].neighbors[0] - &leaves[0], 0); 
     }
     // Testing helpers
-    bool is_valid();
-    int get_height(vertex_t v);
-    void print_tree();
     size_t space();
+    size_t count_nodes();
+    size_t get_height();
+    bool is_valid();
+    void print_tree();
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
@@ -176,10 +171,11 @@ public:
       return std::pair(leaves[v].neighbors[0] - &leaves[0], 0);
     }
     // Testing helpers
-    bool is_valid();
-    int get_height(vertex_t v);
-    void print_tree();
     size_t space();
+    size_t count_nodes();
+    size_t get_height();
+    bool is_valid();
+    void print_tree();
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
@@ -221,11 +217,6 @@ TopologyTree<v_t, e_t>::~TopologyTree() {
         for (auto entry : root_clusters_histogram)
             std::cout << entry.first << "\t" << entry.second << std::endl;
     #endif
-    #ifdef COLLECT_HEIGHT_STATS
-        std::cout << "Maximum height of the tree: " << max_height << std::endl;
-    #endif
-    PRINT_TIMER("REMOVE ANCESTORS TIME", topology_remove_ancestor_time);
-    PRINT_TIMER("RECLUSTER TREE TIME", topology_recluster_tree_time);
     return;
 }
 
@@ -244,6 +235,22 @@ size_t TopologyTree<v_t, e_t>::space(){
     }
     return memory;
 }
+
+template<typename v_t, typename e_t>
+size_t TopologyTree<v_t, e_t>::get_height() {
+    size_t max_height = 0;
+    for (vertex_t v = 0; v < leaves.size(); ++v) {
+        size_t height = 0;
+        TopologyCluster<v_t, e_t>* curr = &leaves[v];
+        while (curr) {
+            height++;
+            curr = curr->parent;
+        }
+        max_height = std::max(max_height, height);
+    }
+    return max_height;
+}
+
 /* Link vertex u and vertex v in the tree. Optionally include an
 augmented value for the new edge (u,v). If no augmented value is
 provided, the default value is 1. */
@@ -251,39 +258,21 @@ template<typename v_t, typename e_t>
 void TopologyTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    START_TIMER(topology_remove_ancestor_timer);
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
-    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
     leaves[u].insert_neighbor(&leaves[v], value);
     leaves[v].insert_neighbor(&leaves[u], value);
-    START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
-    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect tree height stats at the end of each update
-    #ifdef COLLECT_HEIGHT_STATS
-        max_height = std::max(max_height, get_height(u));
-        max_height = std::max(max_height, get_height(v));
-    #endif
 }
 template<typename v_t>
 void TopologyTree<v_t, empty_t>::link(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    START_TIMER(topology_remove_ancestor_timer);
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
-    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
     leaves[u].insert_neighbor(&leaves[v]);
     leaves[v].insert_neighbor(&leaves[u]);
-    START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
-    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect tree height stats at the end of each update
-    #ifdef COLLECT_HEIGHT_STATS
-        max_height = std::max(max_height, get_height(u));
-        max_height = std::max(max_height, get_height(v));
-    #endif
 }
 
 /* Cut vertex u and vertex v in the tree. */
@@ -291,20 +280,11 @@ template<typename v_t, typename e_t>
 void TopologyTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
-    START_TIMER(topology_remove_ancestor_timer);
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
-    STOP_TIMER(topology_remove_ancestor_timer, topology_remove_ancestor_time);
     leaves[u].remove_neighbor(&leaves[v]);
     leaves[v].remove_neighbor(&leaves[u]);
-    START_TIMER(topology_recluster_tree_timer);
     recluster_tree();
-    STOP_TIMER(topology_recluster_tree_timer, topology_recluster_tree_time);
-    // Collect tree height stats at the end of each update
-    #ifdef COLLECT_HEIGHT_STATS
-        max_height = std::max(max_height, get_height(u));
-        max_height = std::max(max_height, get_height(v));
-    #endif
 }
 
 template<typename v_t, typename e_t>
@@ -348,11 +328,10 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
       continue;
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
-    if (root_clusters_histogram.find(root_clusters[level].size()) ==
-        root_clusters_histogram.end())
-                root_clusters_histogram[root_clusters[level].size()] = 1;
-            else
-                root_clusters_histogram[root_clusters[level].size()] += 1;
+        if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
+            root_clusters_histogram[root_clusters[level].size()] = 1;
+        else
+            root_clusters_histogram[root_clusters[level].size()] += 1;
         #endif
         for (auto cluster : root_clusters[level]) {
             if (cluster->get_degree() == 3) {

@@ -33,16 +33,33 @@ EulerTourTree::~EulerTourTree() {
   pbbs::delete_array(verts, num_verts);
 }
 
-size_t EulerTourTree::space(){
-  if(max_space == -1) {
-    max_space = sizeof(EulerTourTree) - sizeof(size_t);
-    max_space = max_space + (edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*))) // Size of key value pairs
-      + edges.bucket_count() * (sizeof(void*) + sizeof(size_t)); // Space used by linked list.
-    for(auto curr : node_pool){
-      max_space += (sizeof(void*) + curr->calculate_size());
-    }
+size_t EulerTourTree::space() {
+  size_t max_space = sizeof(EulerTourTree);
+  max_space += num_verts * sizeof(skip_list::Element*);
+  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*)) // Size of key value pairs
+    + edges.bucket_count() * (sizeof(void*) + sizeof(size_t)); // Space used by linked list
+  for (auto element : edges) {
+    max_space += element.second->calculate_size();
+  }
+  for (auto curr : node_pool) {
+    max_space += (sizeof(skip_list::Element*) + curr->calculate_size());
   }
   return max_space;
+}
+
+size_t EulerTourTree::count_nodes() {
+  size_t node_count = 0;
+  for (auto element : edges)
+    node_count += element.second->height;
+  return node_count;
+}
+
+size_t EulerTourTree::get_height() {
+  size_t max_height = 0;
+  for (auto element : edges)
+    if (element.second->height > max_height)
+      max_height = element.second->height;
+  return max_height;
 }
 
 bool EulerTourTree::IsConnected(int u, int v) {

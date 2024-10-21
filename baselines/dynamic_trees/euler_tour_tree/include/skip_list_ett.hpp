@@ -37,6 +37,8 @@ class EulerTourTree {
 
   // Return the space being used by the skip list.
   size_t space();
+  size_t count_nodes();
+  size_t get_height();
 
   void link(int u, int v){Link(u,v);}
   
@@ -47,7 +49,6 @@ class EulerTourTree {
   std::unordered_map<std::pair<int, int>, skip_list::Element*,
     HashIntPairStruct> edges;
   std::vector<skip_list::Element*> node_pool;
-  size_t max_space = -1;
 };
 
 } // namespace skip_list_ett
