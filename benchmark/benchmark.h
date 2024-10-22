@@ -9,7 +9,7 @@
 
 namespace dynamic_tree_benchmark {
 
-// Returns the time in seconds to perform all of the updates
+// Returns the average time in seconds to perform the sequences of updates
 template <typename DynamicTree>
 double get_update_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences) {
     parlay::internal::timer my_timer("");
@@ -31,7 +31,7 @@ double get_update_speed(vertex_t n, std::vector<std::vector<Update>> update_sequ
     return my_timer.total_time()/update_sequences.size();
 }
 
-// TODO: query speed
+// Returns the average time in seconds to perform the sequences of queries given trees formed from the sequences of updates
 template <typename DynamicTree>
 double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences, std::vector<std::vector<Query>> query_sequences) {
     parlay::internal::timer my_timer("");
@@ -60,7 +60,7 @@ double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_seque
     return my_timer.total_time()/query_sequences.size();
 }
 
-// Returns space in bytes used just before the first deletion
+// Returns the average memory usage in bytes just before the first deletion in each update sequence
 template <typename DynamicTree>
 size_t get_peak_space(vertex_t n, std::vector<std::vector<Update>> update_sequences) {
     size_t total_space = 0;

@@ -1,0 +1,179 @@
+// Copied from parlaylib with some modification
+#pragma once
+#include <iostream>
+#include <parlay/io.h>
+#include <parlay/primitives.h>
+#include <parlay/sequence.h>
+#include <string>
+#include <algorithm>
+#include "types.h"
+
+
+using namespace parlay;
+
+struct graph_utils {
+  using vertex = uint32_t;
+  using edge = Edge;
+  using edges = parlay::sequence<edge>;
+  using vertices = parlay::sequence<vertex>;
+  using graph = parlay::sequence<vertices>;
+
+  using element = std::pair<int, float>;
+  using row = parlay::sequence<element>;
+  using sparse_matrix = parlay::sequence<row>;
+
+  static edges to_edges(const graph &G) {
+    return flatten(parlay::tabulate(G.size(), [&](vertex u) {
+      return map(G[u],
+                 [=](vertex v) { return Edge{(vertex)u, (vertex)v}; });
+    }));
+  }
+
+  static edges BFS_forest(const graph &G) {
+    // Chat GPT code
+    int n = G.size();
+    std::vector<bool> visited(n, false);
+    edges bfsForest;
+    for (vertex start = 0; start < n; ++start) {
+        if (!visited[start]) {
+            std::queue<vertex> q;
+            q.push(start);
+            visited[start] = true;
+            while (!q.empty()) {
+                vertex v = q.front();
+                q.pop();
+                for (vertex neighbor : G[v]) {
+                    if (!visited[neighbor]) {
+                        visited[neighbor] = true;
+                        bfsForest.push_back({v, neighbor});
+                        q.push(neighbor);
+                    }
+                }
+            }
+        }
+    }
+    return bfsForest;
+  }
+
+  static void print_graph_stats(const graph &G) {
+    long num_edges = reduce(map(G, parlay::size_of()));
+    std::cout << "num vertices = " << G.size() << std::endl;
+    std::cout << "num edges    = " << num_edges << std::endl;
+  }
+
+  static size_t get_vertex_eccentricity(const graph& G, vertex v) {
+      int n = G.size();
+      std::vector<size_t> dist(n, -1);
+      std::queue<vertex> q;
+      dist[v] = 0;
+      q.push(v);
+      size_t maxDist = 0;
+      while (!q.empty()) {
+          int v = q.front();
+          q.pop();
+          for (vertex neighbor : G[v]) {
+              if (dist[neighbor] == -1) {
+                  dist[neighbor] = dist[v] + 1;
+                  q.push(neighbor);
+                  maxDist = std::max(maxDist, dist[neighbor]);
+              }
+          }
+      }
+      return maxDist;
+  }
+
+  static size_t get_graph_diameter(const graph& G) {
+      int n = G.size();
+      int diameter = 0;
+      for (vertex i = 0; i < n; ++i) {
+          int maxDist = get_vertex_eccentricity(G, i);
+          diameter = std::max(diameter, maxDist);
+      }
+      return diameter;
+  }
+
+  static graph read_graph_from_file(const std::string &filename) {
+    auto str = parlay::file_map(filename);
+    auto tokens =
+        parlay::tokens(str, [](char c) { return c == '\n' || c == ' '; });
+    long n = parlay::chars_to_long(tokens[0]);
+    long m = parlay::chars_to_long(tokens[1]);
+    if (tokens.size() != n + m + 2) {
+      std::cout << "Bad file format, read_graph_from_file expects:\n"
+                << "<n> <m> <degree 0> <degree 1> ... <degree n-1> <edge 0> "
+                   "... <edge m-1>\n"
+                << "Edges are sorted and each difference encoded with respect "
+                   "to the previous one."
+                << "First per vertex is encoded directly." << std::endl;
+      return graph();
+    }
+    auto lengths = parlay::delayed::tabulate(
+        n, [&](long i) { return parlay::chars_to_double(tokens[i + 2]); });
+    auto edges = parlay::tabulate(m, [&](long i) {
+      return (vertex)parlay::chars_to_double(tokens[i + n + 2]);
+    });
+    auto [offsets, total] = scan(lengths);
+    return parlay::tabulate(n, [&, o = offsets.begin()](vertex i) {
+      return scan_inclusive(edges.cut(o[i], o[i] + lengths[i]));
+    });
+  }
+
+  static void write_graph_to_file(const graph &G, const std::string &filename) {
+    using lseq = parlay::sequence<long>;
+    auto lengths = parlay::map(G, [](auto &nghs) { return (long)nghs.size(); });
+    auto edges = parlay::flatten(parlay::tabulate(G.size(), [&](long i) {
+      auto nghs = sort(G[i]);
+      return parlay::tabulate(nghs.size(), [&](long j) -> long {
+        return j == 0 ? nghs[0] : nghs[j] - nghs[j - 1];
+      });
+    }));
+    auto all = flatten(
+        parlay::sequence<lseq>({lseq(1, (long)G.size()),
+                                lseq(1, (long)edges.size()), lengths, edges}));
+    auto newline = parlay::chars(1, '\n');
+    parlay::chars_to_file(
+        parlay::flatten(map(
+            all, [&](long v) { return append(parlay::to_chars(v), newline); })),
+        filename);
+  }
+
+  static void write_symmetric_graph_to_file(const graph &G,
+                                            const std::string &filename) {
+    auto GR = parlay::tabulate(G.size(), [&](vertex u) {
+      return parlay::filter(G[u], [&](vertex v) { return v > u; });
+    });
+    write_graph_to_file(GR, filename);
+  }
+
+  static graph break_sym_graph_from_bin(const std::string &filename) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+      std::cerr << "Error: Cannot open file " << filename << '\n';
+      abort();
+    }
+    size_t num_vertices, num_edges, sizes;
+    ifs.read(reinterpret_cast<char *>(&num_vertices), sizeof(size_t));
+    ifs.read(reinterpret_cast<char *>(&num_edges), sizeof(size_t));
+    ifs.read(reinterpret_cast<char *>(&sizes), sizeof(size_t));
+    assert(sizes == (num_vertices + 1) * 8 + num_edges * 4 + 3 * 8);
+    parlay::sequence<uint64_t> offset(num_vertices + 1);
+    parlay::sequence<uint32_t> edge(num_edges);
+    ifs.read(reinterpret_cast<char *>(offset.begin()), (num_vertices + 1) * 8);
+    ifs.read(reinterpret_cast<char *>(edge.begin()), num_edges * 4);
+    if (ifs.peek() != EOF) {
+      std::cerr << "Error: Bad data\n";
+      abort();
+    }
+    ifs.close();
+    // std::cout << num_vertices << std::endl
+    //           << num_edges << std::endl
+    //           << sizes << std::endl;
+    auto edges =
+        parlay::tabulate(num_edges, [&](vertex i) { return (vertex)edge[i]; });
+    return parlay::tabulate(num_vertices, [&](vertex i) {
+      return parlay::filter(
+          parlay::to_sequence(edges.cut(offset[i], offset[i + 1])),
+          [=](auto v) { return i < v; });
+    });
+  }
+};
