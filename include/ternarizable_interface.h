@@ -2,9 +2,8 @@
 #include <cstdint>
 #include <utility>
 
+template<typename aug_t>
 class ITernarizable {
-  
-  virtual short get_degree(uint32_t v) = 0;
-  virtual std::pair<uint32_t, int> retrieve_v_to_del(uint32_t v) = 0;
-
+  virtual short get_degree(vertex_t v) = 0;
+  virtual std::pair<vertex_t, aug_t> retrieve_v_to_del(vertex_t v) = 0;
 };

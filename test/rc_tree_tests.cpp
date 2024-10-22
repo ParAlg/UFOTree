@@ -60,7 +60,7 @@ void print_tree(RCTree<int> *tree){
     for(int i = 0; i < tree->n; i++){
       if(tree->contraction_tree[i].size() >= round + 1 && tree->contraction_tree[i][round] != nullptr){
         std::cout << "Vertex: " << i << " :[";
-        for(int j = 0; j < tree->degree_bound; j++){
+        for(int j = 0; j < DEGREE_BOUND; j++){
           if(tree->contraction_tree[i][round][j] != nullptr){
             //std::cout << "HERE!";
             auto cluster = tree->contraction_tree[i][round][j];
@@ -92,7 +92,7 @@ void RCTree<aug_t>::is_valid_induced_tree(int round){
   for(int v = 0; v < n; v++){
     if(contraction_tree[v].size() >= round + 1){
       auto adjacencies = contraction_tree[v][round];
-      for(int j = 0; j < degree_bound; j++){
+      for(int j = 0; j < DEGREE_BOUND; j++){
         if(adjacencies[j] == nullptr) continue;
         auto deref_cluster = *adjacencies[j];
         auto boundaries = deref_cluster.boundary_vertexes;
@@ -109,7 +109,7 @@ void RCTree<aug_t>::is_valid_induced_tree(int round){
             throw std::invalid_argument("Neighbor did not live long enough.");
 
           bool contains_cluster = false;
-          for(int i = 0; i < degree_bound; i++){
+          for(int i = 0; i < DEGREE_BOUND; i++){
             if(contraction_tree[neighbor][round][i] == adjacencies[j]){
               contains_cluster = true; 
               break;
@@ -120,7 +120,7 @@ void RCTree<aug_t>::is_valid_induced_tree(int round){
           }
         }
 
-        for(int i = 0; i < degree_bound; i++){
+        for(int i = 0; i < DEGREE_BOUND; i++){
           if(i == j) continue;
           if(adjacencies[i] == adjacencies[j]){
             throw std::invalid_argument("Same cluster has been added twice");
@@ -129,7 +129,7 @@ void RCTree<aug_t>::is_valid_induced_tree(int round){
 
         if(round > 0){
           bool in_prev_round = false;
-          for(int i = 0; i < degree_bound; i++){
+          for(int i = 0; i < DEGREE_BOUND; i++){
             if(contraction_tree[v][round - 1][i] == adjacencies[j]){
               in_prev_round = true;
               break;
@@ -169,21 +169,21 @@ void RCTree<aug_t>::is_valid_MIS(int round){
                                   " did not live at round " + std::to_string(round));
     }
     bool neighbor_in_max = false;
-    for(int i = 0; i < degree_bound; i++){
+    for(int i = 0; i < DEGREE_BOUND; i++){
       if(is_edge(contraction_tree[vertex][round][i])){
         auto dereferenced_cluster = *contraction_tree[vertex][round][i];
         int neighbor = GET_NEIGHBOR(vertex, dereferenced_cluster);
-        if(maximal_set.count(vertex) == 0 && 
-          ((contracts(neighbor, round, 0)  && affected.count(neighbor) == 0)|| 
-          maximal_set.count(neighbor) == 1)){
+        if(!vector_contains(&maximal_set, vertex) && 
+          ((contracts(neighbor, round, 0)  && !vector_contains(&affected, neighbor)) || 
+          vector_contains(&maximal_set, neighbor))){
           neighbor_in_max = true; // If either the vertex is next to an contracting unaffected neighbor or 
           // neighbor included in the MIS then increment count as this vertex is valid.
         }
 
         // If 2 adjacent neighbors have been added then also throw an exception.
         // as the set is not independent.
-        if(maximal_set.count(vertex) == 1 && 
-          maximal_set.count(neighbor) != 0){
+        if(vector_contains(&maximal_set, vertex) && 
+            vector_contains(&maximal_set, neighbor)){
           throw std::invalid_argument("2 adjacent vertices have been added to the MIS");
         }
       }
@@ -191,7 +191,7 @@ void RCTree<aug_t>::is_valid_MIS(int round){
 
     //If no neighbors are in the maximal set then this vertex should have been
     //in the maximal set. Thus the MIS is invalid
-    if(maximal_set.count(vertex) == 0 && get_degree(vertex, round) < 3 &&
+    if(!vector_contains(&maximal_set, vertex) && get_degree(vertex, round) < 3 &&
       !neighbor_in_max){
       throw std::invalid_argument("The set is not maximal");
     }
@@ -212,7 +212,7 @@ void print_cluster(RCCluster<aug_t>* cluster){
 }
 TEST(RCTreeSuite, test_constructor) {
   RCTree<int> tree1(7);
-  ASSERT_EQ(tree1.degree_bound, 3);
+  ASSERT_EQ(DEGREE_BOUND, 3);
   ASSERT_EQ(tree1.n, 7);
 }
 
@@ -261,23 +261,25 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   tree.round_contracted[3] = 1;
   tree.add_neighbor(0, &e1, -1);
   tree.add_neighbor(0, &e2, -1);
-  (tree.affected).insert(1);
+  (tree.affected).push_back(1);
   tree.spread_affection(0);
 
-  std::unordered_set<vertex_t> actual_affected({1,2,3});
+  std::vector<vertex_t> actual_affected({1,2,3});
+  std::sort(tree.affected.begin(), tree.affected.end());
   ASSERT_EQ((tree.affected), actual_affected);
 
   // Degree 2
   RCTree<int> tree2(4);
   tree2.add_neighbor(0, &e1, -1);
   tree2.add_neighbor(0, &e2, -1);
-  (tree2.affected).insert(2);
-  (tree2.affected).insert(3);
+  (tree2.affected).push_back(2);
+  (tree2.affected).push_back(3);
   tree2.round_contracted[2] = 0;
   tree2.round_contracted[3] = 0;
   tree2.round_contracted[1] = 1;
   tree2.spread_affection(0);
-  std::unordered_set<vertex_t> actual_affected2({1,2,3});
+  std::sort(tree2.affected.begin(), tree2.affected.end());
+  std::vector<vertex_t> actual_affected2({1,2,3});
   ASSERT_EQ((tree2.affected), actual_affected2);
 
   //Degree 3
@@ -287,15 +289,16 @@ TEST(RCTreeSuite, test_spread_affection_contracting_affected){
   tree3.add_neighbor(0, &e1, -1);
   tree3.add_neighbor(0, &e2, -1);
   tree3.add_neighbor(0, &e3, -1);
-  (tree3.affected).insert(2);
-  (tree3.affected).insert(3);
-  (tree3.affected).insert(0);
+  (tree3.affected).push_back(2);
+  (tree3.affected).push_back(3);
+  (tree3.affected).push_back(0);
   tree3.round_contracted[0] = 0;
   tree3.round_contracted[2] = 0;
   tree3.round_contracted[3] = 0;
   tree3.round_contracted[1] = 1;
   tree3.spread_affection(0); 
-  std::unordered_set<vertex_t> actual_affected3({1,2,3,0});
+  std::vector<vertex_t> actual_affected3({0,1,2,3});
+  std::sort(tree3.affected.begin(), tree3.affected.end());
   ASSERT_EQ((tree3.affected), actual_affected3);
 }
 
@@ -316,10 +319,10 @@ TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
   tree.round_contracted[2] = 1;
   tree.round_contracted[3] = 0;
   tree.add_neighbor(0, &e1, -1);
-  (tree.affected).insert(2);
+  (tree.affected).push_back(2);
   tree.spread_affection(0);
 
-  std::unordered_set<vertex_t> actual_affected({2});
+  std::vector<vertex_t> actual_affected({2});
   ASSERT_EQ((tree.affected), actual_affected);
 
   //Degree 3
@@ -327,8 +330,9 @@ TEST(RCTreeSuite, spread_affection_uncontracting_not_affected){
   tree.add_neighbor(0, &e3, -1);
   tree.spread_affection(0);
 
-  actual_affected.insert(3);
-  tree.affected.insert(3);
+  actual_affected.push_back(3);
+  tree.affected.push_back(3);
+  std::sort(tree.affected.begin(), tree.affected.end());
   ASSERT_EQ((tree.affected), actual_affected);
 }
 
@@ -365,7 +369,7 @@ TEST(RCTreeSuite, testBadCaseStarGraph){
 }
 
 TEST(RCTreeSuite, testInsertDeleteRakeLinkedList){
-  std::unordered_set<vertex_t> to_test({2, 10, 100, 1000});
+  std::vector<vertex_t> to_test({2, 10, 100, 1000});
   for(auto llist_size : to_test){
     RCTree<int> tree(llist_size);
     for(int i = 0; i < llist_size - 1; i++){
@@ -402,7 +406,7 @@ TEST(RCTreeSuite, testTHETREE){
 }
 
 TEST(RCTreeSuite, testInsertDeleteCompleteBinaryTree){
-  std::unordered_set<vertex_t> to_test({1, 3, 31, 255});
+  std::vector<vertex_t> to_test({1, 3, 31, 255});
   for(auto n : to_test){
     RCTree<int> tree(n);
     for(int i = 0; i < (n/2); i++){ 
@@ -526,7 +530,7 @@ TEST(RCTreeSuite, decremental_random_correctness_test) {
 TEST(RCTreeQuerySuite, BasicLinkedListQuery){
   std::vector<int> test_vals = {10, 100};
   srand(time(NULL));
-  int seed = 1; 
+  int seed = rand(); 
   srand(seed);
   int num_trials = 100;
   for(int n : test_vals){
@@ -557,9 +561,9 @@ TEST(RCTreeQuerySuite, BasicLinkedListQuery){
 }
 
 TEST(RCTreeQuerySuite, BinaryTreeQueryTest){
-  std::vector<int> test_vals = {7, 31, 127};
+  std::vector<int> test_vals = {7, 31, 127, 1023};
   srand(time(NULL));
-  int seed = 1; 
+  int seed = rand(); 
   srand(seed);
   int num_trials = 100;
   for(int n : test_vals){

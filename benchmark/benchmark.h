@@ -46,7 +46,7 @@ double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_seque
             } else if (update.type == DELETE) {
                 if (first_delete) {
                     my_timer.start();
-                    // for (auto query : queries) tree.path_query(query.u, query.v);
+                    for (auto query : queries) tree.path_query(query.u, query.v);
                     my_timer.stop();
                     first_delete = false;
                 }
@@ -113,10 +113,8 @@ std::vector<Update> binary_tree_benchmark(vertex_t n, long seed) {
     parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
     ids = parlay::random_shuffle(ids, parlay::random(rand()));
 
-    for (vertex_t i = 0; i < (n-1)/2; i++) {
-        edges.push_back({ids[i],ids[2*i+1]});
-        edges.push_back({ids[i],ids[2*i+2]});
-    }
+    for (vertex_t i = 1; i < n; i++)
+        edges.push_back({ids[i],ids[(i-1)/2]});
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
     edges = parlay::random_shuffle(edges, parlay::random(rand()));

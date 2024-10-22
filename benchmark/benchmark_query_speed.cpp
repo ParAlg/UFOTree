@@ -63,16 +63,12 @@ int main(int argc, char** argv) {
       output_csv << time << ",";
       // Topology Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_query_speed<TopologyTree<int, int>>(n, update_sequences, query_sequences);
-      // else time = dynamic_tree_benchmark::get_query_speed<TernarizedTree<TopologyTree<int>, int>>(n, update_sequences, query_sequences);
+      else time = dynamic_tree_benchmark::get_query_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences, query_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
       // UFO Tree
       time = dynamic_tree_benchmark::get_query_speed<UFOTree<int>>(n, update_sequences, query_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << time << ",";
-      // Euler Tour Tree
-      time = dynamic_tree_benchmark::get_query_speed<EulerTourTree>(n, update_sequences, query_sequences);
-      std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
 
       std::cout << std::endl;

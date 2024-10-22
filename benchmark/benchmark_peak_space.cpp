@@ -60,8 +60,7 @@ int main(int argc, char** argv) {
       output_csv << space << ",";
       // Topology Tree
       if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<TopologyTree<int, empty_t>>(n, update_sequences);
-      // else space = dynamic_tree_benchmark::get_peak_space<TernarizedTree<TopologyTree<int, empty_t>, int>>(n, update_sequences);
-      else space = 0;
+      else space = dynamic_tree_benchmark::get_peak_space<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences);
       std::cout << "TopologyTree  : " << space << std::endl;
       output_csv << space << ",";
       // UFO Tree

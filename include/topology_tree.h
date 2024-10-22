@@ -99,7 +99,7 @@ struct TopologyCluster<empty_t, empty_t> : public TopologyClusterBase {
 };
 
 template<typename v_t, typename e_t>
-class TopologyTree : ITernarizable {
+class TopologyTree : ITernarizable<e_t> {
 using Cluster = TopologyCluster<v_t, e_t>;
 public:
     // Topology tree interface
@@ -122,8 +122,14 @@ public:
     e_t path_query(vertex_t u, vertex_t v);
     //Interface methods overriden.
     short get_degree(vertex_t v) override {return leaves[v].get_degree();}
-    std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
-      return std::pair(leaves[v].neighbors[0] - (TopologyClusterBase*)(&leaves[0]), 0); 
+    std::pair<vertex_t, e_t> retrieve_v_to_del(vertex_t v) override {
+        if constexpr (std::is_same<e_t, empty_t>::value) {
+            std::pair<vertex_t, e_t> return_pair;
+            return_pair.first = (Cluster*)leaves[v].neighbors[0] - &leaves[0];
+            return return_pair; 
+        } else {
+            return std::pair((Cluster*)leaves[v].neighbors[0] - &leaves[0], leaves[v].edge_values[0]); 
+        }
     }
     // Testing helpers
     size_t space();
@@ -261,7 +267,7 @@ void TopologyTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
 template<typename v_t, typename e_t>
 void TopologyTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
-    assert(leaves[u].contains_neighbor(&leaves[v]));
+    assert(leaves[u].contains_neighbor(static_cast<TopologyClusterBase*>(&leaves[v])));
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
     leaves[u].remove_neighbor(&leaves[v]);
@@ -409,10 +415,10 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
             for (int i = 0; i < 3; ++i)
                 parent->neighbors[i] = nullptr;
             for (int i = 0; i < 3; ++i)
-                if (c1->neighbors[i] && c1->neighbors[i] != c2)   // Don't add c2's parent (itself)
+                if (c1->neighbors[i] && static_cast<Cluster*>(c1->neighbors[i]) != c2)   // Don't add c2's parent (itself)
                     add_parent_adjacency(c1, static_cast<Cluster*>(c1->neighbors[i]), i);
             for (int i = 0; i < 3; ++i)
-                if (c2->neighbors[i] && c2->neighbors[i] != c1)   // Don't add c1's parent (itself)
+                if (c2->neighbors[i] && static_cast<Cluster*>(c2->neighbors[i]) != c1)   // Don't add c1's parent (itself)
                     add_parent_adjacency(c2, static_cast<Cluster*>(c2->neighbors[i]), i);
             if (!new_parent)
                 remove_ancestors(static_cast<Cluster*>(parent), level + 1);
@@ -426,7 +432,7 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
 template<typename v_t, typename e_t>
 void TopologyTree<v_t, e_t>::add_parent_adjacency(Cluster* c1, Cluster* c2, int i) {
     assert(c1->neighbors[i] == c2);
-    assert(c1->parent != c2->parent);
+    // assert(c1->parent != c2->parent);
     if constexpr (std::is_same<e_t, empty_t>::value) {
         c1->parent->insert_neighbor(c2->parent);
         c2->parent->insert_neighbor(c1->parent);

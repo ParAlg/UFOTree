@@ -18,13 +18,14 @@ template<typename DynamicTree, typename aug_t>
 class TernarizedTree {
 public:
   // Ternarized tree interface
-  TernarizedTree(vertex_t n, QueryType q = PATH, 
-                 std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x + y;}, 
-                 aug_t id = 0, aug_t dval = 0);
+  TernarizedTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t{return x;});
+  TernarizedTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t dval);
 
-  void link(vertex_t u, vertex_t v, aug_t value = 1);
+  void link(vertex_t u, vertex_t v);
+  void link(vertex_t u, vertex_t v, aug_t value);
   void cut(vertex_t u, vertex_t v);
   bool connected(vertex_t u, vertex_t v);
+  aug_t path_query(vertex_t u, vertex_t v);
   //private: - Making public for testing
   vertex_t determine_link_v(vertex_t u);
   vertex_t ternarize_vertex(vertex_t u);
@@ -51,7 +52,13 @@ template<typename DynamicTree, typename aug_t>
 TernarizedTree<DynamicTree, aug_t>::TernarizedTree(vertex_t n, QueryType q, 
                                                                 std::function<aug_t(aug_t, aug_t)> f, 
                                                                 aug_t id, aug_t d) : 
-  tree(2*n, q, f, id, d), n(n) {
+  tree(2*n, q, f, f, id, id, d, d), n(n) {
+  head_map.resize(n, MAX_VERTEX_T);
+  for(int i = n; i < (2*n); i++) free_ids.push(i);
+}
+
+template<typename DynamicTree, typename aug_t>
+TernarizedTree<DynamicTree, aug_t>::TernarizedTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f) : n(n), tree(2*n) {
   head_map.resize(n, MAX_VERTEX_T);
   for(int i = n; i < (2*n); i++) free_ids.push(i);
 }
@@ -77,8 +84,13 @@ vertex_t TernarizedTree<DynamicTree, aug_t>::determine_link_v(vertex_t v){
   }
   vertex_t new_ternarized_n = free_ids.front(); free_ids.pop();
   head_map[new_ternarized_n - n] = v;
-  tree.link(v, new_ternarized_n, id);
-  tree.link(prev_ternary_neighbor, new_ternarized_n, id);
+  if constexpr (!std::is_same<aug_t, empty_t>::value) {
+    tree.link(v, new_ternarized_n, id);
+    tree.link(prev_ternary_neighbor, new_ternarized_n, id);
+  } else {
+    tree.link(v, new_ternarized_n);
+    tree.link(prev_ternary_neighbor, new_ternarized_n);
+  }
   // Adjustments to the chain.
   chain_map[v].second = new_ternarized_n; 
   chain_map[new_ternarized_n].first = v; chain_map[new_ternarized_n].second = prev_ternary_neighbor;
@@ -111,7 +123,11 @@ vertex_t TernarizedTree<DynamicTree, aug_t>::ternarize_vertex(vertex_t v){
   } else {
     edge_map[std::pair(head, v)].second = new_ternarized_n;
   }
-  tree.link(new_ternarized_n, to_cut_pair.first, to_cut_pair.second);
+  if constexpr (!std::is_same<aug_t, empty_t>::value) {
+    tree.link(new_ternarized_n, to_cut_pair.first, to_cut_pair.second);
+  } else {
+    tree.link(new_ternarized_n, to_cut_pair.first);
+  }
   head_map[new_ternarized_n - n] = v;
   chain_map[v] = std::pair(MAX_VERTEX_T, new_ternarized_n); // Head of new ternarized chain.
   chain_map[new_ternarized_n] = std::pair(v, MAX_VERTEX_T); // Add as tail of ternarized chain. 
@@ -135,12 +151,39 @@ void TernarizedTree<DynamicTree, aug_t>::delete_ternarized_vertex(vertex_t v){
     chain_map.erase(v);
     if(chain_map[neighbor1].first == v) {chain_map[neighbor1].first = neighbor2;} else {chain_map[neighbor1].second = neighbor2;}
     if(chain_map[neighbor2].first == v){chain_map[neighbor2].first = neighbor1;} else {chain_map[neighbor2].second = neighbor1;}
-    tree.link(neighbor1, neighbor2, id);
+    if constexpr (!std::is_same<aug_t, empty_t>::value) {
+      tree.link(neighbor1, neighbor2, id);
+    } else {
+      tree.link(neighbor1, neighbor2);
+    }
   }
   head_map[v - n] = MAX_VERTEX_T;
 }
 
 /**********************/
+
+template<typename DynamicTree, typename aug_t>
+void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v) {
+  // If vertex degree <= 3, proceed with normal link, otherwise ternarize vertex
+  // and add new vertex to head.
+
+  //TODO: Change get_degree method of RCTree to have default value for round=0
+  //TODO: Add a get_neighbors method to both Topology and RC trees.
+  
+  assert(!connected(u,v));
+  if(u > v) std::swap(u,v);
+  if(tree.get_degree(u) < 3 && tree.get_degree(v) < 3) {
+    tree.link(u,v); 
+    edge_map[std::pair<vertex_t, vertex_t>(u,v)] = std::pair<vertex_t, vertex_t>(u,v);
+    return;
+  }
+  vertex_t to_link_u = u;
+  vertex_t to_link_v = v;
+  if(tree.get_degree(u) == 3) to_link_u = determine_link_v(u); 
+  if(tree.get_degree(v) == 3) to_link_v = determine_link_v(v); 
+  tree.link(to_link_u, to_link_v);
+  edge_map[std::pair<vertex_t, vertex_t>(u,v)] = std::pair<vertex_t, vertex_t>(to_link_u, to_link_v);
+}
 
 template<typename DynamicTree, typename aug_t>
 void TernarizedTree<DynamicTree, aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
@@ -199,4 +242,9 @@ void TernarizedTree<DynamicTree, aug_t>::cut(vertex_t u, vertex_t v) {
 template<typename DynamicTree, typename aug_t>
 bool TernarizedTree<DynamicTree, aug_t>::connected(vertex_t u, vertex_t v) {
   return tree.connected(u,v);
+}
+
+template<typename DynamicTree, typename aug_t>
+aug_t TernarizedTree<DynamicTree, aug_t>::path_query(vertex_t u, vertex_t v){
+  return tree.path_query(u,v);
 }
