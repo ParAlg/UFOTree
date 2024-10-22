@@ -8,7 +8,10 @@ int main(int argc, char** argv) {
 
     for (auto file_name : file_names) {
         auto G = graph_utils::break_sym_graph_from_bin(file_name);
+        auto F = graph_utils::BFS_forest(G);
+
         graph_utils::print_graph_stats(G);
-        std::cout << "diameter = " << graph_utils::get_graph_diameter(G);
+        std::cout << "BFS Forest Diameter = " << graph_utils::get_forest_diameter(F, G.size()) << std::endl;
+        std::cout << "Graph Diameter      = " << graph_utils::get_graph_diameter(G) << std::endl;
     }
 }

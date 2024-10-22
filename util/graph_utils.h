@@ -84,13 +84,52 @@ struct graph_utils {
 
   static size_t get_graph_diameter(const graph& G) {
       int n = G.size();
-      int diameter = 0;
-      for (vertex i = 0; i < n; ++i) {
+      parlay::sequence<size_t> eccentricities(n);
+      parlay::parallel_for(0, n, [&] (size_t i) {
           int maxDist = get_vertex_eccentricity(G, i);
-          diameter = std::max(diameter, maxDist);
-      }
+          eccentricities[i] = maxDist;
+      });
+      size_t diameter = parlay::reduce(eccentricities, parlay::maximum<size_t>());
       return diameter;
   }
+
+  static size_t get_forest_diameter(const parlay::sequence<Edge>& F, vertex n) {
+    std::vector<std::vector<vertex>> adj(n);
+    for (const auto& edge : F) {
+        vertex u = edge.src;
+        vertex v = edge.dst;
+        adj[u-1].push_back(v-1);
+        adj[v-1].push_back(u-1);
+    }
+    auto bfs = [&](vertex start) -> std::pair<vertex, size_t> {
+        std::vector<vertex> dist(n, -1);
+        std::queue<vertex> q;
+        q.push(start);
+        dist[start] = 0;
+        vertex farthestNode = start;
+        size_t maxDist = 0;
+        while (!q.empty()) {
+            vertex node = q.front();
+            q.pop();
+            for (vertex neighbor : adj[node]) {
+                if (dist[neighbor] == -1) {
+                    dist[neighbor] = dist[node] + 1;
+                    q.push(neighbor);
+                    if (dist[neighbor] > maxDist) {
+                        maxDist = dist[neighbor];
+                        farthestNode = neighbor;
+                    }
+                }
+            }
+        }
+        return {farthestNode, maxDist};
+    };
+    vertex startNode = 0;
+    std::pair<vertex, size_t> bfsResult = bfs(startNode);
+    vertex farthestFromStart = bfsResult.first;
+    bfsResult = bfs(farthestFromStart);
+    return bfsResult.second;
+}
 
   static graph read_graph_from_file(const std::string &filename) {
     auto str = parlay::file_map(filename);

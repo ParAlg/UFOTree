@@ -86,6 +86,12 @@ add_executable(benchmark_peak_space
 target_link_libraries(benchmark_peak_space PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_peak_space PRIVATE include util baselines)
 
+add_executable(benchmark_graph_statistics
+  benchmark/benchmark_graph_statistics.cpp
+)
+target_link_libraries(benchmark_graph_statistics PRIVATE parlay absl::flat_hash_map)
+target_include_directories(benchmark_graph_statistics PRIVATE include util baselines)
+
 add_executable(parallel_benchmark
   benchmark/parallel_benchmark_runner.cpp
   test/parallel_topology_tree_tests.cpp
