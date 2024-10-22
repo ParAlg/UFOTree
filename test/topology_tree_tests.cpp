@@ -28,7 +28,7 @@ bool TopologyTree<v_t, e_t>::is_valid() {
                         if (neighbor && !neighbor->contracts() && neighbor->get_degree() < 2) return false;
                 }
             }
-            if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
+            if (cluster->parent) next_clusters.insert(static_cast<Cluster*>(cluster->parent)); // Get next level
         }
         clusters.swap(next_clusters);
         next_clusters.clear();
@@ -43,16 +43,16 @@ void TopologyTree<v_t, e_t>::print_tree() {
     std::cout << "========================= LEAVES =========================" << std::endl;
     std::unordered_map<TopologyCluster<v_t, e_t>*, vertex_t> vertex_map;
     for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
-    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({static_cast<Cluster*>(leaves[i].parent), &leaves[i]});
     for (auto entry : clusters) {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        for (auto neighbor : leaf->neighbors) if (neighbor) std::cout << vertex_map[neighbor] << " ";
+        for (auto neighbor : leaf->neighbors) if (neighbor) std::cout << vertex_map[static_cast<Cluster*>(neighbor)] << " ";
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-        if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+        if (parent && !in_map) next_clusters.insert({static_cast<Cluster*>(parent->parent), parent});
     }
     clusters.swap(next_clusters);
     next_clusters.clear();
@@ -64,7 +64,7 @@ void TopologyTree<v_t, e_t>::print_tree() {
             std::cout << "Cluster: " << cluster << " Parent: " << parent << std::endl;
             bool in_map = false;
             for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-            if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+            if (parent && !in_map) next_clusters.insert({static_cast<Cluster*>(parent->parent), parent});
         }
         clusters.swap(next_clusters);
         next_clusters.clear();
