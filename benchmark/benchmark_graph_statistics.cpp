@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
         std::cout << "[ GRAPH: " << file_name.substr(file_name.find_last_of('/')+1) << " ]" << std::endl;
         graph_utils::print_graph_stats(G);
         std::cout << "Graph CC Count = " << graph_utils::get_component_count(G) << std::endl;
-        // std::cout << "Graph Diameter = " << graph_utils::get_graph_diameter(G) << std::endl;
+        std::cout << "Graph Diameter = " << graph_utils::get_graph_diameter(G) << std::endl;
         std::cout << "BFS Forest Diameter = " << graph_utils::get_forest_diameter(BFS_F, G.size()) << std::endl;
         std::cout << "RIS Forest Diameter = " << graph_utils::get_forest_diameter(RIS_F, G.size()) << std::endl;
     }

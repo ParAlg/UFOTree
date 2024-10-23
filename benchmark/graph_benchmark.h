@@ -10,12 +10,21 @@
 
 namespace graph_benchmark {
 
-std::vector<Update> stream_file_BFS_tree_benchmark(std::string file_name) {
-    auto G = graph_utils::break_sym_graph_from_bin(file_name);
-    auto E = graph_utils::BFS_forest(G);
-    graph_utils::print_graph_stats(G);
-    auto insertions = parlay::map(parlay::random_shuffle(E), [&](auto e) -> Update {return {INSERT, e};});
-    auto deletions = parlay::map(parlay::random_shuffle(E), [&](auto e) -> Update {return {DELETE, e};});
+std::vector<Update> stream_file_BFS_benchmark(parlay::sequence<parlay::sequence<vertex_t>>& G, long seed = -1) {
+    if (seed == -1) seed = time(NULL);
+    srand(seed);
+    auto E = graph_utils::BFS_forest(G, seed);
+    auto insertions = parlay::map(parlay::random_shuffle(E, parlay::random(rand())), [&](auto e) -> Update {return {INSERT, e};});
+    auto deletions = parlay::map(parlay::random_shuffle(E, parlay::random(rand())), [&](auto e) -> Update {return {DELETE, e};});
+    return parlay::append(insertions, deletions).to_vector();
+}
+
+std::vector<Update> stream_file_RIS_benchmark(parlay::sequence<parlay::sequence<vertex_t>>& G, long seed = -1) {
+    if (seed == -1) seed = time(NULL);
+    srand(seed);
+    auto E = graph_utils::RIS_forest(G, seed);
+    auto insertions = parlay::map(parlay::random_shuffle(E, parlay::random(rand())), [&](auto e) -> Update {return {INSERT, e};});
+    auto deletions = parlay::map(parlay::random_shuffle(E, parlay::random(rand())), [&](auto e) -> Update {return {DELETE, e};});
     return parlay::append(insertions, deletions).to_vector();
 }
 

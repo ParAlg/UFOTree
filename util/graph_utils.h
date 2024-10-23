@@ -29,10 +29,13 @@ struct graph_utils {
     }));
   }
 
-  static edges BFS_forest(const graph& G) {
+  static edges BFS_forest(const graph& G, long seed = -1) {
+    if (seed == -1) seed = time(NULL);
+    srand(seed);
     int n = G.size();
     std::vector<bool> visited(n, false);
     edges bfsForest;
+    auto vertex_order = parlay::random_permutation(n, parlay::random(rand()));
     for (vertex start = 0; start < n; ++start) {
         if (!visited[start]) {
             std::queue<vertex> q;
