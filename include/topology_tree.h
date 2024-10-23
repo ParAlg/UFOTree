@@ -184,11 +184,10 @@ TopologyTree<v_t, e_t>::~TopologyTree() {
         for (auto entry : root_clusters_histogram)
             std::cout << entry.first << "\t" << entry.second << std::endl;
     #endif
-    return;
 }
 
 template<typename v_t, typename e_t>
-size_t TopologyTree<v_t, e_t>::space(){ 
+size_t TopologyTree<v_t, e_t>::space() { 
     std::unordered_set<Cluster*> visited;
     size_t memory = sizeof(TopologyTree<v_t, e_t>);
     for(auto cluster : leaves){
@@ -224,10 +223,10 @@ size_t TopologyTree<v_t, e_t>::get_height() {
     size_t max_height = 0;
     for (vertex_t v = 0; v < leaves.size(); ++v) {
         size_t height = 0;
-        TopologyCluster<v_t, e_t>* curr = &leaves[v];
+        Cluster* curr = &leaves[v];
         while (curr) {
             height++;
-            curr = curr->parent;
+            curr = static_cast<Cluster*>(curr->parent);
         }
         max_height = std::max(max_height, height);
     }
