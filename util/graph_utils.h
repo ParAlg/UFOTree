@@ -1,4 +1,4 @@
-// Copied from parlaylib with some modification
+// Copied from parlaylib with heavy modification
 #pragma once
 #include <iostream>
 #include <parlay/io.h>
@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include "types.h"
+#include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 
 
 using namespace parlay;
@@ -22,15 +23,13 @@ struct graph_utils {
   using row = parlay::sequence<element>;
   using sparse_matrix = parlay::sequence<row>;
 
-  static edges to_edges(const graph &G) {
+  static edges to_edges(const graph& G) {
     return flatten(parlay::tabulate(G.size(), [&](vertex u) {
-      return map(G[u],
-                 [=](vertex v) { return Edge{(vertex)u, (vertex)v}; });
+      return parlay::map(G[u], [=](vertex v) { return Edge{(vertex)u, (vertex)v}; });
     }));
   }
 
-  static edges BFS_forest(const graph &G) {
-    // Chat GPT code
+  static edges BFS_forest(const graph& G) {
     int n = G.size();
     std::vector<bool> visited(n, false);
     edges bfsForest;
@@ -55,10 +54,50 @@ struct graph_utils {
     return bfsForest;
   }
 
-  static void print_graph_stats(const graph &G) {
-    long num_edges = reduce(map(G, parlay::size_of()));
-    std::cout << "num vertices = " << G.size() << std::endl;
-    std::cout << "num edges    = " << num_edges << std::endl;
+  static edges RIS_forest(const graph& G, long seed = -1) {
+    if (seed == -1) seed = time(NULL);
+    srand(seed);
+    edges graphEdges = parlay::random_shuffle(to_edges(G), parlay::random(rand()));
+    skip_list_ett::EulerTourTree tree(G.size());
+    edges risForest;
+    for (auto edge : graphEdges) {
+      if (!tree.IsConnected(edge.src, edge.dst)) {
+        tree.link(edge.src, edge.dst);
+        risForest.push_back(edge);
+      }
+    }
+    return risForest;
+  }
+
+  static void print_graph_stats(const graph& G) {
+    long num_edges = reduce(parlay::map(G, parlay::size_of()));
+    std::cout << "Vertices = " << G.size() << std::endl;
+    std::cout << "Edges    = " << num_edges << std::endl;
+  }
+
+  static size_t get_component_count(const graph& G) {
+    int n = G.size();
+    std::vector<bool> visited(n, false);
+    size_t component_count = 0;
+    for (vertex start = 0; start < n; ++start) {
+        if (!visited[start]) {
+            component_count += 1;
+            std::queue<vertex> q;
+            q.push(start);
+            visited[start] = true;
+            while (!q.empty()) {
+                vertex v = q.front();
+                q.pop();
+                for (vertex neighbor : G[v]) {
+                    if (!visited[neighbor]) {
+                        visited[neighbor] = true;
+                        q.push(neighbor);
+                    }
+                }
+            }
+        }
+    }
+    return component_count;
   }
 
   static size_t get_vertex_eccentricity(const graph& G, vertex v) {
@@ -93,19 +132,23 @@ struct graph_utils {
       return diameter;
   }
 
-  static size_t get_forest_diameter(const parlay::sequence<Edge>& F, vertex n) {
+  static size_t get_forest_diameter(const edges& F, vertex n) {
     std::vector<std::vector<vertex>> adj(n);
     for (const auto& edge : F) {
         vertex u = edge.src;
         vertex v = edge.dst;
-        adj[u-1].push_back(v-1);
-        adj[v-1].push_back(u-1);
+        adj[u].push_back(v);
+        adj[v].push_back(u);
     }
-    auto bfs = [&](vertex start) -> std::pair<vertex, size_t> {
+    auto bfs = [&](vertex start, std::vector<bool>& visited, bool markVisits) -> std::pair<vertex, size_t> {
+        if (visited[start])
+          return {-1 ,-1};
         std::vector<vertex> dist(n, -1);
         std::queue<vertex> q;
         q.push(start);
         dist[start] = 0;
+        if (markVisits)
+          visited[start] = true;
         vertex farthestNode = start;
         size_t maxDist = 0;
         while (!q.empty()) {
@@ -114,6 +157,8 @@ struct graph_utils {
             for (vertex neighbor : adj[node]) {
                 if (dist[neighbor] == -1) {
                     dist[neighbor] = dist[node] + 1;
+                    if (markVisits)
+                      visited[neighbor] = true;
                     q.push(neighbor);
                     if (dist[neighbor] > maxDist) {
                         maxDist = dist[neighbor];
@@ -124,11 +169,16 @@ struct graph_utils {
         }
         return {farthestNode, maxDist};
     };
-    vertex startNode = 0;
-    std::pair<vertex, size_t> bfsResult = bfs(startNode);
-    vertex farthestFromStart = bfsResult.first;
-    bfsResult = bfs(farthestFromStart);
-    return bfsResult.second;
+    std::vector<bool> visited(n, false);
+    size_t maxTreeDiameter = 0;
+    for (vertex v = 0; v < n; ++v) {
+      std::pair<vertex, size_t> bfsResult = bfs(v, visited, false);
+      if(bfsResult.first != -1) {
+        bfsResult = bfs(bfsResult.first, visited, true);
+        maxTreeDiameter = std::max(maxTreeDiameter, bfsResult.second);
+      }
+    }
+    return maxTreeDiameter;
 }
 
   static graph read_graph_from_file(const std::string &filename) {
@@ -171,7 +221,7 @@ struct graph_utils {
                                 lseq(1, (long)edges.size()), lengths, edges}));
     auto newline = parlay::chars(1, '\n');
     parlay::chars_to_file(
-        parlay::flatten(map(
+        parlay::flatten(parlay::map(
             all, [&](long v) { return append(parlay::to_chars(v), newline); })),
         filename);
   }

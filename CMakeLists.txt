@@ -88,6 +88,8 @@ target_include_directories(benchmark_peak_space PRIVATE include util baselines)
 
 add_executable(benchmark_graph_statistics
   benchmark/benchmark_graph_statistics.cpp
+  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_graph_statistics PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_statistics PRIVATE include util baselines)

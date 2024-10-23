@@ -44,7 +44,7 @@ inline size_t nworkers() {
 #define cilk_spawn
 #define cilk_sync
 #define parallel_main main
-#define parallel_for for
+// #define parallel_for for
 #define parallel_for_1 for
 #define parallel_for_256 for
 #define cilk_for for
@@ -193,7 +193,7 @@ namespace utils { // to avoid conflict with other symbols named sequence
       intT _ee = _e;					\
       intT _n = _ee-_ss;					\
       intT _l = nblocks(_n,_bsize);			\
-      parallel_for (intT _i = 0; _i < _l; _i++) {		\
+      for (intT _i = 0; _i < _l; _i++) {		\
         intT _s = _ss + _i * (_bsize);			\
         intT _e = min(_s + (_bsize), _ee);		\
         _body						\
@@ -368,7 +368,7 @@ namespace utils { // to avoid conflict with other symbols named sequence
 
     template <class ET, class intT, class PRED>
     intT filter(ET* In, ET* Out, bool* Fl, intT n, PRED p) {
-      parallel_for (intT i=0; i < n; i++) Fl[i] = (bool) p(In[i]);
+      for (intT i=0; i < n; i++) Fl[i] = (bool) p(In[i]);
       intT  m = pack(In, Out, Fl, n);
       return m;
     }
@@ -453,14 +453,14 @@ inline ulong hashInt(ulong a) {
 // UINT_E_MAX.
 template <class G>
 void remDuplicates(G& get_key, uintE* flags, long m, long n) {
-  parallel_for(size_t i=0; i<m; i++) {
+  for(size_t i=0; i<m; i++) {
     uintE key = get_key(i);
     if(key != UINT_E_MAX && flags[key] == UINT_E_MAX) {
       CAS(&flags[key],(uintE)UINT_E_MAX,static_cast<uintE>(i));
     }
   }
   //reset flags
-  parallel_for(size_t i=0; i<m; i++) {
+  for(size_t i=0; i<m; i++) {
     uintE key = get_key(i);
     if(key != UINT_E_MAX) {
       if(flags[key] == i) { //win
@@ -474,7 +474,7 @@ void remDuplicates(G& get_key, uintE* flags, long m, long n) {
 
 #define granular_for(_i, _start, _end, _cond, _body) { \
   if (_cond) { \
-    {parallel_for(size_t _i=_start; _i < _end; _i++) { \
+    {for(size_t _i=_start; _i < _end; _i++) { \
       _body \
     }} \
   } else { \
@@ -546,7 +546,7 @@ namespace pbbs {
     if (r == NULL) {fprintf(stderr, "Cannot allocate space"); exit(1);}
     // a hack to make sure tlb is full for huge pages
     if (touch_pages)
-      parallel_for (size_t i = 0; i < bytes; i = i + (1 << 21))
+      for (size_t i = 0; i < bytes; i = i + (1 << 21))
         ((bool*) r)[i] = 0;
     return r;
   }
@@ -557,7 +557,7 @@ namespace pbbs {
     E* r = new_array_no_init<E>(n);
     if (!std::is_trivially_default_constructible<E>::value) {
       if (n > 2048)
-        parallel_for (size_t i = 0; i < n; i++) new ((void*) (r+i)) E;
+        for (size_t i = 0; i < n; i++) new ((void*) (r+i)) E;
       else
         for (size_t i = 0; i < n; i++) new ((void*) (r+i)) E;
     }
@@ -570,7 +570,7 @@ namespace pbbs {
     // C++14 -- suppored by gnu C++11
     if (!std::is_trivially_destructible<E>::value) {
       if (n > 2048)
-        parallel_for (size_t i = 0; i < n; i++) A[i].~E();
+        for (size_t i = 0; i < n; i++) A[i].~E();
       else
         for (size_t i = 0; i < n; i++) A[i].~E();
     }
