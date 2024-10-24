@@ -295,7 +295,7 @@ public:
         vertex_t n, QueryType q,
         std::function<v_t(v_t, v_t)> f_v, std::function<e_t(e_t, e_t)> f_e,
         v_t id_v, e_t id_e, v_t dval_v, e_t dval_e);
-    UFOTree(int n, QueryType q, std::function<e_t(e_t, e_t)> f, e_t id, e_t d_val);
+    UFOTree(int n, QueryType q, std::function<v_t(v_t, v_t)> f, v_t id, v_t d_val);
     ~UFOTree();
     void link(vertex_t u, vertex_t v);
     void link(vertex_t u, vertex_t v, e_t value);
@@ -352,11 +352,12 @@ UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
 
 template<typename v_t, typename e_t>
 UFOTree<v_t, e_t>::UFOTree(int n, QueryType q,
-        std::function<e_t(e_t, e_t)> f, e_t id, e_t d_val)
-    : query_type(q), f_e(f), identity_e(id), default_e(d_val) {
+        std::function<v_t(v_t, v_t)> f, v_t id, v_t d_val)
+    : query_type(q), f_v(f), identity_v(id), default_v(d_val) {
     if constexpr (std::is_same<v_t,e_t>::value) {
-        identity_v = id;
-        default_v = d_val;
+        f_e = f;
+        identity_e = id;
+        default_e = d_val;
     }
     leaves.resize(n, default_v);
     root_clusters.resize(max_tree_height(n));
