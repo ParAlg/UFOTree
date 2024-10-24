@@ -102,5 +102,13 @@ int main(int argc, char** argv) {
         output_csv << "\n";
     }
 
+    // Incremental Minimum Spanning Tree
+    
+    Edge e; e.src = 0; e.dst = 1; std::pair<int,Edge> p(1, e);
+    Edge e2; e.src = 1;e.dst = 2; std::pair<int,Edge> p2(3, e2);
+    Edge e3; e.src = 0; e.dst = 2; std::pair<int,Edge> p3(2, e3);
+    vector<std::pair<int, Edge>> v({p, p2, p3});
+    graph_benchmark::incremental_MSF_benchmark<RCTree<std::pair<int, Edge>>>(v, 4);
+
     output_csv.close();
 }
