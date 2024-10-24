@@ -54,13 +54,12 @@ add_executable(dynamic_tree_tests
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
 target_include_directories(dynamic_tree_tests PRIVATE include util)
 
-add_executable(parallel_dynamic_tree_tests
-  test/parallel_test_runner.cpp
-  test/parallel_topology_tree_tests.cpp
-  test/parallel_ufo_tree_tests.cpp
+add_executable(hdt_tests
+  test/test_runner.cpp
+  test/hdt_tests.cpp
 )
-target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay CPAM aspen GTest::gtest_main)
-target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/forest_structures util)
+target_link_libraries(hdt_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
+target_include_directories(hdt_tests PRIVATE include util)
 
 add_executable(benchmark_update_speed
   benchmark/benchmark_update_speed.cpp
@@ -101,13 +100,3 @@ add_executable(benchmark_graph_update_speed
 )
 target_link_libraries(benchmark_graph_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_update_speed PRIVATE include util baselines)
-
-add_executable(parallel_benchmark
-  benchmark/parallel_benchmark_runner.cpp
-  test/parallel_topology_tree_tests.cpp
-  test/parallel_ufo_tree_tests.cpp
-  # baselines/dynamic_trees/parallel_euler_tour_tree/src/euler_tour_tree.cpp
-  # baselines/sequence/parallel_skip_list/src/augmented_skip_list.cpp
-)
-target_link_libraries(parallel_benchmark PRIVATE parlay CPAM aspen GTest::gtest_main)
-target_include_directories(parallel_benchmark PRIVATE include include/forest_structures util baselines)

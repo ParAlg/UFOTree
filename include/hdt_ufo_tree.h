@@ -109,12 +109,17 @@ struct HDTUFOCluster {
 class HDTUFOTree {
 using Cluster = HDTUFOCluster;
 public:
-    // HDTUFO tree interface
+    // HDT Dynamic Tree interface
     HDTUFOTree(vertex_t n);
     ~HDTUFOTree();
-    void link(vertex_t u, vertex_t v);
-    void cut(vertex_t u, vertex_t v);
-    bool connected(vertex_t u, vertex_t v);
+    void AddEdge(edge_t e);
+    void DeleteEdge(edge_t e);
+    void MarkEdge(edge_t e, bool mark);
+    void MarkVertex(vertex_t v, bool mark);
+    std::optional<edge_t> GetMarkedEdgeInTree(vertex_t v);
+    std::optional<vertex_t> GetMarkedVertexInTree(vertex_t v);
+    vertex_t GetSizeOfTree(vertex_t v);
+    bool IsConnected(vertex_t u, vertex_t v);
     // Testing helpers
     size_t space();
     size_t count_nodes();
@@ -206,9 +211,11 @@ size_t HDTUFOTree::get_height() {
 /* Link vertex u and vertex v in the tree. Optionally include an
 augmented value for the new edge (u,v). If no augmented value is
 provided, the default value is 1. */
-void HDTUFOTree::link(vertex_t u, vertex_t v) {
+void HDTUFOTree::AddEdge(edge_t e) {
+    vertex_t u = e.first;
+    vertex_t v = e.second;
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
-    assert(u != v && !connected(u,v));
+    assert(u != v && !IsConnected(u,v));
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
     insert_adjacency(&leaves[u], &leaves[v]);
@@ -216,7 +223,9 @@ void HDTUFOTree::link(vertex_t u, vertex_t v) {
 }
 
 /* Cut vertex u and vertex v in the tree. */
-void HDTUFOTree::cut(vertex_t u, vertex_t v) {
+void HDTUFOTree::DeleteEdge(edge_t e) {
+    vertex_t u = e.first;
+    vertex_t v = e.second;
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
     auto curr_u = &leaves[u];
@@ -526,6 +535,6 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
 
 /* Return true if and only if there is a path from vertex u to
 vertex v in the tree. */
-bool HDTUFOTree::connected(vertex_t u, vertex_t v) {
+bool HDTUFOTree::IsConnected(vertex_t u, vertex_t v) {
     return leaves[u].get_root() == leaves[v].get_root();
 }
