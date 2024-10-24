@@ -115,11 +115,15 @@ public:
     void link(vertex_t u, vertex_t v);
     void link(vertex_t u, vertex_t v, e_t value);
     void cut(vertex_t u, vertex_t v);
-    void batch_link(Edge* links, int len);
-    void batch_cut(Edge* cuts, int len);
     bool connected(vertex_t u, vertex_t v);
     v_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
     e_t path_query(vertex_t u, vertex_t v);
+    // Testing helpers
+    size_t space();
+    size_t count_nodes();
+    size_t get_height();
+    bool is_valid();
+    void print_tree();
     //Interface methods overriden.
     short get_degree(vertex_t v) override {return leaves[v].get_degree();}
     std::pair<vertex_t, e_t> retrieve_v_to_del(vertex_t v) override {
@@ -131,12 +135,6 @@ public:
             return std::pair((Cluster*)leaves[v].neighbors[0] - &leaves[0], leaves[v].edge_values[0]); 
         }
     }
-    // Testing helpers
-    size_t space();
-    size_t count_nodes();
-    size_t get_height();
-    bool is_valid();
-    void print_tree();
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;

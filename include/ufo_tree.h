@@ -282,54 +282,75 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
     }
 };
 
-template<typename aug_t>
+template<typename v_t, typename e_t>
 class UFOTree {
-using Cluster = UFOCluster<aug_t, aug_t>;
+using Cluster = UFOCluster<v_t, e_t>;
 public:
     // UFO tree interface
-    UFOTree(vertex_t n, QueryType q = PATH, std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y)->aug_t {return x + y;}, aug_t id = 0, aug_t dval = 0);
+    UFOTree(
+        vertex_t n, QueryType q = CONNECTIVITY,
+        std::function<v_t(v_t, v_t)> f_v = [](v_t x, v_t y) -> v_t {return x;},
+        std::function<e_t(e_t, e_t)> f_e = [](e_t x, e_t y) -> e_t {return x;});
+    UFOTree(
+        vertex_t n, QueryType q,
+        std::function<v_t(v_t, v_t)> f_v, std::function<e_t(e_t, e_t)> f_e,
+        v_t id_v, e_t id_e, v_t dval_v, e_t dval_e);
     ~UFOTree();
-    void link(vertex_t u, vertex_t v, aug_t value = 1);
+    void link(vertex_t u, vertex_t v);
+    void link(vertex_t u, vertex_t v, e_t value);
     void cut(vertex_t u, vertex_t v);
     bool connected(vertex_t u, vertex_t v);
+    e_t path_query(vertex_t u, vertex_t v);
     // Testing helpers
     size_t space();
     size_t count_nodes();
     size_t get_height();
     bool is_valid();
     void print_tree();
-
-    // Query functions. 
-    aug_t path_query(vertex_t u, vertex_t v);
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
-    QueryType query_type;
-    std::function<aug_t(aug_t, aug_t)> f;
-    aug_t identity;
-    aug_t default_value;
     std::vector<std::vector<Cluster*>> root_clusters;
     std::vector<std::pair<std::pair<Cluster*,Cluster*>,bool>> contractions;
-    // lower_deg helps to identify clusters who became low degree during a deletion update
-    std::vector<std::pair<Cluster*,int>> lower_deg;
+    std::vector<std::pair<Cluster*,int>> lower_deg; // lower_deg helps to identify clusters who became low degree during a deletion update
+    QueryType query_type;
+    std::function<v_t(v_t, v_t)> f_v;
+    v_t identity_v;
+    v_t default_v;
+    std::function<e_t(e_t, e_t)> f_e;
+    e_t identity_e;
+    e_t default_e;
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
     void disconnect_siblings(Cluster* c, int level);
-    void insert_adjacency(Cluster* u, Cluster* v, aug_t value = 1);
+    void insert_adjacency(Cluster* u, Cluster* v);
+    void insert_adjacency(Cluster* u, Cluster* v, e_t value);
     void remove_adjacency(Cluster* u, Cluster* v);
 };
 
-template<typename aug_t>
-UFOTree<aug_t>::UFOTree(vertex_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d) :
-query_type(q), f(f), identity(id), default_value(d) {
-    leaves.resize(n, d);
+template<typename v_t, typename e_t>
+UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
+        std::function<v_t(v_t, v_t)> f_v, std::function<e_t(e_t, e_t)> f_e)
+    : query_type(q), f_v(f_v), f_e(f_e) {
+    leaves.resize(n);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
 
-template<typename aug_t>
-UFOTree<aug_t>::~UFOTree() {
+template<typename v_t, typename e_t>
+UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
+        std::function<v_t(v_t, v_t)> f_v, std::function<e_t(e_t, e_t)> f_e,
+        v_t id_v, e_t id_e, v_t dval_v, e_t dval_e)
+    : query_type(q), f_v(f_v), f_e(f_e), identity_v(id_v), identity_e(id_e),
+     default_v(dval_v), default_e(dval_e) {
+    leaves.resize(n, default_v);
+    root_clusters.resize(max_tree_height(n));
+    contractions.reserve(12);
+}
+
+template<typename v_t, typename e_t>
+UFOTree<v_t, e_t>::~UFOTree() {
     // Clear all memory
     std::unordered_set<Cluster*> clusters;
     for (auto leaf : leaves) {
@@ -347,10 +368,10 @@ UFOTree<aug_t>::~UFOTree() {
     #endif
 }
 
-template<typename aug_t>
-size_t UFOTree<aug_t>::space() {
+template<typename v_t, typename e_t>
+size_t UFOTree<v_t, e_t>::space() {
     std::unordered_set<Cluster*> visited;
-    size_t memory = sizeof(UFOTree<aug_t>);
+    size_t memory = sizeof(UFOTree<v_t, e_t>);
     for(auto cluster : leaves){
         memory += cluster.calculate_size();
         auto parent = static_cast<Cluster*>(cluster.parent);
@@ -363,8 +384,8 @@ size_t UFOTree<aug_t>::space() {
     return memory;
 }
 
-template<typename aug_t>
-size_t UFOTree<aug_t>::count_nodes() {
+template<typename v_t, typename e_t>
+size_t UFOTree<v_t, e_t>::count_nodes() {
     std::unordered_set<Cluster*> visited;
     size_t node_count = 0;
     for(auto cluster : leaves){
@@ -379,8 +400,8 @@ size_t UFOTree<aug_t>::count_nodes() {
     return node_count;
 }
 
-template<typename aug_t>
-size_t UFOTree<aug_t>::get_height() {
+template<typename v_t, typename e_t>
+size_t UFOTree<v_t, e_t>::get_height() {
     size_t max_height = 0;
     for (vertex_t v = 0; v < leaves.size(); ++v) {
         size_t height = 0;
@@ -397,8 +418,17 @@ size_t UFOTree<aug_t>::get_height() {
 /* Link vertex u and vertex v in the tree. Optionally include an
 augmented value for the new edge (u,v). If no augmented value is
 provided, the default value is 1. */
-template<typename aug_t>
-void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v) {
+    assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
+    assert(u != v && !connected(u,v));
+    remove_ancestors(&leaves[u]);
+    remove_ancestors(&leaves[v]);
+    insert_adjacency(&leaves[u], &leaves[v]);
+    recluster_tree();
+}
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
     remove_ancestors(&leaves[u]);
@@ -408,8 +438,8 @@ void UFOTree<aug_t>::link(vertex_t u, vertex_t v, aug_t value) {
 }
 
 /* Cut vertex u and vertex v in the tree. */
-template<typename aug_t>
-void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
     auto curr_u = &leaves[u];
@@ -427,17 +457,10 @@ void UFOTree<aug_t>::cut(vertex_t u, vertex_t v) {
     recluster_tree();
 }
 
-/* Return true if and only if there is a path from vertex u to
-vertex v in the tree. */
-template<typename aug_t>
-bool UFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
-    return leaves[u].get_root() == leaves[v].get_root();
-}
-
 /* Removes the ancestors of cluster c that are not high degree nor
 high fan-out and add them to root_clusters. */
-template<typename aug_t>
-void UFOTree<aug_t>::remove_ancestors(Cluster* c, int start_level) {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
     int level = start_level;
     auto prev = c;
     auto curr = static_cast<Cluster*>(c->parent);
@@ -499,8 +522,8 @@ void UFOTree<aug_t>::remove_ancestors(Cluster* c, int start_level) {
     } else root_clusters[level].push_back(prev);
 }
 
-template<typename aug_t>
-void UFOTree<aug_t>::recluster_tree() {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
         if (root_clusters[level].empty()) continue;
         // Update root cluster stats if we are collecting them
@@ -513,7 +536,10 @@ void UFOTree<aug_t>::recluster_tree() {
         // Merge deg exactly 3 root clusters with all of its deg 1 neighbors
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 3) {
-                auto parent = new Cluster(default_value);
+                auto parent = new Cluster();
+                if constexpr (!std::is_same<e_t, empty_t>::value) {
+                    parent->value = identity_v;
+                }
                 cluster->parent = parent;
                 root_clusters[level+1].push_back(parent);
                 bool first_contraction = true;
@@ -547,7 +573,10 @@ void UFOTree<aug_t>::recluster_tree() {
                     cluster->parent = neighbor->parent;
                     contractions.push_back({{cluster,neighbor},false});
                 } else {
-                    auto parent = new Cluster(default_value);
+                    auto parent = new Cluster();
+                    if constexpr (!std::is_same<e_t, empty_t>::value) {
+                        parent->value = identity_v;
+                    }
                     cluster->parent = parent;
                     neighbor->parent = parent;
                     root_clusters[level+1].push_back(parent);
@@ -576,7 +605,10 @@ void UFOTree<aug_t>::recluster_tree() {
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
                     if (neighbor && !neighbor->parent && (neighbor->get_degree() == 2)) {
-                        auto parent = new Cluster(default_value);
+                        auto parent = new Cluster();
+                        if constexpr (!std::is_same<e_t, empty_t>::value) {
+                            parent->value = identity_v;
+                        }
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         root_clusters[level+1].push_back(parent);
@@ -603,8 +635,10 @@ void UFOTree<aug_t>::recluster_tree() {
         // Add remaining uncombined clusters to the next level
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() > 0) {
-                auto parent = new Cluster(default_value);
-                parent->value = cluster->value;
+                auto parent = new Cluster();
+                if constexpr (!std::is_same<v_t, empty_t>::value) {
+                    parent->value = cluster->value;
+                }
                 cluster->parent = parent;
                 root_clusters[level+1].push_back(parent);
                 contractions.push_back({{cluster,cluster},true});
@@ -617,36 +651,68 @@ void UFOTree<aug_t>::recluster_tree() {
             auto parent = static_cast<Cluster*>(c1->parent);
             bool new_parent = contraction.second;
             if (new_parent) {
-                for (int i = 0; i < UFO_ARRAY_MAX; i++) { parent->neighbors[i] = nullptr; parent->edge_values[i] = identity;}
+                if constexpr (!std::is_same<e_t, empty_t>::value) {
+                    for (int i = 0; i < UFO_ARRAY_MAX; i++) { parent->neighbors[i] = nullptr; parent->edge_values[i] = identity_e;}
+                }
                 for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                     auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
                     if (neighbor && neighbor != c2 && parent != neighbor->parent) {
-                        parent->insert_neighbor_with_value(neighbor->parent, c1->edge_values[i]);
-                        static_cast<Cluster*>(neighbor->parent)->insert_neighbor_with_value(parent, c1->edge_values[i]);
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                            parent->insert_neighbor(neighbor->parent);
+                            static_cast<Cluster*>(neighbor->parent)->insert_neighbor(parent);
+                        } else {
+                            parent->insert_neighbor_with_value(neighbor->parent, c1->edge_values[i]);
+                            static_cast<Cluster*>(neighbor->parent)->insert_neighbor_with_value(parent, c1->edge_values[i]);
+                        }
                     }
                 }
                 if (c1->neighbors_set)
                 for (auto neighbor_pair : *c1->neighbors_set) {
-                    auto neighbor = static_cast<Cluster*>(neighbor_pair.first);
+                    Cluster* neighbor;
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        neighbor = static_cast<Cluster*>(neighbor_pair);
+                    } else {
+                        neighbor = static_cast<Cluster*>(neighbor_pair.first);
+                    }
                     if (neighbor && neighbor != c2 && parent != neighbor->parent) {
-                        parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
-                        static_cast<Cluster*>(neighbor->parent)->insert_neighbor_with_value(parent, neighbor_pair.second);
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                            parent->insert_neighbor(neighbor->parent);
+                            static_cast<Cluster*>(neighbor->parent)->insert_neighbor(parent);
+                        } else {
+                            parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
+                            static_cast<Cluster*>(neighbor->parent)->insert_neighbor_with_value(parent, neighbor_pair.second);
+                        }
                     }
                 }
                 if (c1 != c2) {
                   for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                       auto neighbor = static_cast<Cluster*>(c2->neighbors[i]);
                       if (neighbor && neighbor != c1 && parent != neighbor->parent) {
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                          parent->insert_neighbor(neighbor->parent);
+                          static_cast<Cluster*>(neighbor->parent)->insert_neighbor(parent);
+                        } else {
                           parent->insert_neighbor_with_value(neighbor->parent, c2->edge_values[i]);
                           static_cast<Cluster*>(neighbor->parent)->insert_neighbor_with_value(parent, c2->edge_values[i]);
+                        }
                       }
                   }
                   if  (c2->neighbors_set)
                   for (auto neighbor_pair : *c2->neighbors_set){
-                      auto neighbor = static_cast<Cluster*>(neighbor_pair.first);
+                      Cluster* neighbor;
+                      if constexpr (std::is_same<e_t, empty_t>::value) {
+                        neighbor = static_cast<Cluster*>(neighbor_pair);
+                      } else {
+                        neighbor = static_cast<Cluster*>(neighbor_pair.first);
+                      }
                       if (neighbor && neighbor != c1 && parent != neighbor->parent) {
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                          parent->insert_neighbor(neighbor->parent);
+                          static_cast<Cluster*>(neighbor->parent)->insert_neighbor(parent);
+                        } else {
                           parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
                           static_cast<Cluster*>(neighbor->parent)->insert_neighbor_with_value(parent, neighbor_pair.second);
+                        }
                       }
                   }
                 }
@@ -656,17 +722,23 @@ void UFOTree<aug_t>::recluster_tree() {
                     for (int i = 0; i < UFO_ARRAY_MAX; i++){
                         auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
                         if (neighbor && neighbor != c2)
-                        insert_adjacency(parent, static_cast<Cluster*>(neighbor->parent), c1->edge_values[i]);
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                            insert_adjacency(parent, static_cast<Cluster*>(neighbor->parent));
+                        } else {
+                            insert_adjacency(parent, static_cast<Cluster*>(neighbor->parent), c1->edge_values[i]);
+                        }
                     }
                 }
                 remove_ancestors(parent, level+1);
             }
-            if (c1 != c2 && c1->get_degree() == 2 && c2->get_degree() == 2) {
-                for (int i = 0; i < UFO_ARRAY_MAX; i++) {
-                    auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
-                    if (neighbor && neighbor == c2) {
-                        parent->value = f(c1->value, f(c2->value, c1->edge_values[i]));
-                    } 
+            if constexpr (!std::is_same<e_t, empty_t>::value) {
+                if (c1 != c2 && c1->get_degree() == 2 && c2->get_degree() == 2) {
+                    for (int i = 0; i < UFO_ARRAY_MAX; i++) {
+                        auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
+                        if (neighbor && neighbor == c2) {
+                            parent->value = f_e(c1->value, f_e(c2->value, c1->edge_values[i]));
+                        } 
+                    }
                 }
             }
         }
@@ -676,8 +748,19 @@ void UFOTree<aug_t>::recluster_tree() {
     }
 }
 
-template<typename aug_t>
-void UFOTree<aug_t>::insert_adjacency(Cluster* u, Cluster* v, aug_t value) {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
+    auto curr_u = u;
+    auto curr_v = v;
+    while (curr_u && curr_v && curr_u != curr_v) {
+        curr_u->insert_neighbor(curr_v);
+        curr_v->insert_neighbor(curr_u);
+        curr_u = static_cast<Cluster*>(curr_u->parent);
+        curr_v = static_cast<Cluster*>(curr_v->parent);
+    }
+}
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
     auto curr_u = u;
     auto curr_v = v;
     while (curr_u && curr_v && curr_u != curr_v) {
@@ -688,8 +771,8 @@ void UFOTree<aug_t>::insert_adjacency(Cluster* u, Cluster* v, aug_t value) {
     }
 }
 
-template<typename aug_t>
-void UFOTree<aug_t>::remove_adjacency(Cluster* u, Cluster* v) {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::remove_adjacency(Cluster* u, Cluster* v) {
     auto curr_u = u;
     auto curr_v = v;
     while (curr_u && curr_v && curr_u != curr_v) {
@@ -703,8 +786,8 @@ void UFOTree<aug_t>::remove_adjacency(Cluster* u, Cluster* v) {
 /* Helper function which takes a cluster c and the level of that cluster. The function
 should find every cluster that shares a parent with c, disconnect it from their parent
 and add it as a root cluster to be processed. */
-template<typename aug_t>
-void UFOTree<aug_t>::disconnect_siblings(Cluster* c, int level) {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
     if (c->get_degree() == 1) {
         auto center = static_cast<Cluster*>(c->get_neighbor());
         if (c->parent != center->parent) return;
@@ -719,7 +802,12 @@ void UFOTree<aug_t>::disconnect_siblings(Cluster* c, int level) {
             }
             if (center->neighbors_set)
             for (auto neighbor_pair : *center->neighbors_set){
-                auto neighbor = static_cast<Cluster*>(neighbor_pair.first);
+                Cluster* neighbor;
+                if constexpr (std::is_same<e_t, empty_t>::value) {
+                    neighbor = static_cast<Cluster*>(neighbor_pair);
+                } else {
+                    neighbor = static_cast<Cluster*>(neighbor_pair.first);
+                }
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
@@ -739,7 +827,12 @@ void UFOTree<aug_t>::disconnect_siblings(Cluster* c, int level) {
         }
         if (c->neighbors_set)
         for (auto neighbor_pair : *c->neighbors_set){
-            auto neighbor = static_cast<Cluster*>(neighbor_pair.first);
+            Cluster* neighbor;
+            if constexpr (std::is_same<e_t, empty_t>::value) {
+                neighbor = static_cast<Cluster*>(neighbor_pair);
+            } else {
+                neighbor = static_cast<Cluster*>(neighbor_pair.first);
+            }
             if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
@@ -748,12 +841,19 @@ void UFOTree<aug_t>::disconnect_siblings(Cluster* c, int level) {
     }
 }
 
-template<typename aug_t>
-aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
+/* Return true if and only if there is a path from vertex u to
+vertex v in the tree. */
+template<typename v_t, typename e_t>
+bool UFOTree<v_t, e_t>::connected(vertex_t u, vertex_t v) {
+    return leaves[u].get_root() == leaves[v].get_root();
+}
+
+template<typename v_t, typename e_t>
+e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
   assert(u < leaves.size()-1 && v > 0 && u < v && connected(u, v)); 
 
-    aug_t path_u1, path_u2, path_v1, path_v2;
-    path_u1 = path_u2 = path_v1 = path_v2 = identity;
+    e_t path_u1, path_u2, path_v1, path_v2;
+    path_u1 = path_u2 = path_v1 = path_v2 = identity_e;
     Cluster *bdry_u1, *bdry_u2, *bdry_v1, *bdry_v2;
     bdry_u1 = bdry_u2 = bdry_v1 = bdry_v2 = nullptr;
     if (leaves[u].get_degree() == 2) {
@@ -775,13 +875,13 @@ aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
                     if (static_cast<Cluster*>(curr_u->parent)->get_degree() == 2) {
                         // Binary to Binary
                         if (neighbor == bdry_u1) {
-                            path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
+                            path_u1 = f_e(path_u1, f_e(curr_u->edge_values[i], neighbor->value));
                             bdry_u2 = static_cast<Cluster*>(bdry_u2->parent);
                             for (int i = 0; i < 3; i++)
                                 if(curr_u->parent->neighbors[i] && static_cast<Cluster*>(curr_u->parent->neighbors[i]) != bdry_u2)
                                     bdry_u1 = static_cast<Cluster*>(curr_u->parent->neighbors[i]);
                         } else {
-                            path_u2 = f(path_u2, f(curr_u->edge_values[i], neighbor->value));
+                            path_u2 = f_e(path_u2, f_e(curr_u->edge_values[i], neighbor->value));
                             bdry_u1 = static_cast<Cluster*>(bdry_u1->parent);
                             for (int i = 0; i < 3; i++)
                                 if(curr_u->parent->neighbors[i] && static_cast<Cluster*>(curr_u->parent->neighbors[i]) != bdry_u1)
@@ -800,12 +900,12 @@ aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
                 }else {
                     if (static_cast<Cluster*>(curr_u->parent)->get_degree() == 2) {
                         // Unary to Binary
-                        path_u1 = path_u2 = f(path_u1, curr_u->edge_values[i]);
+                        path_u1 = path_u2 = f_e(path_u1, curr_u->edge_values[i]);
                         bdry_u1 = static_cast<Cluster*>(curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1]);
                         bdry_u2 = static_cast<Cluster*>(curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1]);
                     } else {
                         // Unary to Unary and Unary to Superunary.
-                        path_u1 = f(path_u1, f(curr_u->edge_values[i], neighbor->value));
+                        path_u1 = f_e(path_u1, f_e(curr_u->edge_values[i], neighbor->value));
                     }
                 }
                 break;
@@ -823,13 +923,13 @@ aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
                     if (static_cast<Cluster*>(curr_v->parent)->get_degree() == 2) {
                         // Binary to Binary
                         if (neighbor == bdry_v1) {
-                            path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
+                            path_v1 = f_e(path_v1, f_e(curr_v->edge_values[i], neighbor->value));
                             bdry_v2 = static_cast<Cluster*>(bdry_v2->parent);
                             for (int i = 0; i < 3; i++)
                                 if(curr_v->parent->neighbors[i] && static_cast<Cluster*>(curr_v->parent->neighbors[i]) != bdry_v2)
                                     bdry_v1 = static_cast<Cluster*>(curr_v->parent->neighbors[i]);
                         } else {
-                            path_v2 = f(path_v2, f(curr_v->edge_values[i], neighbor->value));
+                            path_v2 = f_e(path_v2, f_e(curr_v->edge_values[i], neighbor->value));
                             bdry_v1 = static_cast<Cluster*>(bdry_v1->parent);
                             for (int i = 0; i < 3; i++)
                                 if(curr_v->parent->neighbors[i] && static_cast<Cluster*>(curr_v->parent->neighbors[i]) != bdry_v1)
@@ -849,12 +949,12 @@ aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
                     if (static_cast<Cluster*>(curr_v->parent)->get_degree() == 2) {
                         // Unary to Binary
                         if(curr_v->get_degree() != 3) 
-                          path_v1 = path_v2 = f(path_v1, curr_v->edge_values[i]);
+                          path_v1 = path_v2 = f_e(path_v1, curr_v->edge_values[i]);
                         bdry_v1 = static_cast<Cluster*>(curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1]);
                         bdry_v2 = static_cast<Cluster*>(curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1]);
                     } else {
                         // Unary to Unary
-                        path_v1 = f(path_v1, f(curr_v->edge_values[i], neighbor->value));
+                        path_v1 = f_e(path_v1, f_e(curr_v->edge_values[i], neighbor->value));
                     }
                 }
                 break;
@@ -867,17 +967,17 @@ aug_t UFOTree<aug_t>::path_query(vertex_t u, vertex_t v){
         curr_v = static_cast<Cluster*>(curr_v->parent);
     }
     // Get the correct path sides when the two vertices meet at the LCA
-    aug_t total = identity;
+    e_t total = identity_e;
     if (curr_u->get_degree() == 2)
-        total = f(total, (curr_v == bdry_u1) ? path_u1 : path_u2);
+        total = f_e(total, (curr_v == bdry_u1) ? path_u1 : path_u2);
     else
-        total = f(total, path_u1);
+        total = f_e(total, path_u1);
     if (curr_v->get_degree() == 2)
-        total = f(total, (curr_u == bdry_v1) ? path_v1 : path_v2);
+        total = f_e(total, (curr_u == bdry_v1) ? path_v1 : path_v2);
     else
-        total = f(total, path_v1);
+        total = f_e(total, path_v1);
     // Add the value of the last edge
     for (int i = 0; i < 3; i++) if (static_cast<Cluster*>(curr_u->neighbors[i]) == curr_v)
-        total = f(total, curr_u->edge_values[i]);
+        total = f_e(total, curr_u->edge_values[i]);
     return total;
 }

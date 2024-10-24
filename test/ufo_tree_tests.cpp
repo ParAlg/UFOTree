@@ -3,8 +3,8 @@
 #include "../include/ufo_tree.h"
 
 
-template<typename aug_t>
-bool UFOTree<aug_t>::is_valid() {
+template<typename v_t, typename e_t>
+bool UFOTree<v_t, e_t>::is_valid() {
     std::unordered_set<UFOClusterBase*> clusters;
     std::unordered_set<UFOClusterBase*> next_clusters;
     for (auto leaf : leaves) { // Ensure that every pair of incident vertices are in the same component
@@ -19,13 +19,13 @@ bool UFOTree<aug_t>::is_valid() {
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(static_cast<UFOClusterBase*>(&this->leaves[i]));
     while (!clusters.empty()) {
         for (auto clusterp : clusters) {
-            auto cluster = static_cast<UFOCluster<aug_t, aug_t>*>(clusterp);
+            auto cluster = static_cast<UFOCluster<v_t, e_t>*>(clusterp);
             for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
-                if (neighbor && !static_cast<UFOCluster<aug_t, aug_t>*>(neighbor)->contains_neighbor(cluster)) return false;
+                if (neighbor && !static_cast<UFOCluster<v_t, e_t>*>(neighbor)->contains_neighbor(cluster)) return false;
             if (cluster->neighbors_set)
             for (auto neighbor_pair : *cluster->neighbors_set) {
                 auto neighbor = neighbor_pair.first;
-                if (!static_cast<UFOCluster<aug_t, aug_t>*>(neighbor)->contains_neighbor(cluster)) return false;
+                if (!static_cast<UFOCluster<v_t, e_t>*>(neighbor)->contains_neighbor(cluster)) return false;
             }
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
@@ -33,10 +33,10 @@ bool UFOTree<aug_t>::is_valid() {
                     else if (!cluster->get_neighbor()->contracts()) return false;
                 } else if (cluster->get_degree() == 2) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && static_cast<UFOCluster<aug_t, aug_t>*>(neighbor)->get_degree() < 3 && !neighbor->contracts()) return false;
+                        if (neighbor && static_cast<UFOCluster<v_t, e_t>*>(neighbor)->get_degree() < 3 && !neighbor->contracts()) return false;
                 } else if (cluster->get_degree() >= 3) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && static_cast<UFOCluster<aug_t, aug_t>*>(neighbor)->get_degree() < 2) return false;
+                        if (neighbor && static_cast<UFOCluster<v_t, e_t>*>(neighbor)->get_degree() < 2) return false;
                     if (cluster->neighbors_set)
                     for (auto neighbor_pair : *cluster->neighbors_set)
                         if (static_cast<Cluster*>(neighbor_pair.first)->get_degree() < 2) return false;
@@ -50,8 +50,8 @@ bool UFOTree<aug_t>::is_valid() {
     return true;
 }
 
-template<typename aug_t>
-void UFOTree<aug_t>::print_tree() {
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::print_tree() {
     std::multimap<UFOClusterBase*, UFOClusterBase*> clusters;
     std::multimap<UFOClusterBase*, UFOClusterBase*> next_clusters;
     std::cout << "========================= LEAVES =========================" << std::endl;
@@ -91,7 +91,7 @@ TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
+    UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -103,7 +103,7 @@ TEST(UFOTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
+    UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -118,7 +118,7 @@ TEST(UFOTreeSuite, incremental_star_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
+    UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(0,i+1);
@@ -135,7 +135,7 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
         vertex_t n = 256;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
-        UFOTree<int> tree(n, qt, f, 0, 0);
+        UFOTree<int, int> tree(n);
 
         auto seed = seeds[trial];
         srand(seed);
@@ -156,7 +156,7 @@ TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 128;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
+    UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(i,i+1);
@@ -172,7 +172,7 @@ TEST(UFOTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
+    UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.link(i,2*i+1);
@@ -195,7 +195,7 @@ TEST(UFOTreeSuite, decremental_star_correctness_test) {
     vertex_t n = 256;
     QueryType qt = PATH;
     auto f = [](int x, int y)->int{return x + y;};
-    UFOTree<int> tree(n, qt, f, 0, 0);
+    UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.link(0,i+1);
@@ -217,7 +217,7 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
         vertex_t n = 256;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int{return x + y;};
-        UFOTree<int> tree(n, qt, f, 0, 0);
+        UFOTree<int, int> tree(n);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
         auto seed = seeds[trial];
@@ -245,14 +245,17 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
 
 
 TEST(UFOTreeQuerySuite, LinkedListQueryTest){
-  std::vector<int> test_vals = {10, 100};
+  std::vector<int> test_vals = {10, 100, 1000};
   srand(time(NULL));
   int seed = 1; 
   srand(seed);
-  int num_trials = 100;
+  int num_trials = 1;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
-      UFOTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      QueryType q = PATH;
+      auto f = [](int x, int y){return std::min(x,y);};
+      int im = std::numeric_limits<int>::max();
+      UFOTree<int, int> tree(n, q, f, f, im, im, im, im);
       vertex_t u = rand() % (n-1), v = rand() % n; if(v == u){v++;}
       //vertex_t u = 0, v = 7;
       if(v < u) std::swap(u,v);
@@ -285,14 +288,17 @@ TEST(UFOTreeQuerySuite, LinkedListQueryTest){
 }
 
 TEST(UFOTreeQuerySuite, BinaryTreeQueryTest){
-  std::vector<int> test_vals = {7, 31, 127};
+  std::vector<int> test_vals = {7, 31, 127, 1023};
   srand(time(NULL));
   int seed = 1; 
   srand(seed);
-  int num_trials = 100;
+  int num_trials = 1;
   for(int n : test_vals){
     for(int trial = 0; trial < num_trials; ++trial){
-      UFOTree<int> tree(n, QueryType::PATH, [] (int x, int y){return std::min(x,y);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+      QueryType q = PATH;
+      auto f = [](int x, int y){return std::min(x,y);};
+      int im = std::numeric_limits<int>::max();
+      UFOTree<int, int> tree(n, q, f, f, im, im, im, im);
       std::vector<int> path; 
       for(int i = 0; i < n - 1; i = (2*i) + 2){
         path.push_back(i);

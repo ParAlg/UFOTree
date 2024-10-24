@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
         std::cout << "TopologyTree  : " << time << std::endl;
         output_csv << time << ",";
         // UFO Tree
-        time = dynamic_tree_benchmark::get_update_speed<UFOTree<int>>(n, update_sequences);
+        time = dynamic_tree_benchmark::get_update_speed<UFOTree<int, empty_t>>(n, update_sequences);
         std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
         // Euler Tour Tree
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
         std::cout << "TopologyTree  : " << time << std::endl;
         output_csv << time << ",";
         // UFO Tree
-        time = dynamic_tree_benchmark::get_update_speed<UFOTree<int>>(n, update_sequences);
+        time = dynamic_tree_benchmark::get_update_speed<UFOTree<int, empty_t>>(n, update_sequences);
         std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
         // Euler Tour Tree

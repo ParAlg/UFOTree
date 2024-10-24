@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
       // UFO Tree
-      time = dynamic_tree_benchmark::get_query_speed<UFOTree<int>>(n, update_sequences, query_sequences);
+      time = dynamic_tree_benchmark::get_query_speed<UFOTree<int, int>>(n, update_sequences, query_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
       output_csv << time << ",";
 

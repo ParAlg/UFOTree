@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
       std::cout << "TopologyTree  : " << space << std::endl;
       output_csv << space << ",";
       // UFO Tree
-      space = dynamic_tree_benchmark::get_peak_space<UFOTree<int>>(n, update_sequences);
+      space = dynamic_tree_benchmark::get_peak_space<UFOTree<int, empty_t>>(n, update_sequences);
       std::cout << "UFOTree       : " << space << std::endl;
       output_csv << space << ",";
       // Euler Tour Tree
