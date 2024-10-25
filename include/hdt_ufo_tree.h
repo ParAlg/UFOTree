@@ -22,8 +22,10 @@ struct HDTUFOCluster {
     vertex_t size = 1;
     vertex_t vertex_mark = NONE;   // store the id of a marked vertex in the cluster
     vertex_t edge_mark = NONE;     // store the id of a vertex in the cluster with a marked incident edge
+    absl::flat_hash_set<HDTUFOCluster*>* vertex_marked_neighbors;
+    absl::flat_hash_set<HDTUFOCluster*>* edge_marked_neighbors;
     // Constructor
-    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(NONE), edge_mark(NONE){};
+    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(NONE), edge_mark(NONE), vertex_marked_neighbors(), edge_marked_neighbors(){};
     // Helper functions
     bool contracts() {
         assert(get_degree() <= 3);
@@ -35,6 +37,18 @@ struct HDTUFOCluster {
             if (neighbor) return neighbor;
         std::cerr << "No neighbor found to return." << std::endl;
         std::abort();
+    }
+    vertex_t get_neighbor_vertex_mark() {
+        for (auto neighbor : neighbors)
+            if (neighbor && neighbor->vertex_mark != NONE) return neighbor->vertex_mark;
+        if (!vertex_marked_neighbors->empty()) return (*vertex_marked_neighbors->begin())->vertex_mark;
+        return NONE;
+    }
+    vertex_t get_neighbor_edge_mark() {
+        for (auto neighbor : neighbors)
+            if (neighbor && neighbor->edge_mark != NONE) return neighbor->edge_mark;
+        if (!edge_marked_neighbors->empty()) return (*edge_marked_neighbors->begin())->edge_mark;
+        return NONE;
     }
     HDTUFOCluster* get_root() {
         HDTUFOCluster* curr = this;
@@ -76,6 +90,16 @@ struct HDTUFOCluster {
         if (!neighbors_set)
             neighbors_set = new absl::flat_hash_set<HDTUFOCluster*>();
         neighbors_set->insert(c);
+        if (c->vertex_mark) {
+            if (!vertex_marked_neighbors)
+                vertex_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
+            vertex_marked_neighbors->insert(c);
+        }
+        if (c->edge_mark) {
+            if (!edge_marked_neighbors)
+                edge_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
+            edge_marked_neighbors->insert(c);
+        }
     }
     void remove_neighbor(HDTUFOCluster* c) {
         assert(contains_neighbor(c));
@@ -86,24 +110,48 @@ struct HDTUFOCluster {
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement;
                     neighbors_set->erase(replacement);
+                    vertex_marked_neighbors->erase(replacement);
+                    edge_marked_neighbors->erase(replacement);
                     if (neighbors_set->empty()) {
                         delete neighbors_set;
                         neighbors_set = nullptr;
+                    }
+                    if (vertex_marked_neighbors->empty()) {
+                        delete vertex_marked_neighbors;
+                        vertex_marked_neighbors = nullptr;
+                    }
+                    if (edge_marked_neighbors->empty()) {
+                        delete edge_marked_neighbors;
+                        edge_marked_neighbors = nullptr;
                     }
                 }
                 return;
             }
         }
         neighbors_set->erase(c);
+        vertex_marked_neighbors->erase(c);
+        edge_marked_neighbors->erase(c);
         if (neighbors_set->empty()) {
             delete neighbors_set;
             neighbors_set = nullptr;
+        }
+        if (vertex_marked_neighbors->empty()) {
+            delete vertex_marked_neighbors;
+            vertex_marked_neighbors = nullptr;
+        }
+        if (edge_marked_neighbors->empty()) {
+            delete edge_marked_neighbors;
+            edge_marked_neighbors = nullptr;
         }
     }
     size_t calculate_size(){
         size_t memory = sizeof(HDTUFOCluster);
         if (neighbors_set)
             memory += neighbors_set->bucket_count() * sizeof(HDTUFOCluster*);
+        if (vertex_marked_neighbors)
+            memory += vertex_marked_neighbors->bucket_count() * sizeof(HDTUFOCluster*);
+        if (edge_marked_neighbors)
+            memory += edge_marked_neighbors->bucket_count() * sizeof(HDTUFOCluster*);
         return memory;
     }
 };
@@ -141,9 +189,12 @@ private:
     void disconnect_siblings(Cluster* c, int level);
     void insert_adjacency(Cluster* u, Cluster* v);
     void remove_adjacency(Cluster* u, Cluster* v);
-    void add_mark(vertex_t v, MarkType m);
-    void remove_mark(vertex_t v, MarkType m);
-    void recompute_parent_marks(Cluster* c);
+    void add_vertex_mark(vertex_t v);
+    void add_edge_mark(vertex_t v);
+    void remove_vertex_mark(vertex_t v);
+    void remove_edge_mark(vertex_t v);
+    void recompute_parent_vertex_mark(Cluster* c);
+    void recompute_parent_edge_mark(Cluster* c);
 };
 
 HDTUFOTree::HDTUFOTree(vertex_t n) {
@@ -285,7 +336,8 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 delete prev;
             } else {
                 prev->parent->size -= prev->size;
-                recompute_parent_marks(prev);
+                recompute_parent_vertex_mark(prev);
+                recompute_parent_edge_mark(prev);
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -299,7 +351,8 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 delete prev;
             } else if (prev->get_degree() <= 1) {
                 prev->parent->size -= prev->size;
-                recompute_parent_marks(prev);
+                recompute_parent_vertex_mark(prev);
+                recompute_parent_edge_mark(prev);
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -542,7 +595,8 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
             for (auto neighbor : center->neighbors) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent->size -= neighbor->size;
-                    recompute_parent_marks(neighbor);
+                    recompute_parent_vertex_mark(neighbor);
+                    recompute_parent_edge_mark(neighbor);
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
@@ -551,13 +605,15 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
             for (auto neighbor : *center->neighbors_set) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent->size -= neighbor->size;
-                    recompute_parent_marks(neighbor);
+                    recompute_parent_vertex_mark(neighbor);
+                    recompute_parent_edge_mark(neighbor);
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
             }
             center->parent->size -= center->size;
-            recompute_parent_marks(center);
+            recompute_parent_vertex_mark(center);
+            recompute_parent_edge_mark(center);
             center->parent = nullptr;
             root_clusters[level].push_back(center);
         }
@@ -566,7 +622,8 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         for (auto neighbor : c->neighbors) {
             if (neighbor && neighbor->parent == c->parent) {
                 neighbor->parent->size -= neighbor->size;
-                recompute_parent_marks(neighbor);
+                recompute_parent_vertex_mark(neighbor);
+                recompute_parent_edge_mark(neighbor);
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -575,7 +632,8 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         for (auto neighbor : *c->neighbors_set) {
             if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                 neighbor->parent->size -= neighbor->size;
-                recompute_parent_marks(neighbor);
+                recompute_parent_vertex_mark(neighbor);
+                recompute_parent_edge_mark(neighbor);
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -584,47 +642,96 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
 }
 
 void HDTUFOTree::MarkVertex(vertex_t v, bool mark) {
-    if (mark)
-        add_mark(v, MarkType::VERTEX);
-    else
-        remove_mark(v, MarkType::VERTEX);
+    if (mark) add_vertex_mark(v);
+    else remove_vertex_mark(v);
 }
 
 void HDTUFOTree::MarkEdge(edge_t e, bool mark) {
     if (mark) {
-        if (marked_tree_edges[e.first]->empty()) add_mark(e.first, MarkType::EDGE);
+        if (marked_tree_edges[e.first]->empty()) add_edge_mark(e.first);
         marked_tree_edges[e.first]->insert(e.second);
-        if (marked_tree_edges[e.second]->empty()) add_mark(e.second, MarkType::EDGE);
+        if (marked_tree_edges[e.second]->empty()) add_edge_mark(e.second);
         marked_tree_edges[e.second]->insert(e.first);
     }
     else {
         marked_tree_edges[e.first]->erase(e.second);
-        if (marked_tree_edges[e.first]->empty()) remove_mark(e.first, MarkType::EDGE);
+        if (marked_tree_edges[e.first]->empty()) remove_edge_mark(e.first);
         marked_tree_edges[e.second]->erase(e.first);
-        if (marked_tree_edges[e.second]->empty()) remove_mark(e.second, MarkType::EDGE);
+        if (marked_tree_edges[e.second]->empty()) remove_edge_mark(e.second);
     }
 }
 
-void HDTUFOTree::add_mark(vertex_t v, MarkType m) {
+void HDTUFOTree::add_vertex_mark(vertex_t v) {
     auto curr = &leaves[v];
     while (curr) {
-        if (m == MarkType::VERTEX) curr->vertex_mark = v;
-        if (m == MarkType::EDGE) curr->edge_mark = v;
+        if (curr->vertex_mark == NONE) {
+            for (auto neighbor : curr->neighbors) {
+                if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
+                    if (!neighbor->vertex_marked_neighbors)
+                        neighbor->vertex_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
+                    neighbor->vertex_marked_neighbors->insert(curr);
+                }
+            }
+        }
+        curr->vertex_mark = v;
         curr = curr->parent;
     }
 }
 
-void HDTUFOTree::remove_mark(vertex_t v, MarkType m) {
+void HDTUFOTree::add_edge_mark(vertex_t v) {
     auto curr = &leaves[v];
-    if (m == MarkType::VERTEX) curr->vertex_mark = NONE;
-    if (m == MarkType::EDGE) curr->edge_mark = NONE;
-    while (curr->parent) {
-        recompute_parent_marks(curr);
+    while (curr) {
+        if (curr->edge_mark == NONE) {
+            for (auto neighbor : curr->neighbors) {
+                if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
+                    if (!neighbor->edge_marked_neighbors)
+                        neighbor->edge_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
+                    neighbor->edge_marked_neighbors->insert(curr);
+                }
+            }
+        }
+        curr->edge_mark = v;
         curr = curr->parent;
     }
 }
 
-void HDTUFOTree::recompute_parent_marks(Cluster* c) {
+void HDTUFOTree::remove_vertex_mark(vertex_t v) {
+    auto curr = &leaves[v];
+    curr->vertex_mark = NONE;
+    for (auto neighbor : curr->neighbors) {
+        if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
+            if (!neighbor->vertex_marked_neighbors)
+                neighbor->vertex_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
+            neighbor->vertex_marked_neighbors->insert(curr);
+        }
+    }
+    while (curr->parent) {
+        recompute_parent_vertex_mark(curr);
+        curr = curr->parent;
+    }
+}
+
+void HDTUFOTree::remove_edge_mark(vertex_t v) {
+    auto curr = &leaves[v];
+    curr->edge_mark = NONE;
+    for (auto neighbor : curr->neighbors) {
+        if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
+            if (!neighbor->edge_marked_neighbors)
+                neighbor->edge_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
+            neighbor->edge_marked_neighbors->insert(curr);
+        }
+    }
+    while (curr->parent) {
+        recompute_parent_edge_mark(curr);
+        curr = curr->parent;
+    }
+}
+
+void HDTUFOTree::recompute_parent_vertex_mark(Cluster* c) {
+    // TODO
+}
+
+void HDTUFOTree::recompute_parent_edge_mark(Cluster* c) {
     // TODO
 }
 
