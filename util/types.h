@@ -17,8 +17,13 @@ enum UpdateType {
 };
 
 struct Edge {
+public:
   vertex_t src;
   vertex_t dst;
+
+  bool operator==(const Edge& other) const {
+    return src == other.src && dst == other.dst;
+  }
 };
 
 struct Update {

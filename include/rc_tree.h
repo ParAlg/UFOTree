@@ -93,7 +93,7 @@ public:
 
   // Overrides for ternarizable_interface methods
   short get_degree(vertex_t v) override {return get_degree(v, 0);}
-  std::pair<vertex_t, int> retrieve_v_to_del(vertex_t v) override {
+  std::pair<vertex_t, aug_t> retrieve_v_to_del(vertex_t v) override {
     return std::pair(GET_NEIGHBOR(v, (*contraction_tree[v][0][0])), contraction_tree[v][0][0]->aug_val);
   }
 
@@ -122,7 +122,7 @@ RCTree<aug_t>::RCTree(int _n, QueryType _q,
   round_contracted.resize(n); 
   for(int i = 0; i < n; i++){ 
     contraction_tree[i].push_back(new RCCluster<aug_t>*[DEGREE_BOUND]{nullptr});
-    representative_clusters[i] = (RCCluster<aug_t>*) new RCCluster<aug_t>(d_val);
+    representative_clusters[i] = (RCCluster<aug_t>*) new RCCluster<aug_t>(id);
     representative_clusters[i]->rep_vertex = i;
     round_contracted[i] = 0;
   }
@@ -783,7 +783,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
       // NOTE(ATHARVA): Make this all into one function.
       // Binary to Binary
       if(degree_u == 2 && degree_parent == 2){
-        aug_t incorrect_boundary = boundary_u_1 != parent_id ? boundary_u_1 : boundary_u_2;
+        vertex_t incorrect_boundary = boundary_u_1 != parent_id ? boundary_u_1 : boundary_u_2;
         for(int i = 0; i < DEGREE_BOUND; i++) {
           auto cluster = contraction_tree[parent_id][round_contracted[parent_id]][i];
           if(cluster && cluster->bv_size() == 2){
@@ -843,7 +843,7 @@ aug_t RCTree<aug_t>::path_query(vertex_t u, vertex_t v){
 
       // Binary to Binary
       if(degree_v == 2 && degree_parent == 2){
-        aug_t incorrect_boundary = boundary_v_1 != parent_id ? boundary_v_1 : boundary_v_2;
+        vertex_t incorrect_boundary = boundary_v_1 != parent_id ? boundary_v_1 : boundary_v_2;
         for(int i = 0; i < DEGREE_BOUND; i++) {
           auto cluster = contraction_tree[parent_id][round_contracted[parent_id]][i];
           if(cluster && cluster->bv_size() == 2){

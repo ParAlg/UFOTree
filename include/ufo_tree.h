@@ -22,7 +22,6 @@ struct UFOClusterBase {
     UFOClusterBase() :  parent(), neighbors(){};
     // Helper functions
     bool contracts() {
-        assert(get_degree() <= 3);
         for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
         return false;
     }

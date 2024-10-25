@@ -109,5 +109,12 @@ add_executable(parallel_benchmark
   # baselines/dynamic_trees/parallel_euler_tour_tree/src/euler_tour_tree.cpp
   # baselines/sequence/parallel_skip_list/src/augmented_skip_list.cpp
 )
+
+
+add_executable(incremental_MST
+test/incremental_mst_test.cpp)
+target_link_libraries(incremental_MST PRIVATE parlay absl::flat_hash_map)
+target_include_directories(incremental_MST PRIVATE include util)
+
 target_link_libraries(parallel_benchmark PRIVATE parlay CPAM aspen GTest::gtest_main)
 target_include_directories(parallel_benchmark PRIVATE include include/forest_structures util baselines)
