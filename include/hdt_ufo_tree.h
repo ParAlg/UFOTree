@@ -20,10 +20,10 @@ struct HDTUFOCluster {
     HDTUFOCluster* neighbors[HDTUFO_ARRAY_MAX];
     absl::flat_hash_set<HDTUFOCluster*>* neighbors_set = nullptr;
     vertex_t size = 1;
-    bool vertex_mark = false;
-    bool edge_mark = false;
+    vertex_t vertex_mark = NONE;   // store the id of a marked vertex in the cluster
+    vertex_t edge_mark = NONE;     // store the id of a vertex in the cluster with a marked incident edge
     // Constructor
-    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(), edge_mark(){};
+    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(NONE), edge_mark(NONE){};
     // Helper functions
     bool contracts() {
         assert(get_degree() <= 3);
@@ -131,7 +131,6 @@ public:
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
-    std::vector<absl::flat_hash_set<vertex_t>*> non_tree_edges;
     std::vector<absl::flat_hash_set<vertex_t>*> marked_tree_edges;
     std::vector<std::vector<Cluster*>> root_clusters;
     std::vector<std::pair<std::pair<Cluster*,Cluster*>,bool>> contractions;
@@ -142,12 +141,15 @@ private:
     void disconnect_siblings(Cluster* c, int level);
     void insert_adjacency(Cluster* u, Cluster* v);
     void remove_adjacency(Cluster* u, Cluster* v);
+    void add_mark(vertex_t v, MarkType m);
+    void remove_mark(vertex_t v, MarkType m);
+    void recompute_parent_mark(Cluster* c, MarkType m);
 };
 
 HDTUFOTree::HDTUFOTree(vertex_t n) {
     leaves.resize(n);
-    non_tree_edges.resize(n);
     marked_tree_edges.resize(n);
+    for (int i = 0; i < n; ++i) marked_tree_edges[i] = new absl::flat_hash_set<vertex_t>;
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
@@ -247,6 +249,7 @@ void HDTUFOTree::DeleteEdge(edge_t e) {
     lower_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
+    MarkEdge(e, false);
 }
 
 /* Removes the ancestors of cluster c that are not high degree nor
@@ -331,6 +334,8 @@ void HDTUFOTree::recluster_tree() {
                 auto parent = new Cluster();
                 cluster->parent = parent;
                 parent->size = cluster->size;
+                parent->vertex_mark = cluster->vertex_mark;
+                parent->edge_mark = cluster->edge_mark;
                 root_clusters[level+1].push_back(parent);
                 bool first_contraction = true;
                 for (auto neighbor : cluster->neighbors) {
@@ -338,6 +343,8 @@ void HDTUFOTree::recluster_tree() {
                         auto old_parent = neighbor->parent;
                         neighbor->parent = cluster->parent;
                         cluster->parent->size += neighbor->size;
+                        if (cluster->vertex_mark != NONE) parent->vertex_mark = cluster->vertex_mark;
+                        if (cluster->edge_mark != NONE) parent->edge_mark = cluster->edge_mark;
                         int lev = level+1;
                         while (old_parent) {
                             auto temp = old_parent;
@@ -362,12 +369,18 @@ void HDTUFOTree::recluster_tree() {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
                     neighbor->parent->size += cluster->size;
+                    if (cluster->vertex_mark != NONE) neighbor->parent->vertex_mark = cluster->vertex_mark;
+                    if (cluster->edge_mark != NONE) neighbor->parent->edge_mark = cluster->edge_mark;
                     contractions.push_back({{cluster,neighbor},false});
                 } else {
                     auto parent = new Cluster();
                     cluster->parent = parent;
                     neighbor->parent = parent;
                     parent->size = cluster->size + neighbor->size;
+                    if (cluster->vertex_mark != NONE) parent->vertex_mark = cluster->vertex_mark;
+                    if (cluster->edge_mark != NONE) parent->edge_mark = cluster->edge_mark;
+                    if (neighbor->vertex_mark != NONE) parent->vertex_mark = neighbor->vertex_mark;
+                    if (neighbor->edge_mark != NONE) parent->edge_mark = neighbor->edge_mark;
                     root_clusters[level+1].push_back(parent);
                     contractions.push_back({{cluster,neighbor},true});
                 }
@@ -378,6 +391,8 @@ void HDTUFOTree::recluster_tree() {
                             auto old_parent = entry->parent;
                             entry->parent = neighbor->parent;
                             neighbor->parent->size += entry->size;
+                            if (entry->vertex_mark != NONE) neighbor->parent->vertex_mark = entry->vertex_mark;
+                            if (entry->edge_mark != NONE) neighbor->parent->edge_mark = entry->edge_mark;
                             contractions.push_back({{entry, neighbor},false});
                             neighbor->parent->remove_neighbor(old_parent);
                             auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
@@ -397,6 +412,10 @@ void HDTUFOTree::recluster_tree() {
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         parent->size = cluster->size + neighbor->size;
+                        if (cluster->vertex_mark != NONE) parent->vertex_mark = cluster->vertex_mark;
+                        if (cluster->edge_mark != NONE) parent->edge_mark = cluster->edge_mark;
+                        if (neighbor->vertex_mark != NONE) parent->vertex_mark = neighbor->vertex_mark;
+                        if (neighbor->edge_mark != NONE) parent->edge_mark = neighbor->edge_mark;
                         root_clusters[level+1].push_back(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
@@ -412,6 +431,8 @@ void HDTUFOTree::recluster_tree() {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
                         neighbor->parent->size += cluster->size;
+                        if (cluster->vertex_mark != NONE) neighbor->parent->vertex_mark = cluster->vertex_mark;
+                        if (cluster->edge_mark != NONE) neighbor->parent->edge_mark = cluster->edge_mark;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
                         break;
                     }
@@ -553,6 +574,65 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
             }
         }
     }
+}
+
+void HDTUFOTree::MarkVertex(vertex_t v, bool mark) {
+    if (mark)
+        add_mark(v, MarkType::VERTEX);
+    else
+        remove_mark(v, MarkType::VERTEX);
+}
+
+void HDTUFOTree::MarkEdge(edge_t e, bool mark) {
+    if (mark) {
+        if (marked_tree_edges[e.first]->empty()) add_mark(e.first, MarkType::EDGE);
+        marked_tree_edges[e.first]->insert(e.second);
+        if (marked_tree_edges[e.second]->empty()) add_mark(e.second, MarkType::EDGE);
+        marked_tree_edges[e.second]->insert(e.first);
+    }
+    else {
+        marked_tree_edges[e.first]->erase(e.second);
+        if (marked_tree_edges[e.first]->empty()) remove_mark(e.first, MarkType::EDGE);
+        marked_tree_edges[e.second]->erase(e.first);
+        if (marked_tree_edges[e.second]->empty()) remove_mark(e.second, MarkType::EDGE);
+    }
+}
+
+void HDTUFOTree::add_mark(vertex_t v, MarkType m) {
+    auto curr = &leaves[v];
+    while (curr) {
+        if (m == MarkType::VERTEX) curr->vertex_mark = v;
+        if (m == MarkType::EDGE) curr->edge_mark = v;
+        curr = curr->parent;
+    }
+}
+
+void HDTUFOTree::remove_mark(vertex_t v, MarkType m) {
+    auto curr = &leaves[v];
+    if (m == MarkType::VERTEX) curr->vertex_mark = NONE;
+    if (m == MarkType::EDGE) curr->edge_mark = NONE;
+    while (curr->parent) {
+        recompute_parent_mark(curr, m);
+        curr = curr->parent;
+    }
+}
+
+void HDTUFOTree::recompute_parent_mark(Cluster* c, MarkType m) {
+    // TODO
+}
+
+std::optional<vertex_t> HDTUFOTree::GetMarkedVertexInTree(vertex_t v) {
+    vertex_t marked_vertex = leaves[v].get_root()->vertex_mark;
+    if (marked_vertex == NONE) return std::nullopt;
+    return marked_vertex;
+}
+
+std::optional<edge_t> HDTUFOTree::GetMarkedEdgeInTree(vertex_t v) {
+    vertex_t marked_vertex = leaves[v].get_root()->edge_mark;
+    if (marked_vertex == NONE) return std::nullopt;
+    assert(marked_tree_edges[marked_vertex] != nullptr);
+    vertex_t other_endpoint = *marked_tree_edges[marked_vertex]->begin();
+    return std::pair{marked_vertex, other_endpoint};
 }
 
 

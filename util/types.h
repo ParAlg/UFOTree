@@ -36,3 +36,8 @@ struct Query {
   vertex_t u;
   vertex_t v;
 };
+
+enum MarkType {
+  VERTEX,
+  EDGE
+};
