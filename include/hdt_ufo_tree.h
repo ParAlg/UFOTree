@@ -19,9 +19,11 @@ struct HDTUFOCluster {
     HDTUFOCluster* parent = nullptr;
     HDTUFOCluster* neighbors[HDTUFO_ARRAY_MAX];
     absl::flat_hash_set<HDTUFOCluster*>* neighbors_set = nullptr;
-    bool bit = false;    
+    vertex_t size = 1;
+    bool vertex_mark = false;
+    bool edge_mark = false;
     // Constructor
-    HDTUFOCluster() :  parent(), neighbors(), bit(){};
+    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(), edge_mark(){};
     // Helper functions
     bool contracts() {
         assert(get_degree() <= 3);
@@ -114,10 +116,10 @@ public:
     ~HDTUFOTree();
     void AddEdge(edge_t e);
     void DeleteEdge(edge_t e);
-    void MarkEdge(edge_t e, bool mark);
-    void MarkVertex(vertex_t v, bool mark);
-    std::optional<edge_t> GetMarkedEdgeInTree(vertex_t v);
+    void MarkVertex(vertex_t v, bool mark); // Marked vertices have an incident level i non-tree edge
+    void MarkEdge(edge_t e, bool mark);     // Marked edges represent level i tree edges (not all tree edges)
     std::optional<vertex_t> GetMarkedVertexInTree(vertex_t v);
+    std::optional<edge_t> GetMarkedEdgeInTree(vertex_t v);
     vertex_t GetSizeOfTree(vertex_t v);
     bool IsConnected(vertex_t u, vertex_t v);
     // Testing helpers
@@ -129,6 +131,8 @@ public:
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
+    std::vector<absl::flat_hash_set<vertex_t>*> non_tree_edges;
+    std::vector<absl::flat_hash_set<vertex_t>*> marked_tree_edges;
     std::vector<std::vector<Cluster*>> root_clusters;
     std::vector<std::pair<std::pair<Cluster*,Cluster*>,bool>> contractions;
     std::vector<std::pair<Cluster*,int>> lower_deg; // lower_deg helps to identify clusters who became low degree during a deletion update
@@ -142,6 +146,8 @@ private:
 
 HDTUFOTree::HDTUFOTree(vertex_t n) {
     leaves.resize(n);
+    non_tree_edges.resize(n);
+    marked_tree_edges.resize(n);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
 }
@@ -275,6 +281,7 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 delete prev;
             } else {
+                prev->parent->size -= prev->size;
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -287,6 +294,7 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 delete prev;
             } else if (prev->get_degree() <= 1) {
+                prev->parent->size -= prev->size;
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -322,12 +330,14 @@ void HDTUFOTree::recluster_tree() {
             if (!cluster->parent && cluster->get_degree() == 3) {
                 auto parent = new Cluster();
                 cluster->parent = parent;
+                parent->size = cluster->size;
                 root_clusters[level+1].push_back(parent);
                 bool first_contraction = true;
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->get_degree() == 1) {
                         auto old_parent = neighbor->parent;
                         neighbor->parent = cluster->parent;
+                        cluster->parent->size += neighbor->size;
                         int lev = level+1;
                         while (old_parent) {
                             auto temp = old_parent;
@@ -351,11 +361,13 @@ void HDTUFOTree::recluster_tree() {
                 if (neighbor->parent) {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
+                    neighbor->parent->size += cluster->size;
                     contractions.push_back({{cluster,neighbor},false});
                 } else {
                     auto parent = new Cluster();
                     cluster->parent = parent;
                     neighbor->parent = parent;
+                    parent->size = cluster->size + neighbor->size;
                     root_clusters[level+1].push_back(parent);
                     contractions.push_back({{cluster,neighbor},true});
                 }
@@ -365,6 +377,7 @@ void HDTUFOTree::recluster_tree() {
                         if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) {
                             auto old_parent = entry->parent;
                             entry->parent = neighbor->parent;
+                            neighbor->parent->size += entry->size;
                             contractions.push_back({{entry, neighbor},false});
                             neighbor->parent->remove_neighbor(old_parent);
                             auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
@@ -383,6 +396,7 @@ void HDTUFOTree::recluster_tree() {
                         auto parent = new Cluster();
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        parent->size = cluster->size + neighbor->size;
                         root_clusters[level+1].push_back(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
@@ -397,6 +411,7 @@ void HDTUFOTree::recluster_tree() {
                     if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
+                        neighbor->parent->size += cluster->size;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
                         break;
                     }
@@ -407,8 +422,10 @@ void HDTUFOTree::recluster_tree() {
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() > 0) {
                 auto parent = new Cluster();
-                parent->bit = cluster->bit;
                 cluster->parent = parent;
+                parent->size = cluster->size;
+                parent->vertex_mark = cluster->vertex_mark;
+                parent->edge_mark = cluster->edge_mark;
                 root_clusters[level+1].push_back(parent);
                 contractions.push_back({{cluster,cluster},true});
             }
@@ -501,6 +518,7 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         if (center->parent == c->parent) {
             for (auto neighbor : center->neighbors) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
+                    neighbor->parent->size -= neighbor->size;
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
@@ -508,10 +526,12 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
             if (center->neighbors_set)
             for (auto neighbor : *center->neighbors_set) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
+                    neighbor->parent->size -= neighbor->size;
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
             }
+            center->parent->size -= center->size;
             center->parent = nullptr;
             root_clusters[level].push_back(center);
         }
@@ -519,6 +539,7 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         assert(c->get_degree() <= 5);
         for (auto neighbor : c->neighbors) {
             if (neighbor && neighbor->parent == c->parent) {
+                neighbor->parent->size -= neighbor->size;
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -526,11 +547,17 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         if (c->neighbors_set)
         for (auto neighbor : *c->neighbors_set) {
             if (neighbor && neighbor->parent == c->parent && neighbor != c) {
+                neighbor->parent->size -= neighbor->size;
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
         }
     }
+}
+
+
+vertex_t HDTUFOTree::GetSizeOfTree(vertex_t v) {
+    return leaves[v].get_root()->size;
 }
 
 /* Return true if and only if there is a path from vertex u to

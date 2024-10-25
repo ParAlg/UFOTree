@@ -233,3 +233,18 @@ TEST(HDTUFOTreeSuite, decremental_random_correctness_test) {
         }
     }
 }
+
+TEST(HDTUFOTreeSuite, size_augmentation_test) {
+    vertex_t n = 256;
+    HDTUFOTree tree(n);
+
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.AddEdge({i,i+1});
+    }
+    for (vertex_t i = 0; i < n-1; i++) {
+        tree.DeleteEdge({i,i+1});
+        ASSERT_EQ(tree.GetSizeOfTree(i), i+1);
+        ASSERT_EQ(tree.GetSizeOfTree(i+1), n-(i+1));
+        tree.AddEdge({i,i+1});
+    }
+}
