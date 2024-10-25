@@ -143,7 +143,7 @@ private:
     void remove_adjacency(Cluster* u, Cluster* v);
     void add_mark(vertex_t v, MarkType m);
     void remove_mark(vertex_t v, MarkType m);
-    void recompute_parent_mark(Cluster* c, MarkType m);
+    void recompute_parent_marks(Cluster* c);
 };
 
 HDTUFOTree::HDTUFOTree(vertex_t n) {
@@ -285,6 +285,7 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 delete prev;
             } else {
                 prev->parent->size -= prev->size;
+                recompute_parent_marks(prev);
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -298,6 +299,7 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 delete prev;
             } else if (prev->get_degree() <= 1) {
                 prev->parent->size -= prev->size;
+                recompute_parent_marks(prev);
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -540,6 +542,7 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
             for (auto neighbor : center->neighbors) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent->size -= neighbor->size;
+                    recompute_parent_marks(neighbor);
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
@@ -548,11 +551,13 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
             for (auto neighbor : *center->neighbors_set) {
                 if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                     neighbor->parent->size -= neighbor->size;
+                    recompute_parent_marks(neighbor);
                     neighbor->parent = nullptr; // Set sibling parent pointer to null
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
             }
             center->parent->size -= center->size;
+            recompute_parent_marks(center);
             center->parent = nullptr;
             root_clusters[level].push_back(center);
         }
@@ -561,6 +566,7 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         for (auto neighbor : c->neighbors) {
             if (neighbor && neighbor->parent == c->parent) {
                 neighbor->parent->size -= neighbor->size;
+                recompute_parent_marks(neighbor);
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -569,6 +575,7 @@ void HDTUFOTree::disconnect_siblings(Cluster* c, int level) {
         for (auto neighbor : *c->neighbors_set) {
             if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                 neighbor->parent->size -= neighbor->size;
+                recompute_parent_marks(neighbor);
                 neighbor->parent = nullptr; // Set sibling parent pointer to null
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
@@ -612,12 +619,12 @@ void HDTUFOTree::remove_mark(vertex_t v, MarkType m) {
     if (m == MarkType::VERTEX) curr->vertex_mark = NONE;
     if (m == MarkType::EDGE) curr->edge_mark = NONE;
     while (curr->parent) {
-        recompute_parent_mark(curr, m);
+        recompute_parent_marks(curr);
         curr = curr->parent;
     }
 }
 
-void HDTUFOTree::recompute_parent_mark(Cluster* c, MarkType m) {
+void HDTUFOTree::recompute_parent_marks(Cluster* c) {
     // TODO
 }
 
