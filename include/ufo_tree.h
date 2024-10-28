@@ -105,7 +105,7 @@ struct UFOCluster : public UFOClusterBase {
         for (int i = 0; i < 3; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
-                this->edge_values[i] = 0;
+                //this->edge_values[i] = id_e;
                 if (neighbors_set) { // Put an element from the set into the array
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement.first;

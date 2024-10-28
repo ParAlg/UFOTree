@@ -6,6 +6,7 @@
 #include <parlay/internal/get_time.h>
 #include "types.h"
 #include "graph_utils.h"
+#include "util.h"
 
 
 namespace graph_benchmark {
@@ -28,15 +29,19 @@ std::vector<Update> stream_file_RIS_benchmark(parlay::sequence<parlay::sequence<
     return parlay::append(insertions, deletions).to_vector();
 }
 
-/*
 template<typename DynamicTree>
-double incremental_MSF_benchmark(std::vector<std::pair<int, Edge>>& edges, int n){
-  DynamicTree tree(n, PATH, [] (std::pair<int, Edge> a, std::pair<int, Edge> b){return a.first > b.first ? a : b;},  std::numeric_limits<int>::max(), 0);
+double incremental_MSF_benchmark(parlay::sequence<std::pair<int, Edge>>& edges, int n){
+  Edge garbage; garbage.src = MAX_VERTEX_T; garbage.dst = MAX_VERTEX_T;
+  std::pair<int, Edge> id(std::numeric_limits<int>::min(), garbage);
+  DynamicTree tree(n, PATH, [] (std::pair<int, Edge> a, std::pair<int, Edge> b){return a.first > b.first ? a : b;}, id, id);
+  
+  parlay::internal::timer my_timer("");
+  
+  my_timer.start();
+  for(auto edge_pair : edges){
+    int weight = edge_pair.first;
+    Edge e = edge_pair.second;
 
-  for(edge_pair : (*edges)){
-    Edge e = edge_pair.first;
-    int weight = edge_pair.second;
-    
     if(!tree.connected(e.src, e.dst)){
       tree.link(e.src, e.dst, std::pair<int, Edge>(weight, e));
       continue;
@@ -48,8 +53,10 @@ double incremental_MSF_benchmark(std::vector<std::pair<int, Edge>>& edges, int n
       tree.link(e.src, e.dst, std::pair<int, Edge>(weight, e));
     }
   }
+  my_timer.stop();
+  return my_timer.total_time()/edges.size();
 }
-*/
+
 double incremental_conn_benchmark(parlay::sequence<parlay::sequence<vertex_t>>& G, long seed = -1){
   return 0.0;
 }

@@ -29,6 +29,12 @@ struct graph_utils {
     }));
   }
 
+  static parlay::sequence<std::pair<int, edge>> gen_random_weight_edges(edges& e, long seed = -1){
+    srand(seed);
+    parlay::sequence<std::pair<int, edge>> v = parlay::map(e, [] (edge e1) {return std::pair(rand(), e1);});
+    return v;
+  }
+
   static edges BFS_forest(const graph& G, long seed = -1) {
     if (seed == -1) seed = time(NULL);
     srand(seed);
@@ -268,4 +274,8 @@ struct graph_utils {
           [=](auto v) { return i < v; });
     });
   }
+
+  
 };
+
+

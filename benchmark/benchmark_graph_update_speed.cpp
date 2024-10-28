@@ -102,7 +102,6 @@ int main(int argc, char** argv) {
         output_csv << "\n";
     }
 
-    // Incremental Minimum Spanning Tree
-  
+    
     output_csv.close();
 }

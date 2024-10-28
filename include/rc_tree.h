@@ -102,6 +102,8 @@ public:
   RCTree(int _n, QueryType q = PATH, 
          std::function<aug_t(aug_t, aug_t)> f = [] (aug_t x, aug_t y) {return x + y;}, 
          aug_t id = 0, aug_t d_val = 0);
+
+  RCTree(int _n, QueryType _q, std::function<aug_t(aug_t, aug_t)> f_v, std::function<aug_t(aug_t, aug_t)> f_e, aug_t id_v, aug_t id_e, aug_t d_val_v, aug_t d_val_e);
   ~RCTree();
   void link(vertex_t u, vertex_t v, aug_t weight = 1);
   void cut(vertex_t u, vertex_t v);
@@ -128,6 +130,11 @@ RCTree<aug_t>::RCTree(int _n, QueryType _q,
   }
 }
 
+// FOR USE IN Ternarized_Tree CLASS ONLY
+template<typename aug_t>
+RCTree<aug_t>::RCTree(int _n, QueryType _q, std::function<aug_t(aug_t, aug_t)> f_v, std::function<aug_t(aug_t, aug_t)> f_e, aug_t id_v, aug_t id_e, aug_t d_val_v, aug_t d_val_e){
+ RCTree<aug_t>(_n, _q, f_e, id_e, d_val_e);
+}
 // Destructor
 template<typename aug_t>
 RCTree<aug_t>::~RCTree(){

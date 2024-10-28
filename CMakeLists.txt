@@ -102,6 +102,16 @@ add_executable(benchmark_graph_update_speed
 target_link_libraries(benchmark_graph_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_update_speed PRIVATE include util baselines)
 
+
+add_executable(benchmark_graph_algorithms
+  benchmark/benchmark_graph_algorithms.cpp
+  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+)
+
+target_link_libraries(benchmark_graph_algorithms PRIVATE parlay absl::flat_hash_map)
+target_include_directories(benchmark_graph_algorithms PRIVATE include util baselines)
+
 add_executable(parallel_benchmark
   benchmark/parallel_benchmark_runner.cpp
   test/parallel_topology_tree_tests.cpp
