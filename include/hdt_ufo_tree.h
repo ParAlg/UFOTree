@@ -157,6 +157,8 @@ public:
     vertex_t GetSizeOfTree(vertex_t v);
     bool IsConnected(vertex_t u, vertex_t v);
     // Testing helpers
+    void link(vertex_t u, vertex_t v) {AddEdge({u,v});};
+    void cut(vertex_t u, vertex_t v) {DeleteEdge({u,v});};
     size_t space();
     size_t count_nodes();
     size_t get_height();
