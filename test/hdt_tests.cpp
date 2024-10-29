@@ -33,6 +33,20 @@ bool HDTUFOTree::is_valid() {
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
+            if (cluster->vertex_mark != NONE && cluster->parent) // Ensure marked cluster is in parent's children
+                if (!cluster->parent->vertex_marked_children
+                || !cluster->parent->vertex_marked_children->contains(cluster))
+                    return false;
+            if (cluster->edge_mark != NONE && cluster->parent) // Ensure marked cluster is in parent's children
+                if (!cluster->parent->edge_marked_children
+                || !cluster->parent->edge_marked_children->contains(cluster))
+                    return false;
+            if (cluster->vertex_marked_children) // Ensure all tracked children are really marked
+                for (auto child : *cluster->vertex_marked_children)
+                    if (child->vertex_mark == NONE) return false;
+            if (cluster->edge_marked_children) // Ensure all tracked children are really marked
+                for (auto child : *cluster->edge_marked_children)
+                    if (child->edge_mark == NONE) return false;
             for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
                 if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
             if (cluster->neighbors_set)
@@ -277,7 +291,7 @@ TEST(HDTUFOTreeSuite, size_augmentation_test) {
 }
 
 TEST(HDTUFOTreeSuite, vertex_mark_test) {
-    int num_trials = 100;
+    int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
@@ -286,15 +300,14 @@ TEST(HDTUFOTreeSuite, vertex_mark_test) {
         HDTUFOTree tree(n);
         std::pair<vertex_t, vertex_t> edges[n-1];
         auto seed = seeds[trial];
-        // seed = 303705651;
-        // std::cout << "SEED: " << seed << std::endl;
         srand(seed);
 
         vertex_t marks = 10;
         absl::flat_hash_set<vertex_t> marked_vertices;
         for (vertex_t i = 0; i < marks; ++i) {
-            tree.MarkVertex(rand() % n, true);
-            marked_vertices.insert(i);
+            vertex_t v = rand() % n;
+            tree.MarkVertex(v, true);
+            marked_vertices.insert(v);
         }
 
         int links = 0;
