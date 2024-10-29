@@ -170,7 +170,7 @@ private:
     std::vector<std::pair<std::pair<Cluster*,Cluster*>,bool>> contractions;
     std::vector<std::pair<Cluster*,int>> lower_deg; // lower_deg helps to identify clusters who became low degree during a deletion update
     // Helper functions
-    void remove_ancestors(Cluster* c, int start_level = 0);
+    void remove_ancestors(Cluster* c, int start_level = 0, int intitial_size_delta = 0);
     void recluster_tree();
     void disconnect_siblings(Cluster* c, int level);
     void insert_adjacency(Cluster* u, Cluster* v);
@@ -291,11 +291,12 @@ void HDTUFOTree::DeleteEdge(edge_t e) {
 
 /* Removes the ancestors of cluster c that are not high degree nor
 high fan-out and add them to root_clusters. */
-void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
+void HDTUFOTree::remove_ancestors(Cluster* c, int start_level, int initial_size_delta) {
     int level = start_level;
     auto prev = c;
     auto curr = c->parent;
     bool del = false;
+    int size_delta = initial_size_delta;
     while (curr) {
         // Determine if curr is high degree or high fanout
         int curr_degree = curr->get_degree();
@@ -313,20 +314,20 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
         } else if (prev_degree - curr_degree > 2) high_fanout = true;
         // Different cases for if curr will or will not be deleted later
         if (!high_degree && !high_fanout) { // We will delete curr next round
+            size_delta = -curr->size;
             disconnect_siblings(prev, level);
+            curr->size = 0;
             if (del) { // Possibly delete prev
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                curr->size -= prev->size;
                 curr->remove_vertex_marked_child(prev);
                 curr->remove_edge_marked_child(prev);
                 recompute_vertex_mark(curr);
                 recompute_edge_mark(curr);
                 delete prev;
             } else {
-                curr->size -= prev->size;
                 curr->remove_vertex_marked_child(prev);
                 curr->remove_edge_marked_child(prev);
                 recompute_vertex_mark(curr);
@@ -341,14 +342,16 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                     if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                curr->size -= prev->size;
+                size_delta = size_delta - prev->size;
+                curr->size += size_delta;
                 curr->remove_vertex_marked_child(prev);
                 curr->remove_edge_marked_child(prev);
                 recompute_vertex_mark(curr);
                 recompute_edge_mark(curr);
                 delete prev;
             } else if (prev->get_degree() <= 1) {
-                curr->size -= prev->size;
+                size_delta = size_delta - prev->size;
+                curr->size += size_delta;
                 curr->remove_vertex_marked_child(prev);
                 curr->remove_edge_marked_child(prev);
                 recompute_vertex_mark(curr);
@@ -356,7 +359,7 @@ void HDTUFOTree::remove_ancestors(Cluster* c, int start_level) {
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             } else {
-                curr->size += prev->size;
+                curr->size += size_delta;
                 if (prev->vertex_mark != NONE) {
                     curr->insert_vertex_marked_child(prev);
                     curr->vertex_mark = prev->vertex_mark;
@@ -589,7 +592,7 @@ void HDTUFOTree::recluster_tree() {
                         insert_adjacency(parent, neighbor->parent);
                     }
                 }
-                remove_ancestors(parent, level+1);
+                remove_ancestors(parent, level+1, c1->size);
             }
         }
         // Clear the contents of this level

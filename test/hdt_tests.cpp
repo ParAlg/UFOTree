@@ -28,11 +28,18 @@ bool HDTUFOTree::is_valid() {
             if (leaf.get_root() != neighbor->get_root()) return false;
         }
     }
-    std::unordered_set<HDTUFOCluster*> clusters;
-    std::unordered_set<HDTUFOCluster*> next_clusters;
-    for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
+    absl::flat_hash_map<HDTUFOCluster*, vertex_t> cluster_sizes;
+    for (int i = 0; i < leaves.size(); i++) cluster_sizes.insert({&leaves[i], 1});
+    absl::flat_hash_set<HDTUFOCluster*> clusters;
+    absl::flat_hash_set<HDTUFOCluster*> next_clusters;
+    for (int i = 0; i < leaves.size(); i++) clusters.insert(&leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
+            if (cluster_sizes[cluster] != cluster->size) return false; // Check if size is correct
+            if (cluster->parent) {
+                if (cluster_sizes.contains(cluster->parent)) cluster_sizes[cluster->parent] += cluster->size;
+                else cluster_sizes[cluster->parent] = cluster->size;
+            }
             if (cluster->vertex_mark != NONE && cluster->parent) // Ensure marked cluster is in parent's children
                 if (!cluster->parent->vertex_marked_children
                 || !cluster->parent->vertex_marked_children->contains(cluster))
