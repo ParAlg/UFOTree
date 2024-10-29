@@ -22,10 +22,11 @@ struct HDTUFOCluster {
     vertex_t size = 1;
     vertex_t vertex_mark = NONE;   // store the id of a marked vertex in the cluster
     vertex_t edge_mark = NONE;     // store the id of a vertex in the cluster with a marked incident edge
-    absl::flat_hash_set<HDTUFOCluster*>* vertex_marked_neighbors;
-    absl::flat_hash_set<HDTUFOCluster*>* edge_marked_neighbors;
+    // Keeps track of siblings that are marked and share a parent with this cluster
+    absl::flat_hash_set<HDTUFOCluster*>* vertex_marked_siblings;
+    absl::flat_hash_set<HDTUFOCluster*>* edge_marked_siblings;
     // Constructor
-    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(NONE), edge_mark(NONE), vertex_marked_neighbors(), edge_marked_neighbors(){};
+    HDTUFOCluster() :  parent(), neighbors(), size(1), vertex_mark(NONE), edge_mark(NONE), vertex_marked_siblings(), edge_marked_siblings(){};
     // Helper functions
     bool contracts() {
         assert(get_degree() <= 3);
@@ -38,17 +39,17 @@ struct HDTUFOCluster {
         std::cerr << "No neighbor found to return." << std::endl;
         std::abort();
     }
-    vertex_t get_neighbor_vertex_mark() {
-        for (auto neighbor : neighbors)
-            if (neighbor && neighbor->vertex_mark != NONE) return neighbor->vertex_mark;
-        if (!vertex_marked_neighbors->empty()) return (*vertex_marked_neighbors->begin())->vertex_mark;
-        return NONE;
+    vertex_t get_sibling_vertex_mark() {
+        // for (auto neighbor : neighbors)
+        //     if (neighbor && neighbor->parent == parent && neighbor->vertex_mark != NONE) return neighbor->vertex_mark;
+        if (!vertex_marked_siblings->empty()) return (*vertex_marked_siblings->begin())->vertex_mark;
+        return this->vertex_mark;
     }
-    vertex_t get_neighbor_edge_mark() {
-        for (auto neighbor : neighbors)
-            if (neighbor && neighbor->edge_mark != NONE) return neighbor->edge_mark;
-        if (!edge_marked_neighbors->empty()) return (*edge_marked_neighbors->begin())->edge_mark;
-        return NONE;
+    vertex_t get_sibling_edge_mark() {
+        // for (auto neighbor : neighbors)
+        //     if (neighbor && neighbor->parent == parent && neighbor->edge_mark != NONE) return neighbor->edge_mark;
+        if (!edge_marked_siblings->empty()) return (*edge_marked_siblings->begin())->edge_mark;
+        return this->edge_mark;
     }
     HDTUFOCluster* get_root() {
         HDTUFOCluster* curr = this;
@@ -90,16 +91,6 @@ struct HDTUFOCluster {
         if (!neighbors_set)
             neighbors_set = new absl::flat_hash_set<HDTUFOCluster*>();
         neighbors_set->insert(c);
-        if (c->vertex_mark) {
-            if (!vertex_marked_neighbors)
-                vertex_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
-            vertex_marked_neighbors->insert(c);
-        }
-        if (c->edge_mark) {
-            if (!edge_marked_neighbors)
-                edge_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
-            edge_marked_neighbors->insert(c);
-        }
     }
     void remove_neighbor(HDTUFOCluster* c) {
         assert(contains_neighbor(c));
@@ -110,48 +101,48 @@ struct HDTUFOCluster {
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement;
                     neighbors_set->erase(replacement);
-                    vertex_marked_neighbors->erase(replacement);
-                    edge_marked_neighbors->erase(replacement);
+                    vertex_marked_siblings->erase(replacement);
+                    edge_marked_siblings->erase(replacement);
                     if (neighbors_set->empty()) {
                         delete neighbors_set;
                         neighbors_set = nullptr;
                     }
-                    if (vertex_marked_neighbors->empty()) {
-                        delete vertex_marked_neighbors;
-                        vertex_marked_neighbors = nullptr;
+                    if (vertex_marked_siblings->empty()) {
+                        delete vertex_marked_siblings;
+                        vertex_marked_siblings = nullptr;
                     }
-                    if (edge_marked_neighbors->empty()) {
-                        delete edge_marked_neighbors;
-                        edge_marked_neighbors = nullptr;
+                    if (edge_marked_siblings->empty()) {
+                        delete edge_marked_siblings;
+                        edge_marked_siblings = nullptr;
                     }
                 }
                 return;
             }
         }
         neighbors_set->erase(c);
-        vertex_marked_neighbors->erase(c);
-        edge_marked_neighbors->erase(c);
+        vertex_marked_siblings->erase(c);
+        edge_marked_siblings->erase(c);
         if (neighbors_set->empty()) {
             delete neighbors_set;
             neighbors_set = nullptr;
         }
-        if (vertex_marked_neighbors->empty()) {
-            delete vertex_marked_neighbors;
-            vertex_marked_neighbors = nullptr;
+        if (vertex_marked_siblings->empty()) {
+            delete vertex_marked_siblings;
+            vertex_marked_siblings = nullptr;
         }
-        if (edge_marked_neighbors->empty()) {
-            delete edge_marked_neighbors;
-            edge_marked_neighbors = nullptr;
+        if (edge_marked_siblings->empty()) {
+            delete edge_marked_siblings;
+            edge_marked_siblings = nullptr;
         }
     }
     size_t calculate_size(){
         size_t memory = sizeof(HDTUFOCluster);
         if (neighbors_set)
             memory += neighbors_set->bucket_count() * sizeof(HDTUFOCluster*);
-        if (vertex_marked_neighbors)
-            memory += vertex_marked_neighbors->bucket_count() * sizeof(HDTUFOCluster*);
-        if (edge_marked_neighbors)
-            memory += edge_marked_neighbors->bucket_count() * sizeof(HDTUFOCluster*);
+        if (vertex_marked_siblings)
+            memory += vertex_marked_siblings->bucket_count() * sizeof(HDTUFOCluster*);
+        if (edge_marked_siblings)
+            memory += edge_marked_siblings->bucket_count() * sizeof(HDTUFOCluster*);
         return memory;
     }
 };
@@ -195,6 +186,7 @@ private:
     void remove_edge_mark(vertex_t v);
     void recompute_parent_vertex_mark(Cluster* c);
     void recompute_parent_edge_mark(Cluster* c);
+    void add_sibling_marks(Cluster* c1, Cluster* c2);
 };
 
 HDTUFOTree::HDTUFOTree(vertex_t n) {
@@ -400,6 +392,7 @@ void HDTUFOTree::recluster_tree() {
                         cluster->parent->size += neighbor->size;
                         if (cluster->vertex_mark != NONE) parent->vertex_mark = cluster->vertex_mark;
                         if (cluster->edge_mark != NONE) parent->edge_mark = cluster->edge_mark;
+                        add_sibling_marks(cluster, neighbor);
                         int lev = level+1;
                         while (old_parent) {
                             auto temp = old_parent;
@@ -426,6 +419,7 @@ void HDTUFOTree::recluster_tree() {
                     neighbor->parent->size += cluster->size;
                     if (cluster->vertex_mark != NONE) neighbor->parent->vertex_mark = cluster->vertex_mark;
                     if (cluster->edge_mark != NONE) neighbor->parent->edge_mark = cluster->edge_mark;
+                    add_sibling_marks(cluster, neighbor);
                     contractions.push_back({{cluster,neighbor},false});
                 } else {
                     auto parent = new Cluster();
@@ -436,6 +430,7 @@ void HDTUFOTree::recluster_tree() {
                     if (cluster->edge_mark != NONE) parent->edge_mark = cluster->edge_mark;
                     if (neighbor->vertex_mark != NONE) parent->vertex_mark = neighbor->vertex_mark;
                     if (neighbor->edge_mark != NONE) parent->edge_mark = neighbor->edge_mark;
+                    add_sibling_marks(cluster, neighbor);
                     root_clusters[level+1].push_back(parent);
                     contractions.push_back({{cluster,neighbor},true});
                 }
@@ -448,6 +443,7 @@ void HDTUFOTree::recluster_tree() {
                             neighbor->parent->size += entry->size;
                             if (entry->vertex_mark != NONE) neighbor->parent->vertex_mark = entry->vertex_mark;
                             if (entry->edge_mark != NONE) neighbor->parent->edge_mark = entry->edge_mark;
+                            add_sibling_marks(neighbor, entry);
                             contractions.push_back({{entry, neighbor},false});
                             neighbor->parent->remove_neighbor(old_parent);
                             auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
@@ -471,6 +467,7 @@ void HDTUFOTree::recluster_tree() {
                         if (cluster->edge_mark != NONE) parent->edge_mark = cluster->edge_mark;
                         if (neighbor->vertex_mark != NONE) parent->vertex_mark = neighbor->vertex_mark;
                         if (neighbor->edge_mark != NONE) parent->edge_mark = neighbor->edge_mark;
+                        add_sibling_marks(cluster, neighbor);
                         root_clusters[level+1].push_back(parent);
                         contractions.push_back({{cluster,neighbor},true});
                         break;
@@ -488,6 +485,7 @@ void HDTUFOTree::recluster_tree() {
                         neighbor->parent->size += cluster->size;
                         if (cluster->vertex_mark != NONE) neighbor->parent->vertex_mark = cluster->vertex_mark;
                         if (cluster->edge_mark != NONE) neighbor->parent->edge_mark = cluster->edge_mark;
+                        add_sibling_marks(cluster, neighbor);
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
                         break;
                     }
@@ -667,9 +665,9 @@ void HDTUFOTree::add_vertex_mark(vertex_t v) {
         if (curr->vertex_mark == NONE) {
             for (auto neighbor : curr->neighbors) {
                 if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
-                    if (!neighbor->vertex_marked_neighbors)
-                        neighbor->vertex_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
-                    neighbor->vertex_marked_neighbors->insert(curr);
+                    if (!neighbor->vertex_marked_siblings)
+                        neighbor->vertex_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+                    neighbor->vertex_marked_siblings->insert(curr);
                 }
             }
         }
@@ -684,9 +682,9 @@ void HDTUFOTree::add_edge_mark(vertex_t v) {
         if (curr->edge_mark == NONE) {
             for (auto neighbor : curr->neighbors) {
                 if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
-                    if (!neighbor->edge_marked_neighbors)
-                        neighbor->edge_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
-                    neighbor->edge_marked_neighbors->insert(curr);
+                    if (!neighbor->edge_marked_siblings)
+                        neighbor->edge_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+                    neighbor->edge_marked_siblings->insert(curr);
                 }
             }
         }
@@ -700,9 +698,9 @@ void HDTUFOTree::remove_vertex_mark(vertex_t v) {
     curr->vertex_mark = NONE;
     for (auto neighbor : curr->neighbors) {
         if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
-            if (!neighbor->vertex_marked_neighbors)
-                neighbor->vertex_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
-            neighbor->vertex_marked_neighbors->insert(curr);
+            if (!neighbor->vertex_marked_siblings)
+                neighbor->vertex_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+            neighbor->vertex_marked_siblings->insert(curr);
         }
     }
     while (curr->parent) {
@@ -716,9 +714,9 @@ void HDTUFOTree::remove_edge_mark(vertex_t v) {
     curr->edge_mark = NONE;
     for (auto neighbor : curr->neighbors) {
         if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
-            if (!neighbor->edge_marked_neighbors)
-                neighbor->edge_marked_neighbors = new absl::flat_hash_set<HDTUFOCluster*>();
-            neighbor->edge_marked_neighbors->insert(curr);
+            if (!neighbor->edge_marked_siblings)
+                neighbor->edge_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+            neighbor->edge_marked_siblings->insert(curr);
         }
     }
     while (curr->parent) {
@@ -728,11 +726,49 @@ void HDTUFOTree::remove_edge_mark(vertex_t v) {
 }
 
 void HDTUFOTree::recompute_parent_vertex_mark(Cluster* c) {
-    // TODO
+    assert(c->parent != nullptr);
+    auto parent = c->parent;
+    if (c->parent_high_fanout()) {
+        auto center = (c->get_degree() == 1) ? c->get_neighbor() : c;
+        parent->vertex_mark = center->get_sibling_vertex_mark();
+    } else {
+        parent->vertex_mark = c->get_sibling_vertex_mark();
+    }
 }
 
 void HDTUFOTree::recompute_parent_edge_mark(Cluster* c) {
-    // TODO
+    assert(c->parent != nullptr);
+    auto parent = c->parent;
+    if (c->parent_high_fanout()) {
+        auto center = (c->get_degree() == 1) ? c->get_neighbor() : c;
+        parent->edge_mark = center->get_sibling_edge_mark();
+    } else {
+        parent->edge_mark = c->get_sibling_edge_mark();
+    }
+}
+
+void HDTUFOTree::add_sibling_marks(Cluster* c1, Cluster* c2) {
+    assert(c1->parent == c2->parent);
+    if (c1->vertex_mark) {
+        if (!c2->vertex_marked_siblings)
+            c2->vertex_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+        c2->vertex_marked_siblings->insert(c1);
+    }
+    if (c1->edge_mark) {
+        if (!c2->edge_marked_siblings)
+            c2->edge_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+        c2->edge_marked_siblings->insert(c1);
+    }
+    if (c2->vertex_mark) {
+        if (!c1->vertex_marked_siblings)
+            c1->vertex_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+        c1->vertex_marked_siblings->insert(c2);
+    }
+    if (c2->edge_mark) {
+        if (!c1->edge_marked_siblings)
+            c1->edge_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
+        c1->edge_marked_siblings->insert(c2);
+    }
 }
 
 std::optional<vertex_t> HDTUFOTree::GetMarkedVertexInTree(vertex_t v) {
