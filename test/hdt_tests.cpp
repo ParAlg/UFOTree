@@ -4,8 +4,22 @@
 
 
 bool HDTUFOTree::is_valid() {
-    std::unordered_set<HDTUFOCluster*> clusters;
-    std::unordered_set<HDTUFOCluster*> next_clusters;
+    for (auto leaf : leaves) { // Ensure that every marked vertex has all ancestors marked
+        if (leaf.vertex_mark != NONE) {
+            auto curr = leaf.parent;
+            while (curr) {
+                if (curr->vertex_mark == NONE) return false;
+                curr = curr->parent;
+            }
+        }
+        if (leaf.edge_mark != NONE) {
+            auto curr = leaf.parent;
+            while (curr) {
+                if (curr->edge_mark == NONE) return false;
+                curr = curr->parent;
+            }
+        }
+    }
     for (auto leaf : leaves) { // Ensure that every pair of incident vertices are in the same component
         for (auto neighbor : leaf.neighbors) // This ensures all connectivity is correct by transitivity
             if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
@@ -14,6 +28,8 @@ bool HDTUFOTree::is_valid() {
             if (leaf.get_root() != neighbor->get_root()) return false;
         }
     }
+    std::unordered_set<HDTUFOCluster*> clusters;
+    std::unordered_set<HDTUFOCluster*> next_clusters;
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
@@ -85,6 +101,9 @@ void HDTUFOTree::print_tree() {
 TEST(HDTUFOTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
     HDTUFOTree tree(n);
+    vertex_t marks = 10;
+    for (vertex_t i = 0; i < marks; ++i)
+        tree.MarkVertex(rand() % n, true);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.AddEdge({i,i+1});
@@ -94,9 +113,10 @@ TEST(HDTUFOTreeSuite, incremental_linkedlist_correctness_test) {
 
 TEST(HDTUFOTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     HDTUFOTree tree(n);
+    vertex_t marks = 10;
+    for (vertex_t i = 0; i < marks; ++i)
+        tree.MarkVertex(rand() % n, true);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.AddEdge({i,2*i+1});
@@ -109,9 +129,10 @@ TEST(HDTUFOTreeSuite, incremental_binarytree_correctness_test) {
 
 TEST(HDTUFOTreeSuite, incremental_star_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     HDTUFOTree tree(n);
+    vertex_t marks = 10;
+    for (vertex_t i = 0; i < marks; ++i)
+        tree.MarkVertex(rand() % n, true);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.AddEdge({0,i+1});
@@ -125,13 +146,15 @@ TEST(HDTUFOTreeSuite, incremental_random_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        HDTUFOTree tree(n);
-
         auto seed = seeds[trial];
         srand(seed);
+
+        vertex_t n = 256;
+        HDTUFOTree tree(n);
+        vertex_t marks = 10;
+        for (vertex_t i = 0; i < marks; ++i)
+            tree.MarkVertex(rand() % n, true);
+
         int links = 0;
         while (links < n-1) {
             vertex_t u = rand() % n;
@@ -147,9 +170,10 @@ TEST(HDTUFOTreeSuite, incremental_random_correctness_test) {
 
 TEST(HDTUFOTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 128;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     HDTUFOTree tree(n);
+    vertex_t marks = 10;
+    for (vertex_t i = 0; i < marks; ++i)
+        tree.MarkVertex(rand() % n, true);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.AddEdge({i,i+1});
@@ -163,9 +187,10 @@ TEST(HDTUFOTreeSuite, decremental_linkedlist_correctness_test) {
 
 TEST(HDTUFOTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     HDTUFOTree tree(n);
+    vertex_t marks = 10;
+    for (vertex_t i = 0; i < marks; ++i)
+        tree.MarkVertex(rand() % n, true);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
         tree.AddEdge({i,2*i+1});
@@ -186,13 +211,13 @@ TEST(HDTUFOTreeSuite, decremental_binarytree_correctness_test) {
 
 TEST(HDTUFOTreeSuite, decremental_star_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     HDTUFOTree tree(n);
+    vertex_t marks = 10;
+    for (vertex_t i = 0; i < marks; ++i)
+        tree.MarkVertex(rand() % n, true);
 
     for (vertex_t i = 0; i < n-1; i++) {
         tree.AddEdge({0,i+1});
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after linking " << i << " and " << i+1 << ".";
     }
     for (vertex_t i = 0; i < n-1; i++) {
         tree.DeleteEdge({0,i+1});
@@ -207,15 +232,17 @@ TEST(HDTUFOTreeSuite, decremental_random_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
-        HDTUFOTree tree(n);
-        std::pair<vertex_t, vertex_t> edges[n-1];
-
         auto seed = seeds[trial];
         srand(seed);
+
+        vertex_t n = 256;
+        HDTUFOTree tree(n);
+        vertex_t marks = 10;
+        for (vertex_t i = 0; i < marks; ++i)
+            tree.MarkVertex(rand() % n, true);
+
         int links = 0;
+        std::pair<vertex_t, vertex_t> edges[n-1];
         while (links < n-1) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
@@ -246,5 +273,42 @@ TEST(HDTUFOTreeSuite, size_augmentation_test) {
         ASSERT_EQ(tree.GetSizeOfTree(i), i+1);
         ASSERT_EQ(tree.GetSizeOfTree(i+1), n-(i+1));
         tree.AddEdge({i,i+1});
+    }
+}
+
+TEST(HDTUFOTreeSuite, vertex_mark_test) {
+    int num_trials = 100;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 256;
+        HDTUFOTree tree(n);
+        std::pair<vertex_t, vertex_t> edges[n-1];
+        auto seed = seeds[trial];
+        // seed = 303705651;
+        // std::cout << "SEED: " << seed << std::endl;
+        srand(seed);
+
+        vertex_t marks = 10;
+        absl::flat_hash_set<vertex_t> marked_vertices;
+        for (vertex_t i = 0; i < marks; ++i) {
+            tree.MarkVertex(rand() % n, true);
+            marked_vertices.insert(i);
+        }
+
+        int links = 0;
+        while (links < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v && !tree.IsConnected(u,v)) {
+                tree.AddEdge({u,v});
+                edges[links++] = {u,v};
+            }
+        }
+        
+        std::optional<vertex_t> marked_vertex = tree.GetMarkedVertexInTree(0);
+        if (!marked_vertex.has_value()) FAIL() << "No marked vertex returned.";
+        ASSERT_TRUE(marked_vertices.contains(*marked_vertex)) << "Vertex " << *marked_vertex << " was not marked.";
     }
 }

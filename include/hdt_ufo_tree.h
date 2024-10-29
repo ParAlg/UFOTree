@@ -40,15 +40,11 @@ struct HDTUFOCluster {
         std::abort();
     }
     vertex_t get_sibling_vertex_mark() {
-        // for (auto neighbor : neighbors)
-        //     if (neighbor && neighbor->parent == parent && neighbor->vertex_mark != NONE) return neighbor->vertex_mark;
-        if (!vertex_marked_siblings->empty()) return (*vertex_marked_siblings->begin())->vertex_mark;
+        if (vertex_marked_siblings && !vertex_marked_siblings->empty()) return (*vertex_marked_siblings->begin())->vertex_mark;
         return this->vertex_mark;
     }
     vertex_t get_sibling_edge_mark() {
-        // for (auto neighbor : neighbors)
-        //     if (neighbor && neighbor->parent == parent && neighbor->edge_mark != NONE) return neighbor->edge_mark;
-        if (!edge_marked_siblings->empty()) return (*edge_marked_siblings->begin())->edge_mark;
+        if (edge_marked_siblings && !edge_marked_siblings->empty()) return (*edge_marked_siblings->begin())->edge_mark;
         return this->edge_mark;
     }
     HDTUFOCluster* get_root() {
@@ -101,17 +97,17 @@ struct HDTUFOCluster {
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement;
                     neighbors_set->erase(replacement);
-                    vertex_marked_siblings->erase(replacement);
-                    edge_marked_siblings->erase(replacement);
+                    if (vertex_marked_siblings) vertex_marked_siblings->erase(replacement);
+                    if (edge_marked_siblings) edge_marked_siblings->erase(replacement);
                     if (neighbors_set->empty()) {
                         delete neighbors_set;
                         neighbors_set = nullptr;
                     }
-                    if (vertex_marked_siblings->empty()) {
+                    if (vertex_marked_siblings && vertex_marked_siblings->empty()) {
                         delete vertex_marked_siblings;
                         vertex_marked_siblings = nullptr;
                     }
-                    if (edge_marked_siblings->empty()) {
+                    if (vertex_marked_siblings && edge_marked_siblings->empty()) {
                         delete edge_marked_siblings;
                         edge_marked_siblings = nullptr;
                     }
@@ -120,17 +116,17 @@ struct HDTUFOCluster {
             }
         }
         neighbors_set->erase(c);
-        vertex_marked_siblings->erase(c);
-        edge_marked_siblings->erase(c);
+        if (vertex_marked_siblings) vertex_marked_siblings->erase(c);
+        if (edge_marked_siblings) edge_marked_siblings->erase(c);
         if (neighbors_set->empty()) {
             delete neighbors_set;
             neighbors_set = nullptr;
         }
-        if (vertex_marked_siblings->empty()) {
+        if (vertex_marked_siblings && vertex_marked_siblings->empty()) {
             delete vertex_marked_siblings;
             vertex_marked_siblings = nullptr;
         }
-        if (edge_marked_siblings->empty()) {
+        if (vertex_marked_siblings && edge_marked_siblings->empty()) {
             delete edge_marked_siblings;
             edge_marked_siblings = nullptr;
         }
@@ -279,6 +275,7 @@ void HDTUFOTree::DeleteEdge(edge_t e) {
     vertex_t v = e.second;
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
+    MarkEdge(e, false);
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u != curr_v) {
@@ -292,7 +289,6 @@ void HDTUFOTree::DeleteEdge(edge_t e) {
     lower_deg.clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
-    MarkEdge(e, false);
 }
 
 /* Removes the ancestors of cluster c that are not high degree nor
@@ -698,12 +694,14 @@ void HDTUFOTree::remove_vertex_mark(vertex_t v) {
     curr->vertex_mark = NONE;
     for (auto neighbor : curr->neighbors) {
         if (neighbor && neighbor->neighbors_set && neighbor->neighbors_set->contains(curr)) {
+            // This should delete from VMS set, not insert
             if (!neighbor->vertex_marked_siblings)
                 neighbor->vertex_marked_siblings = new absl::flat_hash_set<HDTUFOCluster*>();
             neighbor->vertex_marked_siblings->insert(curr);
         }
     }
     while (curr->parent) {
+        // If the recompute yields NONE then it needs to remove itself from neighbors who have it in their VMS set
         recompute_parent_vertex_mark(curr);
         curr = curr->parent;
     }
