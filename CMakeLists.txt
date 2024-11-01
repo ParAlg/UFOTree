@@ -18,7 +18,7 @@ FetchContent_Declare(parlaylib
 )
 FetchContent_GetProperties(parlaylib)
 if(NOT parlaylib_POPULATED)
-  FetchContent_Populate(parlaylib)  
+  FetchContent_Populate(parlaylib)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
@@ -28,8 +28,7 @@ FetchContent_Declare(CPAM
 )
 FetchContent_GetProperties(CPAM)
 if(NOT CPAM_POPULATED)
-  FetchContent_Populate(CPAM)  
-  message(${cpam_SOURCE_DIR})
+  FetchContent_Populate(CPAM)
   add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
