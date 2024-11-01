@@ -44,7 +44,7 @@ FetchContent_Declare(abseil-cpp
 FetchContent_MakeAvailable(abseil-cpp)
 
 add_library(hdt-ufo-tree STATIC src/hdt_ufo_tree.cpp)
-target_include_directories(hdt-ufo-tree PRIVATE include util)
+target_include_directories(hdt-ufo-tree INTERFACE include util)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
