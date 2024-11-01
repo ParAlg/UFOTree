@@ -44,6 +44,9 @@ FetchContent_Declare(abseil-cpp
 )
 FetchContent_MakeAvailable(abseil-cpp)
 
+add_library(hdt-ufo-tree INTERFACE)
+target_include_directories(hdt-ufo-tree INTERFACE include util)
+
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
   test/rc_tree_tests.cpp
