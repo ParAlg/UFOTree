@@ -43,8 +43,8 @@ FetchContent_Declare(abseil-cpp
 )
 FetchContent_MakeAvailable(abseil-cpp)
 
-add_library(hdt-ufo-tree INTERFACE)
-target_include_directories(hdt-ufo-tree INTERFACE include util)
+add_library(hdt-ufo-tree STATIC src/hdt_ufo_tree.cpp)
+target_include_directories(hdt-ufo-tree PRIVATE include util)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
@@ -57,6 +57,7 @@ target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main absl::
 target_include_directories(dynamic_tree_tests PRIVATE include util)
 
 add_executable(hdt_tests
+  src/hdt_ufo_tree.cpp
   test/test_runner.cpp
   test/hdt_tests.cpp
 )
@@ -64,6 +65,7 @@ target_link_libraries(hdt_tests PRIVATE parlay GTest::gtest_main absl::flat_hash
 target_include_directories(hdt_tests PRIVATE include util)
 
 add_executable(benchmark_update_speed
+  src/hdt_ufo_tree.cpp
   benchmark/benchmark_update_speed.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
@@ -72,6 +74,7 @@ target_link_libraries(benchmark_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_update_speed PRIVATE include util baselines)
 
 add_executable(benchmark_query_speed
+  src/hdt_ufo_tree.cpp
   benchmark/benchmark_query_speed.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
@@ -80,6 +83,7 @@ target_link_libraries(benchmark_query_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_query_speed PRIVATE include util baselines)
 
 add_executable(benchmark_peak_space
+  src/hdt_ufo_tree.cpp
   benchmark/benchmark_peak_space.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
