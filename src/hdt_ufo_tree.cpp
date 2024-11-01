@@ -677,26 +677,22 @@ void HDTUFOTree::add_edge_mark(vertex_t v) {
 
 void HDTUFOTree::remove_vertex_mark(vertex_t v) {
     leaves[v].vertex_mark = NONE;
-    auto curr = &leaves[v];
-    while (curr) {
-        if (curr->parent) {
-            curr->parent->remove_vertex_marked_child(curr);
-            recompute_vertex_mark(curr->parent);
-            if (curr->parent->vertex_mark != NONE) return;
-        }
+    if (leaves[v].parent) leaves[v].parent->remove_vertex_marked_child(&leaves[v]);
+    auto curr = leaves[v].parent;
+    while (curr && curr->vertex_mark == v) {
+        recompute_vertex_mark(curr);
+        if (curr->parent && curr->vertex_mark == NONE) curr->parent->remove_vertex_marked_child(curr);
         curr = curr->parent;
     }
 }
 
 void HDTUFOTree::remove_edge_mark(vertex_t v) {
     leaves[v].edge_mark = NONE;
-    auto curr = &leaves[v];
-    while (curr) {
-        if (curr->parent) {
-            curr->parent->remove_edge_marked_child(curr);
-            recompute_edge_mark(curr->parent);
-            if (curr->parent->edge_mark != NONE) return;
-        }
+    if (leaves[v].parent) leaves[v].parent->remove_edge_marked_child(&leaves[v]);
+    auto curr = leaves[v].parent;
+    while (curr && curr->edge_mark == v) {
+        recompute_edge_mark(curr);
+        if (curr->parent && curr->edge_mark == NONE) curr->parent->remove_edge_marked_child(curr);
         curr = curr->parent;
     }
 }
@@ -726,6 +722,7 @@ std::optional<edge_t> HDTUFOTree::GetMarkedEdgeInTree(vertex_t v) {
     if (marked_vertex == NONE) return std::nullopt;
     assert(marked_tree_edges[marked_vertex] != nullptr);
     vertex_t other_endpoint = *marked_tree_edges[marked_vertex]->begin();
+    if (marked_vertex > other_endpoint) std::swap(marked_vertex, other_endpoint);
     return std::pair{marked_vertex, other_endpoint};
 }
 

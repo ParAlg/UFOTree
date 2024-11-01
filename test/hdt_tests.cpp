@@ -305,7 +305,6 @@ TEST(HDTUFOTreeSuite, vertex_mark_test) {
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
         HDTUFOTree tree(n);
-        std::pair<vertex_t, vertex_t> edges[n-1];
         auto seed = seeds[trial];
         srand(seed);
 
@@ -323,12 +322,57 @@ TEST(HDTUFOTreeSuite, vertex_mark_test) {
             vertex_t v = rand() % n;
             if (u != v && !tree.IsConnected(u,v)) {
                 tree.AddEdge({u,v});
-                edges[links++] = {u,v};
+                links++;
             }
         }
         
+        while (!marked_vertices.empty()) {
+            std::optional<vertex_t> marked_vertex = tree.GetMarkedVertexInTree(0);
+            if (!marked_vertex.has_value()) FAIL() << "No marked vertex returned.";
+            ASSERT_TRUE(marked_vertices.contains(*marked_vertex)) << "Vertex " << *marked_vertex << " was not marked.";
+            tree.MarkVertex(*marked_vertex, false);
+            marked_vertices.erase(*marked_vertex);
+        }
         std::optional<vertex_t> marked_vertex = tree.GetMarkedVertexInTree(0);
-        if (!marked_vertex.has_value()) FAIL() << "No marked vertex returned.";
-        ASSERT_TRUE(marked_vertices.contains(*marked_vertex)) << "Vertex " << *marked_vertex << " was not marked.";
+        if (marked_vertex.has_value()) FAIL() << "No marked vertices left in tree.";
+    }
+}
+
+TEST(HDTUFOTreeSuite, edge_mark_test) {
+    int num_trials = 1;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 256;
+        HDTUFOTree tree(n);
+        auto seed = seeds[trial];
+        srand(seed);
+
+        absl::flat_hash_set<uint64_t> marked_edges;
+        int links = 0;
+        while (links < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u > v) std::swap(u,v);
+            if (u != v && !tree.IsConnected(u,v)) {
+                tree.AddEdge({u,v});
+                tree.MarkEdge({u,v}, true);
+                uint64_t edge_uint = (uint64_t) u + (((uint64_t) v) << 32);
+                marked_edges.insert(edge_uint);
+                links++;
+            }
+        }
+        
+        while (!marked_edges.empty()) {
+            std::optional<edge_t> marked_edge = tree.GetMarkedEdgeInTree(0);
+            if (!marked_edge.has_value()) FAIL() << "No marked edge returned.";
+            uint64_t edge_uint = (uint64_t) (*marked_edge).first + (((uint64_t) (*marked_edge).second) << 32);
+            ASSERT_TRUE(marked_edges.contains(edge_uint)) << "Edge " << (*marked_edge).first << "," << (*marked_edge).second << " was not marked.";
+            tree.MarkEdge(*marked_edge, false);
+            marked_edges.erase(edge_uint);
+        }
+        std::optional<edge_t> marked_edge = tree.GetMarkedEdgeInTree(0);
+        if (marked_edge.has_value()) FAIL() << "No marked edges left in tree.";
     }
 }
