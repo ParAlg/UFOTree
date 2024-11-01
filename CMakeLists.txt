@@ -22,15 +22,15 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-FetchContent_Declare(CPAM
-  GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
-  GIT_TAG         cmake
-)
-FetchContent_GetProperties(CPAM)
-if(NOT CPAM_POPULATED)
-  FetchContent_Populate(CPAM)
-  add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
-endif()
+# FetchContent_Declare(CPAM
+#   GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
+#   GIT_TAG         cmake
+# )
+# FetchContent_GetProperties(CPAM)
+# if(NOT CPAM_POPULATED)
+#   FetchContent_Populate(CPAM)
+#   add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
+# endif()
 
 FetchContent_Declare(googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
