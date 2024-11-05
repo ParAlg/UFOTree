@@ -1,5 +1,5 @@
-#include "../baselines/dynamic_trees/toptree-c-example/tree.c"
-#include "../baselines/dynamic_trees/toptree-c-example/top_tree.c"
+#include "../baselines/dynamic_trees/top_tree/tree.c"
+#include "../baselines/dynamic_trees/top_tree/top_tree.c"
 #include "../util/util.h"
 #include "../util/types.h"
 

@@ -12,7 +12,7 @@
 #include "../util/util.h"
 #include "ternarizable_interface.h"
 
-#define COLLECT_ROOT_CLUSTER_STATS
+//#define COLLECT_ROOT_CLUSTER_STATS
 
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 
@@ -442,7 +442,7 @@ void RCTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight) {
   // Add an edge between 2 Trees of the RC forest.
   assert(u >= 0 && v < n && !connected(u,v));
 
-  // Create RC cluster to represent edge at level 0 between u and v.
+  // Create RC cluster to represent edge at round 0 between u and v.
   RCCluster<aug_t>* new_edge = (RCCluster<aug_t>*) new RCCluster<aug_t>(weight);
   new_edge->add_boundary(u);
   new_edge->add_boundary(v);
@@ -621,11 +621,11 @@ void RCTree<aug_t>::update() {
     for(auto vertex: affected){vec_insert(&to_delete, representative_clusters[vertex]);}
 
     #ifdef COLLECT_ROOT_CLUSTER_STATS
-        if (rc_root_clusters_histogram.find(rc_root_clusters[level].size()) == rc_root_clusters_histogram.end())
-            rc_root_clusters_histogram[rc_root_clusters[level].size()] = 1;
+        if (rc_root_clusters_histogram.find(rc_root_clusters_histogram[round].size()) == rc_root_clusters_histogram.end())
+            rc_root_clusters_histogram[rc_root_clusters_histogram[round].size()] = 1;
         else
-            rc_root_clusters_histogram[root_clusters[level].size()] += 1;
-        #endif
+            rc_root_clusters_histogram[rc_root_clusters_histogram[round].size()] += 1;
+    #endif
     //Insert new neighbor list for next round for each affected vertex if it does not already
     //have a list inserted into the sequence to allow for insertions in its next round, as these are presently
     //the only ones that need to be updated
