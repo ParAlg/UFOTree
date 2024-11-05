@@ -19,7 +19,7 @@
 #define DEGREE_BOUND 3 // CHANGE THIS IN CASE YOU WANT A DIFFERENT DEGREE BOUND FOR YOUR PURPOSES.
 
 #ifdef COLLECT_ROOT_CLUSTER_STATS
-    //static std::map<int, int> root_clusters_histogram;
+    static std::map<int, int> rc_root_clusters_histogram;
 #endif
 
 template<typename aug_t>
@@ -620,6 +620,12 @@ void RCTree<aug_t>::update() {
     
     for(auto vertex: affected){vec_insert(&to_delete, representative_clusters[vertex]);}
 
+    #ifdef COLLECT_ROOT_CLUSTER_STATS
+        if (rc_root_clusters_histogram.find(rc_root_clusters[level].size()) == rc_root_clusters_histogram.end())
+            rc_root_clusters_histogram[rc_root_clusters[level].size()] = 1;
+        else
+            rc_root_clusters_histogram[root_clusters[level].size()] += 1;
+        #endif
     //Insert new neighbor list for next round for each affected vertex if it does not already
     //have a list inserted into the sequence to allow for insertions in its next round, as these are presently
     //the only ones that need to be updated

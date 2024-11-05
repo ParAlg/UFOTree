@@ -6,7 +6,7 @@
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
-    static std::map<int, int> root_clusters_histogram;
+    static std::map<int, int> toplogy_root_clusters_histogram;
 #endif
 
 struct TopologyClusterBase {
@@ -324,10 +324,10 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
       continue;
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
-        if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
-            root_clusters_histogram[root_clusters[level].size()] = 1;
+        if (topology_root_clusters_histogram.find(topology_root_clusters[level].size()) == topology_root_clusters_histogram.end())
+            topology_root_clusters_histogram[topology_root_clusters[level].size()] = 1;
         else
-            root_clusters_histogram[root_clusters[level].size()] += 1;
+            topology_root_clusters_histogram[topology_root_clusters[level].size()] += 1;
         #endif
         for (auto cluster : root_clusters[level]) {
             if (cluster->get_degree() == 3) {

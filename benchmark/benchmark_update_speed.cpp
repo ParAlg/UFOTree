@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
       output_csv << test_case_name << ",";
 
       // RC Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
+      /*if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
       else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
       std::cout << "RCTree        : " << time << std::endl;
       output_csv << time << ",";
@@ -63,16 +63,16 @@ int main(int argc, char** argv) {
       if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int, empty_t>>(n, update_sequences);
       else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << time << ",";*/
       // UFO Tree
       time = dynamic_tree_benchmark::get_update_speed<UFOTree<int, empty_t>>(n, update_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
       output_csv << time << ",";
-      // Euler Tour Tree
+      /*// Euler Tour Tree
       time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_sequences);
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
-
+      */
       // Top Tree
       time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
       std::cout << "TopTree : " << time << std::endl;

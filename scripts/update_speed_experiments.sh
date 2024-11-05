@@ -12,7 +12,7 @@ cmake ..
 make -j
 set +e
 
-n_list=(100000)
+n_list=(100000000)
 ./benchmark_update_speed "${n_list[@]}"
 
 cd ${base_dir}/scripts

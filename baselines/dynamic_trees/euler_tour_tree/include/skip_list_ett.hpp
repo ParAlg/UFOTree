@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <vector>
-
+#include <absl/container/flat_hash_map.h>
 #include <sequence/skip_list/include/skip_list.hpp>
 #include <utilities/include/hash_pair.hpp>
 
@@ -46,7 +46,7 @@ class EulerTourTree {
  private:
   int num_verts;
   skip_list::Element* verts;
-  std::unordered_map<std::pair<int, int>, skip_list::Element*,
+  absl::flat_hash_map<std::pair<int, int>, skip_list::Element*,
     HashIntPairStruct> edges;
   std::vector<skip_list::Element*> node_pool;
 };
