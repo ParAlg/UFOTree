@@ -4,6 +4,7 @@
 #include "ufo_tree.h"
 #include "topology_tree.h"
 #include "rc_tree.h"
+#include "top_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 #include <fstream>
 
@@ -72,6 +73,10 @@ int main(int argc, char** argv) {
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
 
+      // Top Tree
+      time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
+      std::cout << "TopTree : " << time << std::endl;
+      output_csv << time << ",";
       std::cout << std::endl;
       output_csv << "\n";
     }

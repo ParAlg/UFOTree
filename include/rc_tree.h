@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -11,9 +12,15 @@
 #include "../util/util.h"
 #include "ternarizable_interface.h"
 
+#define COLLECT_ROOT_CLUSTER_STATS
+
 #define GET_NEIGHBOR(source, cluster) cluster.boundary_vertexes[0] != source ? cluster.boundary_vertexes[0] : cluster.boundary_vertexes[1]
 
 #define DEGREE_BOUND 3 // CHANGE THIS IN CASE YOU WANT A DIFFERENT DEGREE BOUND FOR YOUR PURPOSES.
+
+#ifdef COLLECT_ROOT_CLUSTER_STATS
+    //static std::map<int, int> root_clusters_histogram;
+#endif
 
 template<typename aug_t>
 struct RCCluster {
@@ -606,10 +613,10 @@ void RCTree<aug_t>::update() {
 
   while(!affected.empty()){
 
-    //is_valid_induced_tree(round);
+    //is_valid_induced_tree(round); - For testing purposes only
     spread_affection(round);
     MIS(round);
-    //is_valid_MIS(round);
+    //is_valid_MIS(round); - For testing purposes only
     
     for(auto vertex: affected){vec_insert(&to_delete, representative_clusters[vertex]);}
 

@@ -9,7 +9,7 @@ class TopTree {
         struct tree t;
         TopTree(size_t n, QueryType q = PATH, std::function<aug_t(aug_t,aug_t)> f = [] (int a, int b){return std::min(a,b);}, 
                 aug_t id = std::numeric_limits<int>::max(), aug_t d_val = std::numeric_limits<int>::max());
-        void link(vertex_t u, vertex_t v, aug_t weight);
+        void link(vertex_t u, vertex_t v, aug_t weight = 1);
         bool connected(vertex_t u, vertex_t v);
         void cut(vertex_t u, vertex_t v);
 };
@@ -28,6 +28,7 @@ bool TopTree<aug_t>::connected(vertex_t u, vertex_t v){
     deexpose(&t.vertices[v]);
     return to_ret;
 }
+
 template <typename aug_t>
 void TopTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight)
 {
@@ -40,6 +41,17 @@ void TopTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight)
 
 // Given 2 vertices, call expose - traverse down the tree for each tt_node that has u and v as boundary vertices. Keep this going until tt_node->leaf = true.
 template <typename aug_t>
-void TopTree<aug_t>::cut(vertex_t u, vertex_t v)
-{
+void TopTree<aug_t>::cut(vertex_t u, vertex_t v){
+    struct vertex* ui = &t.vertices[u];
+    struct vertex* vi = &t.vertices[v];
+    std::pair<struct vertex*, struct vertex*> pair1(ui, vi);
+    std::pair<struct vertex* , struct vertex*> pair2(vi, ui);
+
+    if(edges.count(pair1)){
+        tt_cut(edges[pair1]);
+    } else if(edges.count(pair2)){
+        tt_cut(edges[pair2]);
+    } else{
+        throw std::invalid_argument("Edge not found in map");
+    }
 }
