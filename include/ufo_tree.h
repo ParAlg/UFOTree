@@ -51,7 +51,7 @@ struct UFOCluster : public UFOClusterBase {
     int get_degree() {
         int deg = 0;
         for (auto neighbor : this->neighbors) if (neighbor) deg++;
-        if (neighbors_set) deg += neighbors_set->size();
+        if (neighbors_set) [[unlikely]] deg += neighbors_set->size();
         return deg;
     }
     bool parent_high_fanout() {
@@ -106,7 +106,7 @@ struct UFOCluster : public UFOClusterBase {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
                 //this->edge_values[i] = id_e;
-                if (neighbors_set) { // Put an element from the set into the array
+                if (neighbors_set) [[unlikely]] { // Put an element from the set into the array
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement.first;
                     this->edge_values[i] = replacement.second;
@@ -143,7 +143,7 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
     int get_degree() {
         int deg = 0;
         for (auto neighbor : this->neighbors) if (neighbor) deg++;
-        if (neighbors_set) deg += neighbors_set->size();
+        if (neighbors_set) [[unlikely]] deg += neighbors_set->size();
         return deg;
     }
     bool parent_high_fanout() {
@@ -181,7 +181,7 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
-                if (neighbors_set) { // Put an element from the set into the array
+                if (neighbors_set) [[unlikely]] { // Put an element from the set into the array
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement;
                     neighbors_set->erase(replacement);
@@ -216,7 +216,7 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
     int get_degree() {
         int deg = 0;
         for (auto neighbor : this->neighbors) if (neighbor) deg++;
-        if (neighbors_set) deg += neighbors_set->size();
+        if (neighbors_set) [[unlikely]] deg += neighbors_set->size();
         return deg;
     }
     bool parent_high_fanout() {
@@ -254,7 +254,7 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
-                if (neighbors_set) { // Put an element from the set into the array
+                if (neighbors_set) [[unlikely]] { // Put an element from the set into the array
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement;
                     neighbors_set->erase(replacement);
@@ -407,7 +407,7 @@ void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
     c->parent = nullptr;
     for (int i = 0; i < UFO_ARRAY_MAX; ++i)
         c->neighbors[i] = nullptr;
-    if (c->neighbors_set) delete c->neighbors_set;
+    if (c->neighbors_set) [[unlikely]] delete c->neighbors_set;
     c->neighbors_set = nullptr;
     free_clusters.push_back(c);
 }
@@ -514,38 +514,37 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
         int curr_degree = curr->get_degree();
         int prev_degree = prev->get_degree();
         for (int i = 0; i < lower_deg.size(); i++) {
-            if (lower_deg[i].first == curr) curr_degree = lower_deg[i].second;
-            if (lower_deg[i].first == prev) prev_degree = lower_deg[i].second;
+            if (lower_deg[i].first == curr) [[unlikely]] curr_degree = lower_deg[i].second;
+            if (lower_deg[i].first == prev) [[unlikely]] prev_degree = lower_deg[i].second;
         }
         bool high_degree = (curr_degree > 2);
         bool high_fanout = false;
         if (prev->get_degree() == 1) {
             auto neighbor = static_cast<Cluster*>(prev->get_neighbor());
-            if (neighbor->parent == curr)
-            if (neighbor->get_degree() - curr->get_degree() > 2) high_fanout = true;
-        } else if (prev_degree - curr_degree > 2) high_fanout = true;
+            if (neighbor->parent == curr && neighbor->get_degree() - curr->get_degree() > 2) [[unlikely]] high_fanout = true;
+        } else if (prev_degree - curr_degree > 2) [[unlikely]] high_fanout = true;
         // Different cases for if curr will or will not be deleted later
-        if (!high_degree && !high_fanout) { // We will delete curr next round
+        if (!high_degree && !high_fanout) [[likely]] { // We will delete curr next round
             disconnect_siblings(prev, level);
-            if (del) { // Possibly delete prev
+            if (del) [[likely]] { // Possibly delete prev
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
-            } else {
+            } else [[unlikely]] {
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
             del = true;
-        } else { // We will not delete curr next round
-            if (del) { // Possibly delete prev
+        } else [[unlikely]] { // We will not delete curr next round
+            if (del) [[likely]] { // Possibly delete prev
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
-            } else if (prev->get_degree() <= 1) {
+            } else [[unlikely]] if (prev->get_degree() <= 1) {
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
@@ -557,19 +556,19 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
         level++;
     }
     // DO LAST DELETIONS
-    if (del) { // Possibly delete prev
+    if (del) [[likely]] { // Possibly delete prev
         for (auto neighbor : prev->neighbors)
             if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         free_cluster(prev);
-    } else root_clusters[level].push_back(prev);
+    } else [[unlikely]] root_clusters[level].push_back(prev);
 }
 
 template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::recluster_tree() {
     for (int level = 0; level < root_clusters.size(); level++) {
-        if (root_clusters[level].empty()) continue;
+        if (root_clusters[level].empty()) [[unlikely]] continue;
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
             if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
@@ -579,7 +578,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         #endif
         // Merge deg exactly 3 root clusters with all of its deg 1 neighbors
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 3) {
+            if (!cluster->parent && cluster->get_degree() == 3) [[unlikely]] {
                 auto parent = allocate_cluster();
                 if constexpr (!std::is_same<e_t, empty_t>::value) {
                     parent->value = identity_v;
@@ -589,7 +588,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 bool first_contraction = true;
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
-                    if (neighbor && neighbor->get_degree() == 1) {
+                    if (neighbor && neighbor->get_degree() == 1) [[unlikely]] {
                         auto old_parent = neighbor->parent;
                         neighbor->parent = cluster->parent;
                         int lev = level+1;
@@ -610,7 +609,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         }
         // Always combine deg 1 root clusters with its neighboring cluster
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 1) {
+            if (!cluster->parent && cluster->get_degree() == 1) [[unlikely]] {
                 auto neighbor = static_cast<Cluster*>(cluster->get_neighbor());  // Deg 1 cluster only one neighbor
                 if (neighbor->parent) {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
@@ -627,10 +626,10 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                     contractions.push_back({{cluster,neighbor},true});
                 }
                 // For deg exactly 3 neighbor make sure all deg 1 neighbors combine with it
-                if (neighbor->get_degree() == 3) {
+                if (neighbor->get_degree() == 3) [[unlikely]] {
                     for (auto entryp : neighbor->neighbors) {
                         auto entry = static_cast<Cluster*>(entryp);
-                        if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) {
+                        if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) [[unlikely]] {
                             auto old_parent = static_cast<Cluster*>(entry->parent);
                             entry->parent = neighbor->parent;
                             contractions.push_back({{entry, neighbor},false});
@@ -645,10 +644,10 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         }
         // Combine deg 2 root clusters with deg 2 root clusters
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 2) {
+            if (!cluster->parent && cluster->get_degree() == 2) [[unlikely]] {
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
-                    if (neighbor && !neighbor->parent && (neighbor->get_degree() == 2)) {
+                    if (neighbor && !neighbor->parent && (neighbor->get_degree() == 2)) [[unlikely]] {
                         auto parent = allocate_cluster();
                         if constexpr (!std::is_same<e_t, empty_t>::value) {
                             parent->value = identity_v;
@@ -664,10 +663,10 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         }
         // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 2) {
+            if (!cluster->parent && cluster->get_degree() == 2) [[unlikely]] {
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
-                    if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) {
+                    if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) [[unlikely]] {
                         if (neighbor->contracts()) continue;
                         cluster->parent = neighbor->parent;
                         contractions.push_back({{cluster,neighbor},false}); // The order here is important
@@ -678,7 +677,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         }
         // Add remaining uncombined clusters to the next level
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() > 0) {
+            if (!cluster->parent && cluster->get_degree() > 0) [[unlikely]] {
                 auto parent = allocate_cluster();
                 if constexpr (!std::is_same<v_t, empty_t>::value) {
                     parent->value = cluster->value;
@@ -710,7 +709,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         }
                     }
                 }
-                if (c1->neighbors_set)
+                if (c1->neighbors_set) [[unlikely]]
                 for (auto neighbor_pair : *c1->neighbors_set) {
                     Cluster* neighbor;
                     if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -728,7 +727,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         }
                     }
                 }
-                if (c1 != c2) {
+                if (c1 != c2) [[likely]] {
                   for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                       auto neighbor = static_cast<Cluster*>(c2->neighbors[i]);
                       if (neighbor && neighbor != c1 && parent != neighbor->parent) {
@@ -741,7 +740,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         }
                       }
                   }
-                  if  (c2->neighbors_set)
+                  if  (c2->neighbors_set) [[unlikely]]
                   for (auto neighbor_pair : *c2->neighbors_set){
                       Cluster* neighbor;
                       if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -844,7 +843,7 @@ void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
                     root_clusters[level].push_back(neighbor); // Keep track of root clusters
                 }
             }
-            if (center->neighbors_set)
+            if (center->neighbors_set) [[unlikely]]
             for (auto neighbor_pair : *center->neighbors_set){
                 Cluster* neighbor;
                 if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -869,7 +868,7 @@ void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
                 root_clusters[level].push_back(neighbor); // Keep track of root clusters
             }
         }
-        if (c->neighbors_set)
+        if (c->neighbors_set) [[unlikely]]
         for (auto neighbor_pair : *c->neighbors_set){
             Cluster* neighbor;
             if constexpr (std::is_same<e_t, empty_t>::value) {
