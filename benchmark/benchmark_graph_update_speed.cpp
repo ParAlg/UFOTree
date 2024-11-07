@@ -5,6 +5,7 @@
 #include "ufo_tree.h"
 #include "topology_tree.h"
 #include "rc_tree.h"
+#include "top_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 #include <fstream>
 
@@ -14,17 +15,17 @@ using namespace skip_list_ett;
 int main(int argc, char** argv) {
     srand(time(NULL));
     std::tuple<std::string, int> test_cases[] = {
-        {"/ssd1/zhongqi/graphdata/sym/com-youtube_sym.bin", 1},
-        {"/ssd1/zhongqi/graphdata/sym/com-orkut_sym.bin", 1},
-        {"/ssd1/zhongqi/graphdata/sym/soc-LiveJournal1_sym.bin", 1},
-        {"/ssd1/zhongqi/graphdata/sym/twitter_sym.bin", 1},
-        {"/ssd1/zhongqi/graphdata/sym/friendster_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/soc-LiveJournal1_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/twitter_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/friendster_sym.bin", 1},
     };
 
     std::string filename = "../results/update_speed_graph.csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,\n";
+    output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,Top Tree\n";
 
     // BFS trees
     for (auto test_case: test_cases) {
@@ -58,6 +59,10 @@ int main(int argc, char** argv) {
         // Euler Tour Tree
         time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_sequences);
         std::cout << "EulerTourTree : " << time << std::endl;
+        output_csv << time << ",";
+        // Top Tree
+        time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
+        std::cout << "TopTree       : " << time << std::endl;
         output_csv << time << ",";
 
         std::cout << std::endl;
@@ -96,6 +101,10 @@ int main(int argc, char** argv) {
         // Euler Tour Tree
         time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_sequences);
         std::cout << "EulerTourTree : " << time << std::endl;
+        output_csv << time << ",";
+        // Top Tree
+        time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
+        std::cout << "TopTree       : " << time << std::endl;
         output_csv << time << ",";
 
         std::cout << std::endl;
