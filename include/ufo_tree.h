@@ -139,7 +139,6 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
     v_t value;                      // Stores subtree values of cluster path values
     // Constructor
     UFOCluster() : UFOClusterBase(), value(){};
-    UFOCluster(v_t value) : UFOClusterBase(), value(value) {};
     // Helper functions
     int get_degree() {
         int deg = 0;
@@ -320,6 +319,10 @@ private:
     std::function<e_t(e_t, e_t)> f_e;
     e_t identity_e;
     e_t default_e;
+    // We preallocate UFO clusters and store unused clusters in free_clusters
+    std::vector<Cluster*> free_clusters;
+    Cluster* allocate_cluster();
+    void free_cluster(Cluster* c);
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
@@ -336,6 +339,8 @@ UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
     leaves.resize(n);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
+    for (int i = 0; i < n; ++i)
+        free_clusters.push_back(new Cluster());
 }
 
 template<typename v_t, typename e_t>
@@ -347,6 +352,8 @@ UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
     leaves.resize(n, default_v);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
+    for (int i = 0; i < n; ++i)
+        free_clusters.push_back(new Cluster());
 }
 
 template<typename v_t, typename e_t>
@@ -361,6 +368,8 @@ UFOTree<v_t, e_t>::UFOTree(int n, QueryType q,
     leaves.resize(n, default_v);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
+    for (int i = 0; i < n; ++i)
+        free_clusters.push_back(new Cluster());
 }
 
 template<typename v_t, typename e_t>
@@ -375,11 +384,32 @@ UFOTree<v_t, e_t>::~UFOTree() {
         }
     }
     for (auto cluster : clusters) delete cluster;
+    for (auto cluster : free_clusters) delete cluster;
     #ifdef COLLECT_ROOT_CLUSTER_STATS
     std::cout << "Number of root clusters: Frequency" << std::endl;
         for (auto entry : root_clusters_histogram)
             std::cout << entry.first << "\t" << entry.second << std::endl;
     #endif
+}
+
+template<typename v_t, typename e_t>
+UFOCluster<v_t, e_t>* UFOTree<v_t, e_t>::allocate_cluster() {
+    if (!free_clusters.empty()) {
+        auto c = free_clusters.back();
+        free_clusters.pop_back();
+        return c;
+    }
+    return new Cluster();
+}
+
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
+    c->parent = nullptr;
+    for (int i = 0; i < UFO_ARRAY_MAX; ++i)
+        c->neighbors[i] = nullptr;
+    if (c->neighbors_set) delete c->neighbors_set;
+    c->neighbors_set = nullptr;
+    free_clusters.push_back(c);
 }
 
 template<typename v_t, typename e_t>
@@ -502,7 +532,7 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                delete prev;
+                free_cluster(prev);
             } else {
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
@@ -514,7 +544,7 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                delete prev;
+                free_cluster(prev);
             } else if (prev->get_degree() <= 1) {
                 prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
@@ -532,7 +562,7 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
             if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-        delete prev;
+        free_cluster(prev);
     } else root_clusters[level].push_back(prev);
 }
 
@@ -550,7 +580,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         // Merge deg exactly 3 root clusters with all of its deg 1 neighbors
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 3) {
-                auto parent = new Cluster();
+                auto parent = allocate_cluster();
                 if constexpr (!std::is_same<e_t, empty_t>::value) {
                     parent->value = identity_v;
                 }
@@ -568,7 +598,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                             old_parent = old_parent->parent;
                             auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
                             if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
-                            delete temp;
+                            free_cluster(static_cast<Cluster*>(temp));
                             lev++;
                         }
                         if (first_contraction) contractions.push_back({{neighbor, cluster},true});
@@ -587,7 +617,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                     cluster->parent = neighbor->parent;
                     contractions.push_back({{cluster,neighbor},false});
                 } else {
-                    auto parent = new Cluster();
+                    auto parent = allocate_cluster();
                     if constexpr (!std::is_same<e_t, empty_t>::value) {
                         parent->value = identity_v;
                     }
@@ -607,7 +637,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                             static_cast<Cluster*>(neighbor->parent)->remove_neighbor(old_parent);
                             auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
                             if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
-                            if (old_parent) delete old_parent;
+                            if (old_parent) free_cluster(old_parent);
                         }
                     }
                 }
@@ -619,7 +649,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
                     if (neighbor && !neighbor->parent && (neighbor->get_degree() == 2)) {
-                        auto parent = new Cluster();
+                        auto parent = allocate_cluster();
                         if constexpr (!std::is_same<e_t, empty_t>::value) {
                             parent->value = identity_v;
                         }
@@ -649,7 +679,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         // Add remaining uncombined clusters to the next level
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() > 0) {
-                auto parent = new Cluster();
+                auto parent = allocate_cluster();
                 if constexpr (!std::is_same<v_t, empty_t>::value) {
                     parent->value = cluster->value;
                 }
