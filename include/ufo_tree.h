@@ -102,7 +102,7 @@ struct UFOCluster : public UFOClusterBase {
     }
     void remove_neighbor(UFOClusterBase* c) {
         assert(contains_neighbor(c));
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
                 //this->edge_values[i] = id_e;
@@ -178,7 +178,7 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
     }
     void remove_neighbor(UFOClusterBase* c) {
         assert(contains_neighbor(c));
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
                 if (neighbors_set) { // Put an element from the set into the array
@@ -251,7 +251,7 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
     }
     void remove_neighbor(UFOClusterBase* c) {
         assert(contains_neighbor(c));
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
                 if (neighbors_set) { // Put an element from the set into the array
@@ -912,7 +912,7 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
     auto curr_v = static_cast<Cluster*>(&leaves[v]);
     while (curr_u->parent != curr_v->parent) { 
         // NOTE(ATHARVA): Make this all into one function.
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < UFO_ARRAY_MAX; i++) {
             auto neighbor = static_cast<Cluster*>(curr_u->neighbors[i]);
             if (neighbor && neighbor->parent == curr_u->parent) {
                 if (curr_u->get_degree() == 2) {
@@ -921,13 +921,13 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
                         if (neighbor == bdry_u1) {
                             path_u1 = f_e(path_u1, f_e(curr_u->edge_values[i], neighbor->value));
                             bdry_u2 = static_cast<Cluster*>(bdry_u2->parent);
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < UFO_ARRAY_MAX; i++)
                                 if(curr_u->parent->neighbors[i] && static_cast<Cluster*>(curr_u->parent->neighbors[i]) != bdry_u2)
                                     bdry_u1 = static_cast<Cluster*>(curr_u->parent->neighbors[i]);
                         } else {
                             path_u2 = f_e(path_u2, f_e(curr_u->edge_values[i], neighbor->value));
                             bdry_u1 = static_cast<Cluster*>(bdry_u1->parent);
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < UFO_ARRAY_MAX; i++)
                                 if(curr_u->parent->neighbors[i] && static_cast<Cluster*>(curr_u->parent->neighbors[i]) != bdry_u1)
                                     bdry_u2 = static_cast<Cluster*>(curr_u->parent->neighbors[i]);
                         }
@@ -960,7 +960,7 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
             if (bdry_u2) bdry_u2 = static_cast<Cluster*>(bdry_u2->parent);
         }
         curr_u = static_cast<Cluster*>(curr_u->parent);
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < UFO_ARRAY_MAX; i++) {
             auto neighbor = static_cast<Cluster*>(curr_v->neighbors[i]);
             if (neighbor && neighbor->parent == curr_v->parent) {
                 if (curr_v->get_degree() == 2) {
@@ -969,13 +969,13 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
                         if (neighbor == bdry_v1) {
                             path_v1 = f_e(path_v1, f_e(curr_v->edge_values[i], neighbor->value));
                             bdry_v2 = static_cast<Cluster*>(bdry_v2->parent);
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < UFO_ARRAY_MAX; i++)
                                 if(curr_v->parent->neighbors[i] && static_cast<Cluster*>(curr_v->parent->neighbors[i]) != bdry_v2)
                                     bdry_v1 = static_cast<Cluster*>(curr_v->parent->neighbors[i]);
                         } else {
                             path_v2 = f_e(path_v2, f_e(curr_v->edge_values[i], neighbor->value));
                             bdry_v1 = static_cast<Cluster*>(bdry_v1->parent);
-                            for (int i = 0; i < 3; i++)
+                            for (int i = 0; i < UFO_ARRAY_MAX; i++)
                                 if(curr_v->parent->neighbors[i] && static_cast<Cluster*>(curr_v->parent->neighbors[i]) != bdry_v1)
                                     bdry_v2 = static_cast<Cluster*>(curr_v->parent->neighbors[i]);
                         }
@@ -1021,7 +1021,7 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
     else
         total = f_e(total, path_v1);
     // Add the value of the last edge
-    for (int i = 0; i < 3; i++) if (static_cast<Cluster*>(curr_u->neighbors[i]) == curr_v)
+    for (int i = 0; i < UFO_ARRAY_MAX; i++) if (static_cast<Cluster*>(curr_u->neighbors[i]) == curr_v)
         total = f_e(total, curr_u->edge_values[i]);
     return total;
 }
