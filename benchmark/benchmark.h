@@ -233,8 +233,11 @@ std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
 std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {
     std::vector<Query> queries;
     srand(time(NULL));
-    for (int i = 0; i < num_queries; ++i)
-        queries.push_back({rand()%n, rand()%n});
+    for (int i = 0; i < num_queries; ++i){
+        vertex_t upper = rand() % (n - 1), lower = rand() % n;if(lower == upper) lower++;
+        if(lower < upper) std::swap(lower, upper);
+        queries.push_back({upper, lower});
+    }
     return queries;
 }
 
