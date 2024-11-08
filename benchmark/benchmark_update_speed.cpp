@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
       */
       // Top Tree
       time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
-      std::cout << "TopTree : " << time << std::endl;
+      std::cout << "TopTree       :  " << time << std::endl;
       output_csv << time << ",";
       std::cout << std::endl;
       output_csv << "\n";

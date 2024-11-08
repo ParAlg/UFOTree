@@ -12,6 +12,7 @@ class TopTree {
         void link(vertex_t u, vertex_t v, aug_t weight = 1);
         bool connected(vertex_t u, vertex_t v);
         void cut(vertex_t u, vertex_t v);
+        aug_t path_query(vertex_t u, vertex_t v);
 };
 
 template <typename aug_t>
@@ -54,4 +55,17 @@ void TopTree<aug_t>::cut(vertex_t u, vertex_t v){
     } else{
         throw std::invalid_argument("Edge not found in map");
     }
+}
+
+template<typename aug_t>
+aug_t TopTree<aug_t>::path_query(vertex_t u, vertex_t v){
+    tt_node* root1 = expose(&t.vertices[u]);
+    tt_node* root2 = expose(&t.vertices[v]);
+    if(!root1 || root1 != root2){
+       throw std::invalid_argument("Vertices not connected");
+    }
+    auto to_ret = find_maximum(root1);
+    deexpose(&t.vertices[u]);
+    deexpose(&t.vertices[v]);
+    return to_ret->edge->weight; 
 }
