@@ -311,7 +311,7 @@ private:
     std::vector<Cluster> leaves;
     std::vector<std::vector<Cluster*>> root_clusters;
     std::vector<std::pair<std::pair<Cluster*,Cluster*>,bool>> contractions;
-    std::vector<std::pair<Cluster*,int>> lower_deg; // lower_deg helps to identify clusters who became low degree during a deletion update
+    std::vector<std::pair<Cluster*,vertex_t>> lower_deg[2]; // lower_deg helps to identify clusters who became low degree during a deletion update
     QueryType query_type;
     std::function<v_t(v_t, v_t)> f_v;
     v_t identity_v;
@@ -326,7 +326,7 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
-    bool is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child);
+    bool is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level);
     void disconnect_siblings(Cluster* c, int level);
     void insert_adjacency(Cluster* u, Cluster* v);
     void insert_adjacency(Cluster* u, Cluster* v, e_t value);
@@ -490,14 +490,15 @@ void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u != curr_v) {
-        lower_deg.push_back({curr_u, curr_u->get_degree()-1});
-        lower_deg.push_back({curr_v, curr_v->get_degree()-1});
+        lower_deg[0].push_back({curr_u, curr_u->get_degree()-1});
+        lower_deg[1].push_back({curr_v, curr_v->get_degree()-1});
         curr_u = static_cast<Cluster*>(curr_u->parent);
         curr_v = static_cast<Cluster*>(curr_v->parent);
     }
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
-    lower_deg.clear();
+    lower_deg[0].clear();
+    lower_deg[1].clear();
     remove_adjacency(&leaves[u], &leaves[v]);
     recluster_tree();
 }
@@ -506,13 +507,13 @@ void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
 high fan-out and add them to root_clusters. */
 template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
-    int level = start_level;
+    int level = start_level; // level is always the level of cluster prev, 0 being the leaves
     auto prev = c;
     auto curr = static_cast<Cluster*>(c->parent);
     bool del = false;
     while (curr) {
         // Different cases for if curr will or will not be deleted later
-        if (!is_high_degree_or_high_fanout(curr, prev)) [[likely]] { // We will delete curr next round
+        if (!is_high_degree_or_high_fanout(curr, prev, level)) [[likely]] { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) [[likely]] { // Possibly delete prev
                 for (auto neighbor : prev->neighbors)
@@ -780,14 +781,16 @@ void UFOTree<v_t, e_t>::recluster_tree() {
 }
 
 template<typename v_t, typename e_t>
-bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child) {
-    int cluster_degree = cluster->get_degree();
-    int child_degree = child->get_degree();
-    for (int i = 0; i < lower_deg.size(); i++) {
-        if (lower_deg[i].first == cluster) [[unlikely]] cluster_degree = lower_deg[i].second;
-        if (lower_deg[i].first == child) [[unlikely]] child_degree = lower_deg[i].second;
-    }
-    if (cluster_degree > 2) return true;
+bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level) {
+    int cluster_degree;
+    if (level+1 < lower_deg[0].size() && lower_deg[0][level+1].first == cluster) [[unlikely]] cluster_degree = lower_deg[0][level+1].second;
+    else if (level+1 < lower_deg[1].size() && lower_deg[1][level+1].first == cluster) [[unlikely]] cluster_degree = lower_deg[1][level+1].second;
+    else [[likely]] cluster_degree = cluster->get_degree();
+    if (cluster_degree > 2) [[unlikely]] return true;
+    int child_degree;
+    if (level < lower_deg[0].size() && lower_deg[0][level].first == child) [[unlikely]] child_degree = lower_deg[0][level].second;
+    else if (level < lower_deg[1].size() && lower_deg[1][level].first == child) [[unlikely]] child_degree = lower_deg[1][level].second;
+    else [[likely]] child_degree = child->get_degree();
     if (child->get_degree() == 1) {
         auto neighbor = static_cast<Cluster*>(child->get_neighbor());
         if (neighbor->parent == cluster && neighbor->get_degree() - cluster->get_degree() > 2) [[unlikely]] return true;
