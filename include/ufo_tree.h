@@ -648,18 +648,16 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         break;
                     }
                 }
-            }
-        }
-        // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 2) [[unlikely]] {
-                for (auto neighborp : cluster->neighbors) {
-                    auto neighbor = static_cast<Cluster*>(neighborp);
-                    if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) [[unlikely]] {
-                        if (neighbor->contracts()) continue;
-                        cluster->parent = neighbor->parent;
-                        contractions.push_back({{cluster,neighbor},false}); // The order here is important
-                        break;
+                // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
+                if (!cluster->parent) [[unlikely]] {
+                    for (auto neighborp : cluster->neighbors) {
+                        auto neighbor = static_cast<Cluster*>(neighborp);
+                        if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) [[unlikely]] {
+                            if (neighbor->contracts()) continue;
+                            cluster->parent = neighbor->parent;
+                            contractions.push_back({{cluster,neighbor},false}); // The order here is important
+                            break;
+                        }
                     }
                 }
             }
