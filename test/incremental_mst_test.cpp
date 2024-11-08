@@ -1,4 +1,3 @@
-#pragma once
 #include "util.h"
 #include "../include/ternarized_tree.h"
 #include "../include/ufo_tree.h"
@@ -58,6 +57,7 @@ double incremental_MSF_benchmark(std::vector<std::pair<int, Edge>>& edges, int n
     }
   }
   print_tree(&tree);
+  return 0;
 }
 
 int main(){
