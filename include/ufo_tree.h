@@ -8,7 +8,7 @@
 the vector of neighbors for each UFOCluster. Any additional neighbors will
 be stored in the hash set for efficiency. Minimum value is 3 for queries
 function correctly. */
-#define UFO_ARRAY_MAX 2
+#define UFO_ARRAY_MAX 3
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -23,6 +23,7 @@ struct UFOClusterBase {
     UFOClusterBase() :  parent(), neighbors(){};
     // Helper functions
     UFOClusterBase* get_neighbor() {
+        assert(UFO_ARRAY_MAX > 0);
         for (auto neighbor : neighbors)
             if (neighbor) return neighbor;
         std::cerr << "No neighbor found to return." << std::endl;
@@ -46,10 +47,8 @@ struct UFOCluster : public UFOClusterBase {
     UFOCluster(v_t value) : UFOClusterBase(), edge_values(), value(value) {};
     // Helper functions
     bool contracts() {
+        assert(get_degree() <= UFO_ARRAY_MAX);
         for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (neighbors_set && (*neighbors_set->begin()).first->parent == this->parent) return true;
-        }
         return false;
     }
     int get_degree() {
@@ -76,12 +75,8 @@ struct UFOCluster : public UFOClusterBase {
         return false;
     }
     void insert_neighbor(UFOClusterBase* c) {
+        assert(UFO_ARRAY_MAX >= 3);
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (this->get_degree() == 3) {
-                if ((*neighbors_set->begin()).first == c) return;
-            }
-        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -96,12 +91,8 @@ struct UFOCluster : public UFOClusterBase {
         neighbors_set->insert(insert_pair);
     }
     void insert_neighbor_with_value(UFOClusterBase* c, e_t value) {
+        assert(UFO_ARRAY_MAX >= 3);
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (this->get_degree() == 3) {
-                if ((*neighbors_set->begin()).first == c) return;
-            }
-        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -154,10 +145,8 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
     UFOCluster() : UFOClusterBase(), value(){};
     // Helper functions
     bool contracts() {
+        assert(get_degree() <= UFO_ARRAY_MAX);
         for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (neighbors_set && (*neighbors_set->begin())->parent == this->parent) return true;
-        }
         return false;
     }
     int get_degree() {
@@ -184,12 +173,8 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
         return false;
     }
     void insert_neighbor(UFOClusterBase* c) {
+        assert(UFO_ARRAY_MAX >= 3);
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (this->get_degree() == 3) {
-                if (*neighbors_set->begin() == c) return;
-            }
-        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -239,10 +224,8 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
     UFOCluster() : UFOClusterBase(){};
     // Helper functions
     bool contracts() {
+        assert(get_degree() <= UFO_ARRAY_MAX);
         for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (neighbors_set && (*neighbors_set->begin())->parent == this->parent) return true;
-        }
         return false;
     }
     int get_degree() {
@@ -269,12 +252,8 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
         return false;
     }
     void insert_neighbor(UFOClusterBase* c) {
+        assert(UFO_ARRAY_MAX >= 3);
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (this->get_degree() == 3) {
-                if (*neighbors_set->begin() == c) return;
-            }
-        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -553,16 +532,9 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
         if (!is_high_degree_or_high_fanout(curr, prev, level)) [[likely]] { // We will delete curr next round
             disconnect_siblings(prev, level);
             if (del) [[likely]] { // Possibly delete prev
+                assert(prev->get_degree() <= UFO_ARRAY_MAX);
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
-                if constexpr (UFO_ARRAY_MAX < 3) {
-                    if (prev->get_degree() == 3) {
-                        if constexpr (std::is_same<e_t,empty_t>::value)
-                            static_cast<Cluster*>(*prev->neighbors_set->begin())->remove_neighbor(prev);
-                        else
-                            static_cast<Cluster*>((*prev->neighbors_set->begin()).first)->remove_neighbor(prev);
-                    }
-                }
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
@@ -573,16 +545,9 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
             del = true;
         } else [[unlikely]] { // We will not delete curr next round
             if (del) [[likely]] { // Possibly delete prev
+                assert(prev->get_degree() <= UFO_ARRAY_MAX);
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
-                if constexpr (UFO_ARRAY_MAX < 3) {
-                    if (prev->get_degree() == 3) {
-                        if constexpr (std::is_same<e_t,empty_t>::value)
-                            static_cast<Cluster*>(*prev->neighbors_set->begin())->remove_neighbor(prev);
-                        else
-                            static_cast<Cluster*>((*prev->neighbors_set->begin()).first)->remove_neighbor(prev);
-                    }
-                }
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
@@ -599,16 +564,9 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
     }
     // DO LAST DELETIONS
     if (del) [[likely]] { // Possibly delete prev
+        assert(prev->get_degree() <= UFO_ARRAY_MAX);
         for (auto neighbor : prev->neighbors)
             if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
-        if constexpr (UFO_ARRAY_MAX < 3) {
-            if (prev->get_degree() == 3) {
-                if constexpr (std::is_same<e_t,empty_t>::value)
-                    static_cast<Cluster*>(*prev->neighbors_set->begin())->remove_neighbor(prev);
-                else
-                    static_cast<Cluster*>((*prev->neighbors_set->begin()).first)->remove_neighbor(prev);
-            }
-        }
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         free_cluster(prev);
@@ -636,30 +594,9 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 cluster->parent = parent;
                 root_clusters[level+1].push_back(parent);
                 bool first_contraction = true;
+                assert(UFO_ARRAY_MAX >= 3);
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
-                    if (neighbor && neighbor->get_degree() == 1) [[unlikely]] {
-                        auto old_parent = neighbor->parent;
-                        neighbor->parent = cluster->parent;
-                        int lev = level+1;
-                        while (old_parent) {
-                            auto temp = old_parent;
-                            old_parent = old_parent->parent;
-                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
-                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
-                            free_cluster(static_cast<Cluster*>(temp));
-                            lev++;
-                        }
-                        if (first_contraction) contractions.push_back({{neighbor, cluster},true});
-                        first_contraction = false;
-                    }
-                }
-                if constexpr (UFO_ARRAY_MAX < 3) {
-                    Cluster* neighbor;
-                    if constexpr (std::is_same<e_t,empty_t>::value)
-                        neighbor = static_cast<Cluster*>(*cluster->neighbors_set->begin());
-                    else
-                        neighbor = static_cast<Cluster*>((*cluster->neighbors_set->begin()).first);
                     if (neighbor && neighbor->get_degree() == 1) [[unlikely]] {
                         auto old_parent = neighbor->parent;
                         neighbor->parent = cluster->parent;
@@ -699,24 +636,9 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 }
                 // For deg exactly 3 neighbor make sure all deg 1 neighbors combine with it
                 if (neighbor->get_degree() == 3) [[unlikely]] {
+                    assert(UFO_ARRAY_MAX >= 3);
                     for (auto entryp : neighbor->neighbors) {
                         auto entry = static_cast<Cluster*>(entryp);
-                        if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) [[unlikely]] {
-                            auto old_parent = static_cast<Cluster*>(entry->parent);
-                            entry->parent = neighbor->parent;
-                            contractions.push_back({{entry, neighbor},false});
-                            static_cast<Cluster*>(neighbor->parent)->remove_neighbor(old_parent);
-                            auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
-                            if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
-                            if (old_parent) free_cluster(old_parent);
-                        }
-                    }
-                    if constexpr (UFO_ARRAY_MAX < 3) {
-                        Cluster* entry;
-                        if constexpr (std::is_same<e_t,empty_t>::value)
-                            entry = static_cast<Cluster*>(*neighbor->neighbors_set->begin());
-                        else
-                            entry = static_cast<Cluster*>((*neighbor->neighbors_set->begin()).first);
                         if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) [[unlikely]] {
                             auto old_parent = static_cast<Cluster*>(entry->parent);
                             entry->parent = neighbor->parent;
@@ -733,6 +655,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         // Combine deg 2 root clusters with deg 2 root clusters
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 2) [[unlikely]] {
+                assert(UFO_ARRAY_MAX >= 2);
                 for (auto neighborp : cluster->neighbors) {
                     auto neighbor = static_cast<Cluster*>(neighborp);
                     if (neighbor && !neighbor->parent && (neighbor->get_degree() == 2)) [[unlikely]] {
@@ -749,6 +672,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 }
                 // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
                 if (!cluster->parent) [[unlikely]] {
+                    assert(UFO_ARRAY_MAX >= 2);
                     for (auto neighborp : cluster->neighbors) {
                         auto neighbor = static_cast<Cluster*>(neighborp);
                         if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) [[unlikely]] {
@@ -780,9 +704,6 @@ void UFOTree<v_t, e_t>::recluster_tree() {
             auto parent = static_cast<Cluster*>(c1->parent);
             bool new_parent = contraction.second;
             if (new_parent) {
-                if constexpr (!std::is_same<e_t, empty_t>::value) {
-                    for (int i = 0; i < UFO_ARRAY_MAX; i++) { parent->neighbors[i] = nullptr; parent->edge_values[i] = identity_e;}
-                }
                 for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                     auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
                     if (neighbor && neighbor != c2 && parent != neighbor->parent) {
@@ -848,6 +769,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
             } else {
                 // We ordered contractions so c2 is the one that had a parent already
                 if (c1->get_degree() == 2) {
+                    assert(UFO_ARRAY_MAX >= 2);
                     for (int i = 0; i < UFO_ARRAY_MAX; i++){
                         auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
                         if (neighbor && neighbor != c2)
@@ -862,6 +784,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
             }
             if constexpr (!std::is_same<e_t, empty_t>::value) {
                 if (c1 != c2 && c1->get_degree() == 2 && c2->get_degree() == 2) {
+                    assert(UFO_ARRAY_MAX >= 2);
                     for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                         auto neighbor = static_cast<Cluster*>(c1->neighbors[i]);
                         if (neighbor && neighbor == c2) {
@@ -1038,13 +961,13 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
                         // Binary to Unary
                         path_u1 = (neighbor == bdry_u1) ? path_u2 : path_u1;
                     }
-                } else if(curr_u->get_degree() > 2){
-                    if(static_cast<Cluster*>(curr_u->parent)->get_degree() == 2){ 
+                } else if (curr_u->get_degree() > 2) {
+                    if (static_cast<Cluster*>(curr_u->parent)->get_degree() == 2){ 
                       // Superunary to Superunary/Binary
                       bdry_u1 = static_cast<Cluster*>(curr_u->parent->neighbors[0] ? curr_u->parent->neighbors[0] : curr_u->parent->neighbors[1]);
                       bdry_u2 = static_cast<Cluster*>(curr_u->parent->neighbors[2] ? curr_u->parent->neighbors[2] : curr_u->parent->neighbors[1]);
                     } 
-                }else {
+                } else {
                     if (static_cast<Cluster*>(curr_u->parent)->get_degree() == 2) {
                         // Unary to Binary
                         path_u1 = path_u2 = f_e(path_u1, curr_u->edge_values[i]);
@@ -1086,13 +1009,13 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v){
                         // Binary to Unary
                         path_v1 = (neighbor == bdry_v1) ? path_v2 : path_v1;
                     }
-                } else if(curr_v->get_degree() > 2){
-                    if(static_cast<Cluster*>(curr_v->parent)->get_degree() == 2){ 
+                } else if (curr_v->get_degree() > 2) {
+                    if (static_cast<Cluster*>(curr_v->parent)->get_degree() == 2){ 
                       // Superunary to Superunary/Binary
                       bdry_v1 = static_cast<Cluster*>(curr_v->parent->neighbors[0] ? curr_v->parent->neighbors[0] : curr_v->parent->neighbors[1]);
                       bdry_v2 = static_cast<Cluster*>(curr_v->parent->neighbors[2] ? curr_v->parent->neighbors[2] : curr_v->parent->neighbors[1]);
                     } 
-                }else {
+                } else {
                     if (static_cast<Cluster*>(curr_v->parent)->get_degree() == 2) {
                         // Unary to Binary
                         if(curr_v->get_degree() != 3) 
