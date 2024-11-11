@@ -6,8 +6,9 @@
 
 /* These constants determines the maximum size of array of nieghbors and
 the vector of neighbors for each UFOCluster. Any additional neighbors will
-be stored in the hash set for efficiency. */
-#define UFO_ARRAY_MAX 3
+be stored in the hash set for efficiency. Minimum value is 3 for queries
+function correctly. */
+#define UFO_ARRAY_MAX 2
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -21,10 +22,6 @@ struct UFOClusterBase {
     // Constructor
     UFOClusterBase() :  parent(), neighbors(){};
     // Helper functions
-    bool contracts() {
-        for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
-        return false;
-    }
     UFOClusterBase* get_neighbor() {
         for (auto neighbor : neighbors)
             if (neighbor) return neighbor;
@@ -48,6 +45,13 @@ struct UFOCluster : public UFOClusterBase {
     UFOCluster() : UFOClusterBase(), edge_values(), value(){};
     UFOCluster(v_t value) : UFOClusterBase(), edge_values(), value(value) {};
     // Helper functions
+    bool contracts() {
+        for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (neighbors_set && (*neighbors_set->begin()).first->parent == this->parent) return true;
+        }
+        return false;
+    }
     int get_degree() {
         int deg = 0;
         for (auto neighbor : this->neighbors) if (neighbor) deg++;
@@ -73,6 +77,11 @@ struct UFOCluster : public UFOClusterBase {
     }
     void insert_neighbor(UFOClusterBase* c) {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (this->get_degree() == 3) {
+                if ((*neighbors_set->begin()).first == c) return;
+            }
+        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -88,6 +97,11 @@ struct UFOCluster : public UFOClusterBase {
     }
     void insert_neighbor_with_value(UFOClusterBase* c, e_t value) {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (this->get_degree() == 3) {
+                if ((*neighbors_set->begin()).first == c) return;
+            }
+        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -105,7 +119,6 @@ struct UFOCluster : public UFOClusterBase {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == c) {
                 this->neighbors[i] = nullptr;
-                //this->edge_values[i] = id_e;
                 if (neighbors_set) [[unlikely]] { // Put an element from the set into the array
                     auto replacement = *neighbors_set->begin();
                     this->neighbors[i] = replacement.first;
@@ -140,6 +153,13 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
     // Constructor
     UFOCluster() : UFOClusterBase(), value(){};
     // Helper functions
+    bool contracts() {
+        for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (neighbors_set && (*neighbors_set->begin())->parent == this->parent) return true;
+        }
+        return false;
+    }
     int get_degree() {
         int deg = 0;
         for (auto neighbor : this->neighbors) if (neighbor) deg++;
@@ -165,6 +185,11 @@ struct UFOCluster<v_t, empty_t> : public UFOClusterBase {
     }
     void insert_neighbor(UFOClusterBase* c) {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (this->get_degree() == 3) {
+                if (*neighbors_set->begin() == c) return;
+            }
+        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -213,6 +238,13 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
     // Constructor
     UFOCluster() : UFOClusterBase(){};
     // Helper functions
+    bool contracts() {
+        for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (neighbors_set && (*neighbors_set->begin())->parent == this->parent) return true;
+        }
+        return false;
+    }
     int get_degree() {
         int deg = 0;
         for (auto neighbor : this->neighbors) if (neighbor) deg++;
@@ -238,6 +270,11 @@ struct UFOCluster<empty_t, empty_t> : public UFOClusterBase {
     }
     void insert_neighbor(UFOClusterBase* c) {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (this->get_degree() == 3) {
+                if (*neighbors_set->begin() == c) return;
+            }
+        }
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) {
@@ -518,6 +555,14 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
             if (del) [[likely]] { // Possibly delete prev
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
+                if constexpr (UFO_ARRAY_MAX < 3) {
+                    if (prev->get_degree() == 3) {
+                        if constexpr (std::is_same<e_t,empty_t>::value)
+                            static_cast<Cluster*>(*prev->neighbors_set->begin())->remove_neighbor(prev);
+                        else
+                            static_cast<Cluster*>((*prev->neighbors_set->begin()).first)->remove_neighbor(prev);
+                    }
+                }
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
@@ -530,6 +575,14 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
             if (del) [[likely]] { // Possibly delete prev
                 for (auto neighbor : prev->neighbors)
                     if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
+                if constexpr (UFO_ARRAY_MAX < 3) {
+                    if (prev->get_degree() == 3) {
+                        if constexpr (std::is_same<e_t,empty_t>::value)
+                            static_cast<Cluster*>(*prev->neighbors_set->begin())->remove_neighbor(prev);
+                        else
+                            static_cast<Cluster*>((*prev->neighbors_set->begin()).first)->remove_neighbor(prev);
+                    }
+                }
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
@@ -548,6 +601,14 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
     if (del) [[likely]] { // Possibly delete prev
         for (auto neighbor : prev->neighbors)
             if (neighbor) static_cast<Cluster*>(neighbor)->remove_neighbor(prev); // Remove prev from adjacency
+        if constexpr (UFO_ARRAY_MAX < 3) {
+            if (prev->get_degree() == 3) {
+                if constexpr (std::is_same<e_t,empty_t>::value)
+                    static_cast<Cluster*>(*prev->neighbors_set->begin())->remove_neighbor(prev);
+                else
+                    static_cast<Cluster*>((*prev->neighbors_set->begin()).first)->remove_neighbor(prev);
+            }
+        }
         auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         free_cluster(prev);
@@ -593,6 +654,28 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         first_contraction = false;
                     }
                 }
+                if constexpr (UFO_ARRAY_MAX < 3) {
+                    Cluster* neighbor;
+                    if constexpr (std::is_same<e_t,empty_t>::value)
+                        neighbor = static_cast<Cluster*>(*cluster->neighbors_set->begin());
+                    else
+                        neighbor = static_cast<Cluster*>((*cluster->neighbors_set->begin()).first);
+                    if (neighbor && neighbor->get_degree() == 1) [[unlikely]] {
+                        auto old_parent = neighbor->parent;
+                        neighbor->parent = cluster->parent;
+                        int lev = level+1;
+                        while (old_parent) {
+                            auto temp = old_parent;
+                            old_parent = old_parent->parent;
+                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
+                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
+                            free_cluster(static_cast<Cluster*>(temp));
+                            lev++;
+                        }
+                        if (first_contraction) contractions.push_back({{neighbor, cluster},true});
+                        first_contraction = false;
+                    }
+                }
                 if (first_contraction) contractions.push_back({{cluster, cluster}, true});
             }
         }
@@ -618,6 +701,22 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 if (neighbor->get_degree() == 3) [[unlikely]] {
                     for (auto entryp : neighbor->neighbors) {
                         auto entry = static_cast<Cluster*>(entryp);
+                        if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) [[unlikely]] {
+                            auto old_parent = static_cast<Cluster*>(entry->parent);
+                            entry->parent = neighbor->parent;
+                            contractions.push_back({{entry, neighbor},false});
+                            static_cast<Cluster*>(neighbor->parent)->remove_neighbor(old_parent);
+                            auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
+                            if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
+                            if (old_parent) free_cluster(old_parent);
+                        }
+                    }
+                    if constexpr (UFO_ARRAY_MAX < 3) {
+                        Cluster* entry;
+                        if constexpr (std::is_same<e_t,empty_t>::value)
+                            entry = static_cast<Cluster*>(*neighbor->neighbors_set->begin());
+                        else
+                            entry = static_cast<Cluster*>((*neighbor->neighbors_set->begin()).first);
                         if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) [[unlikely]] {
                             auto old_parent = static_cast<Cluster*>(entry->parent);
                             entry->parent = neighbor->parent;
