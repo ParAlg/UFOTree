@@ -4,6 +4,7 @@
 #include "ufo_tree.h"
 #include "topology_tree.h"
 #include "rc_tree.h"
+#include "top_tree.h"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 #include <fstream>
 
@@ -56,7 +57,7 @@ int main(int argc, char** argv) {
       std::cout << "[ RUNNING " << test_case_name << " QUERY SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
-      // RC Tree
+      /*// RC Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
       std::cout << "RCTree        : " << time << std::endl;
@@ -65,10 +66,15 @@ int main(int argc, char** argv) {
       if (!ternarize) time = dynamic_tree_benchmark::get_query_speed<TopologyTree<int, int>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_query_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences, query_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << time << ",";*/
       // UFO Tree
       time = dynamic_tree_benchmark::get_query_speed<UFOTree<int, int>>(n, update_sequences, query_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
+      output_csv << time << ",";
+
+      //Top Tree
+      time = dynamic_tree_benchmark::get_query_speed<TopTree<int>>(n, update_sequences, query_sequences);
+      std::cout << "TopTree       : " << time << std::endl;
       output_csv << time << ",";
 
       std::cout << std::endl;
