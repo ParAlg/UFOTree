@@ -32,12 +32,15 @@ static inline void destroy_edge_inner(struct vertex *v, struct edge *prev, struc
     if (prev) {
         int j = prev->endpoints[1] == v;
         prev->next[j] = next;
+        tt_changes++;
     } else {
         v->first_edge = next;
+        tt_changes++;
     }
     if (next) {
         int j = next->endpoints[1] == v;
         next->prev[j] = prev;
+        tt_changes++;
     }
 }
 
@@ -63,9 +66,11 @@ void add_edge(struct edge *edge, struct vertex *left, struct vertex *right, int 
 
     for (int i = 0; i < 2; ++i) {
         vert[i]->first_edge = edge;
+        tt_changes += 1;
         if (next[i]) {
             int j = next[i]->endpoints[1] == vert[i];
             next[i]->prev[j] = edge;
+            tt_changes += 1;
         }
     }
 
