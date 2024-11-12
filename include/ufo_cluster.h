@@ -47,27 +47,27 @@ public:
 };
 
 template<typename v_t, typename e_t>
-UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_neighbor() {
+inline UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_neighbor() {
     assert(UFO_ARRAY_MAX > 0 && neighbors[0]);
     return neighbors[0];
 }
 
 template<typename v_t, typename e_t>
-UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_root() {
+inline UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_root() {
     Cluster* curr = this;
     while (curr->parent) curr = curr->parent;
     return curr;
 }
 
 template<typename v_t, typename e_t>
-bool UFOCluster<v_t,e_t>::contracts() {
+inline bool UFOCluster<v_t,e_t>::contracts() {
     assert(get_degree() <= UFO_ARRAY_MAX);
     for (auto neighbor : this->neighbors) if (neighbor && neighbor->parent == this->parent) return true;
     return false;
 }
 
 template<typename v_t, typename e_t>
-int UFOCluster<v_t,e_t>::get_degree() {
+inline int UFOCluster<v_t,e_t>::get_degree() {
     int deg = 0;
     for (auto neighbor : this->neighbors) if (neighbor) deg++;
     if (neighbors_set) [[unlikely]] deg += neighbors_set->size();
@@ -75,7 +75,7 @@ int UFOCluster<v_t,e_t>::get_degree() {
 }
 
 template<typename v_t, typename e_t>
-bool UFOCluster<v_t,e_t>::parent_high_fanout() {
+inline bool UFOCluster<v_t,e_t>::parent_high_fanout() {
     assert(parent);
     int parent_degree = parent->get_degree();
     if (get_degree() == 1) {
@@ -89,14 +89,14 @@ bool UFOCluster<v_t,e_t>::parent_high_fanout() {
 }
 
 template<typename v_t, typename e_t>
-bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
+inline bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
     for (auto neighbor : neighbors) if (neighbor && neighbor == c) return true;
     if (neighbors_set && neighbors_set->find(c) != neighbors_set->end()) return true;
     return false;
 }
 
 template<typename v_t, typename e_t>
-void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
+inline void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
     assert(UFO_ARRAY_MAX >= 3); // Can we optimize this part out?
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
     assert(!contains_neighbor(c));
@@ -114,7 +114,7 @@ void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
 }
 
 template<typename v_t, typename e_t>
-void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
+inline void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
     if constexpr (!std::is_same<e_t, empty_t>::value) {
         assert(UFO_ARRAY_MAX >= 3);
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
@@ -133,7 +133,7 @@ void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
 }
 
 template<typename v_t, typename e_t>
-void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
+inline void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
     assert(contains_neighbor(c));
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
         if (this->neighbors[i] == c) {
@@ -170,19 +170,19 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
 }
 
 template<typename v_t, typename e_t>
-void UFOCluster<v_t,e_t>::set_edge_value(int index, e_t value) {
+inline void UFOCluster<v_t,e_t>::set_edge_value(int index, e_t value) {
     e_t* address = &edge_value1 + index;
     *address = value;
 }
 
 template<typename v_t, typename e_t>
-e_t UFOCluster<v_t,e_t>::get_edge_value(int index) {
+inline e_t UFOCluster<v_t,e_t>::get_edge_value(int index) {
     e_t* address = &edge_value1 + index;
     return *address;
 }
 
 template<typename v_t, typename e_t>
-size_t UFOCluster<v_t,e_t>::calculate_size() {
+inline size_t UFOCluster<v_t,e_t>::calculate_size() {
     size_t memory = sizeof(UFOCluster<v_t, e_t>);
     if (neighbors_set) memory += neighbors_set->bucket_count() * sizeof(std::pair<Cluster*, e_t>);
     return memory;
