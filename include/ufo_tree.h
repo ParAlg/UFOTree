@@ -304,7 +304,6 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                 }
                 cluster->parent = parent;
                 root_clusters[level+1].push_back(parent);
-                bool first_contraction = true;
                 assert(UFO_ARRAY_MAX >= 3);
                 for (auto neighbor : cluster->neighbors) {
                     if (neighbor && neighbor->get_degree() == 1) [[unlikely]] {
@@ -319,11 +318,9 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                             free_cluster(temp);
                             lev++;
                         }
-                        if (first_contraction) contractions.push_back({{neighbor, cluster},true});
-                        first_contraction = false;
                     }
                 }
-                if (first_contraction) contractions.push_back({{cluster, cluster}, true});
+                contractions.push_back({{cluster, cluster}, true});
             }
         }
         // Always combine deg 1 root clusters with its neighboring cluster
