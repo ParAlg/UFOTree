@@ -6,6 +6,8 @@
 #include "../../../util/util.h"
 
 static absl::flat_hash_map<std::pair<struct vertex*, struct vertex*>, struct edge*> edges;
+static long long tt_changes = 0;
+
 struct tree {
     size_t num_vertices;
     struct vertex* vertices;

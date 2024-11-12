@@ -8,6 +8,7 @@ typedef struct tt_node_struct tt_node;
 typedef struct tt_int_node_struct tt_int_node;
 typedef struct tt_leaf_node_struct tt_leaf_node;
 
+
 struct tt_node_struct {
     tt_int_node *parent;
     int spine_weight;

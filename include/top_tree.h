@@ -9,6 +9,7 @@ class TopTree {
         struct tree t;
         TopTree(size_t n, QueryType q = PATH, std::function<aug_t(aug_t,aug_t)> f = [] (int a, int b){return std::min(a,b);}, 
                 aug_t id = std::numeric_limits<int>::max(), aug_t d_val = std::numeric_limits<int>::max());
+        ~TopTree();
         void link(vertex_t u, vertex_t v, aug_t weight = 1);
         bool connected(vertex_t u, vertex_t v);
         void cut(vertex_t u, vertex_t v);
@@ -18,8 +19,18 @@ class TopTree {
 template <typename aug_t>
 TopTree<aug_t>::TopTree(size_t n, QueryType q, std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d_val){
     t = create_tree(n);
+    tt_changes = 0;
 }
 
+template<typename aug_t>
+TopTree<aug_t>::~TopTree(){
+    struct vertex *end = t.vertices + t.num_vertices;
+
+    for (struct vertex *vert = t.vertices; vert < end; ++vert)
+        destroy_top_tree_containing_edge(vert->first_edge);
+    destroy_tree(&t);
+    std::cout << tt_changes << std::endl;
+}
 template <typename aug_t>
 bool TopTree<aug_t>::connected(vertex_t u, vertex_t v){
     tt_node* root1 = expose(&t.vertices[u]);
@@ -31,8 +42,7 @@ bool TopTree<aug_t>::connected(vertex_t u, vertex_t v){
 }
 
 template <typename aug_t>
-void TopTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight)
-{
+void TopTree<aug_t>::link(vertex_t u, vertex_t v, aug_t weight){
     struct vertex *ui = &t.vertices[u];
     struct vertex *vi = &t.vertices[v];
     tt_link(ui, vi, weight);

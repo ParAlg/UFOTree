@@ -15,6 +15,7 @@ static inline int int_max(int a, int b) {
 static void fail(tt_leaf_node *T_edge, tt_int_node *Tu_new, tt_int_node *Tv_new){
     free(T_edge); free(Tu_new); free(Tv_new);
 }
+
 static void recompute_spine_weight(tt_node *node) {
     if (is_point(node)) {
         node->spine_weight = INT_MIN;
@@ -56,7 +57,7 @@ static void push_flip(tt_int_node *node) {
         tt_node* tmp = node->children[0];
         node->children[0] = node->children[1];
         node->children[1] = tmp;
-
+        tt_changes += 2;
         node->children[0]->flip ^= true;
         node->children[1]->flip ^= true;
     }
@@ -153,16 +154,19 @@ static void rotate_up(tt_node *node) {
     parent->children[!uncle_is_left_child] = uncle;
     parent->info.flip = flip_new_parent;
     parent->info.num_boundary = new_parent_is_path + 1;
+    tt_changes += 2;
 
     grandparent->children[uncle_is_left_child] = node;
     grandparent->children[!uncle_is_left_child] = (tt_node *) parent;
     grandparent->info.flip = flip_grandparent;
+    tt_changes += 2;
 
     recompute_spine_weight((tt_node*) parent);
     recompute_spine_weight((tt_node*) grandparent);
 
     node->parent = grandparent;
     uncle->parent = parent;
+    tt_changes += 2;
 }
 
 static tt_node *splay_step(tt_node *node) {
@@ -413,7 +417,7 @@ tt_node *tt_link(struct vertex *u, struct vertex *v, int weight) {
     // Init T_edge
     add_edge(edge, u, v, weight);
     edge->user_data = T_edge;
-    T_edge->edge = edge;
+    T_edge->edge = edge; tt_changes++;
     T_edge->info.parent = NULL;
     T_edge->info.is_leaf = true;
     T_edge->info.flip = 0;
@@ -430,6 +434,7 @@ tt_node *tt_link(struct vertex *u, struct vertex *v, int weight) {
         Tu_new->children[1] = T;
         Tu->parent = Tu_new;
         T->parent = Tu_new;
+        tt_changes += 4;
         T = (tt_node*) Tu_new;
         recompute_spine_weight(T);
     }
@@ -442,6 +447,7 @@ tt_node *tt_link(struct vertex *u, struct vertex *v, int weight) {
         Tv_new->children[1] = Tv;
         T->parent = Tv_new;
         Tv->parent = Tv_new;
+        tt_changes += 4;
         T = (tt_node*) Tv_new;
         recompute_spine_weight(T);
     }
@@ -457,6 +463,7 @@ static void delete_all_ancestors(tt_node *node) {
         tt_node *s = get_sibling(node);
         delete_all_ancestors(p);
         s->parent = NULL;
+        tt_changes++;
     }
     free(node);
 }
