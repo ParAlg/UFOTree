@@ -48,11 +48,8 @@ public:
 
 template<typename v_t, typename e_t>
 UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_neighbor() {
-    assert(UFO_ARRAY_MAX > 0);
-    for (auto neighbor : neighbors)
-        if (neighbor) return neighbor;
-    std::cerr << "No neighbor found to return." << std::endl;
-    std::abort();
+    assert(UFO_ARRAY_MAX > 0 && neighbors[0]);
+    return neighbors[0];
 }
 
 template<typename v_t, typename e_t>
@@ -100,11 +97,11 @@ bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
 
 template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
-    assert(UFO_ARRAY_MAX >= 3);
+    assert(UFO_ARRAY_MAX >= 3); // Can we optimize this part out?
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
     assert(!contains_neighbor(c));
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
-        if (this->neighbors[i] == nullptr) {
+        if (this->neighbors[i] == nullptr) [[likely]] {
             this->neighbors[i] = c;
             return;
         }
@@ -123,7 +120,7 @@ void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
-            if (this->neighbors[i] == nullptr) {
+            if (this->neighbors[i] == nullptr) [[likely]] {
                 this->neighbors[i] = c;
                 this->set_edge_value(i, value);
                 return;
@@ -144,12 +141,22 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
             if (neighbors_set) [[unlikely]] { // Put an element from the set into the array
                 auto replacement = *neighbors_set->begin();
                 this->neighbors[i] = replacement.first;
-                if constexpr (std::is_same<e_t,empty_t>::value)
+                if constexpr (!std::is_same<e_t,empty_t>::value)
                     this->set_edge_value(i, replacement.second);
                 neighbors_set->erase(replacement.first);
                 if (neighbors_set->empty()) {
                     delete neighbors_set;
                     neighbors_set = nullptr;
+                }
+            } else [[likely]] {
+                for (int j = UFO_ARRAY_MAX-1; j > i; --j) {
+                    if (neighbors[j]) [[unlikely]] {
+                        neighbors[i] = neighbors[j];
+                        neighbors[j] = nullptr;
+                        if constexpr (!std::is_same<e_t,empty_t>::value)
+                            set_edge_value(i, get_edge_value(j));
+                        break;
+                    }
                 }
             }
             return;
