@@ -76,7 +76,7 @@ UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
         v_t id_v, e_t id_e, v_t dval_v, e_t dval_e)
     : query_type(q), f_v(f_v), f_e(f_e), identity_v(id_v), identity_e(id_e),
      default_v(dval_v), default_e(dval_e) {
-    leaves.resize(n);
+    leaves.resize(n, default_v);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
     for (int i = 0; i < n; ++i)
@@ -92,7 +92,7 @@ UFOTree<v_t, e_t>::UFOTree(int n, QueryType q,
         identity_e = id;
         default_e = d_val;
     }
-    leaves.resize(n);
+    leaves.resize(n, default_v);
     root_clusters.resize(max_tree_height(n));
     contractions.reserve(12);
     for (int i = 0; i < n; ++i)

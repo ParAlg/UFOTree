@@ -30,6 +30,7 @@ public:
     absl::flat_hash_map<Cluster*,e_t>* neighbors_set = nullptr;
     // Constructor
     UFOCluster() : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value() {};
+    UFOCluster(v_t val) : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
     // Helper functions
     Cluster* get_neighbor();
     Cluster* get_root();
