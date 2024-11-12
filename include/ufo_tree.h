@@ -52,6 +52,7 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
+    void populate_neighbors(int level);
     bool is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level);
     void disconnect_siblings(Cluster* c, int level);
     void insert_adjacency(Cluster* u, Cluster* v);
@@ -404,95 +405,100 @@ void UFOTree<v_t, e_t>::recluster_tree() {
             }
         }
         // Fill in the neighbor lists of the new clusters
-        for (auto contraction : contractions) {
-            auto c1 = contraction.first.first;
-            auto c2 = contraction.first.second;
-            auto parent = c1->parent;
-            bool new_parent = contraction.second;
-            if (new_parent) {
+        populate_neighbors(level);
+        // Clear the contents of this level
+        root_clusters[level].clear();
+        contractions.clear();
+    }
+}
+
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::populate_neighbors(int level) {
+    for (auto contraction : contractions) {
+        auto c1 = contraction.first.first;
+        auto c2 = contraction.first.second;
+        auto parent = c1->parent;
+        bool new_parent = contraction.second;
+        if (new_parent) {
+            for (int i = 0; i < UFO_ARRAY_MAX; i++) {
+                auto neighbor = c1->neighbors[i];
+                if (neighbor && neighbor != c2 && parent != neighbor->parent) {
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    } else {
+                        parent->insert_neighbor_with_value(neighbor->parent, c1->get_edge_value(i));
+                        neighbor->parent->insert_neighbor_with_value(parent, c1->get_edge_value(i));
+                    }
+                }
+            }
+            if (c1->neighbors_set) [[unlikely]]
+            for (auto neighbor_pair : *c1->neighbors_set) {
+                Cluster* neighbor = neighbor_pair.first;
+                if (neighbor && neighbor != c2 && parent != neighbor->parent) {
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    } else {
+                        parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
+                        neighbor->parent->insert_neighbor_with_value(parent, neighbor_pair.second);
+                    }
+                }
+            }
+            if (c1 != c2) [[likely]] {
+                for (int i = 0; i < UFO_ARRAY_MAX; i++) {
+                    auto neighbor = c2->neighbors[i];
+                    if (neighbor && neighbor != c1 && parent != neighbor->parent) {
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    } else {
+                        parent->insert_neighbor_with_value(neighbor->parent, c2->get_edge_value(i));
+                        neighbor->parent->insert_neighbor_with_value(parent, c2->get_edge_value(i));
+                    }
+                    }
+                }
+                if  (c2->neighbors_set) [[unlikely]]
+                for (auto neighbor_pair : *c2->neighbors_set){
+                    Cluster* neighbor = neighbor_pair.first;
+                    if (neighbor && neighbor != c1 && parent != neighbor->parent) {
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    } else {
+                        parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
+                        neighbor->parent->insert_neighbor_with_value(parent, neighbor_pair.second);
+                    }
+                    }
+                }
+            }
+        } else {
+            // We ordered contractions so c2 is the one that had a parent already
+            if (c1->get_degree() == 2) {
+                assert(UFO_ARRAY_MAX >= 2);
+                for (int i = 0; i < UFO_ARRAY_MAX; i++){
+                    auto neighbor = c1->neighbors[i];
+                    if (neighbor && neighbor != c2)
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        insert_adjacency(parent, neighbor->parent);
+                    } else {
+                        insert_adjacency(parent, neighbor->parent, c1->get_edge_value(i));
+                    }
+                }
+            }
+            remove_ancestors(parent, level+1);
+        }
+        if constexpr (!std::is_same<e_t, empty_t>::value) {
+            if (c1 != c2 && c1->get_degree() == 2 && c2->get_degree() == 2) {
+                assert(UFO_ARRAY_MAX >= 2);
                 for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                     auto neighbor = c1->neighbors[i];
-                    if (neighbor && neighbor != c2 && parent != neighbor->parent) {
-                        if constexpr (std::is_same<e_t, empty_t>::value) {
-                            parent->insert_neighbor(neighbor->parent);
-                            neighbor->parent->insert_neighbor(parent);
-                        } else {
-                            parent->insert_neighbor_with_value(neighbor->parent, c1->get_edge_value(i));
-                            neighbor->parent->insert_neighbor_with_value(parent, c1->get_edge_value(i));
-                        }
-                    }
-                }
-                if (c1->neighbors_set) [[unlikely]]
-                for (auto neighbor_pair : *c1->neighbors_set) {
-                    Cluster* neighbor = neighbor_pair.first;
-                    if (neighbor && neighbor != c2 && parent != neighbor->parent) {
-                        if constexpr (std::is_same<e_t, empty_t>::value) {
-                            parent->insert_neighbor(neighbor->parent);
-                            neighbor->parent->insert_neighbor(parent);
-                        } else {
-                            parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
-                            neighbor->parent->insert_neighbor_with_value(parent, neighbor_pair.second);
-                        }
-                    }
-                }
-                if (c1 != c2) [[likely]] {
-                  for (int i = 0; i < UFO_ARRAY_MAX; i++) {
-                      auto neighbor = c2->neighbors[i];
-                      if (neighbor && neighbor != c1 && parent != neighbor->parent) {
-                        if constexpr (std::is_same<e_t, empty_t>::value) {
-                          parent->insert_neighbor(neighbor->parent);
-                          neighbor->parent->insert_neighbor(parent);
-                        } else {
-                          parent->insert_neighbor_with_value(neighbor->parent, c2->get_edge_value(i));
-                          neighbor->parent->insert_neighbor_with_value(parent, c2->get_edge_value(i));
-                        }
-                      }
-                  }
-                  if  (c2->neighbors_set) [[unlikely]]
-                  for (auto neighbor_pair : *c2->neighbors_set){
-                      Cluster* neighbor = neighbor_pair.first;
-                      if (neighbor && neighbor != c1 && parent != neighbor->parent) {
-                        if constexpr (std::is_same<e_t, empty_t>::value) {
-                          parent->insert_neighbor(neighbor->parent);
-                          neighbor->parent->insert_neighbor(parent);
-                        } else {
-                          parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
-                          neighbor->parent->insert_neighbor_with_value(parent, neighbor_pair.second);
-                        }
-                      }
-                  }
-                }
-            } else {
-                // We ordered contractions so c2 is the one that had a parent already
-                if (c1->get_degree() == 2) {
-                    assert(UFO_ARRAY_MAX >= 2);
-                    for (int i = 0; i < UFO_ARRAY_MAX; i++){
-                        auto neighbor = c1->neighbors[i];
-                        if (neighbor && neighbor != c2)
-                        if constexpr (std::is_same<e_t, empty_t>::value) {
-                            insert_adjacency(parent, neighbor->parent);
-                        } else {
-                            insert_adjacency(parent, neighbor->parent, c1->get_edge_value(i));
-                        }
-                    }
-                }
-                remove_ancestors(parent, level+1);
-            }
-            if constexpr (!std::is_same<e_t, empty_t>::value) {
-                if (c1 != c2 && c1->get_degree() == 2 && c2->get_degree() == 2) {
-                    assert(UFO_ARRAY_MAX >= 2);
-                    for (int i = 0; i < UFO_ARRAY_MAX; i++) {
-                        auto neighbor = c1->neighbors[i];
-                        if (neighbor && neighbor == c2) {
-                            parent->value = f_e(c1->value, f_e(c2->value, c1->get_edge_value(i)));
-                        }
+                    if (neighbor && neighbor == c2) {
+                        parent->value = f_e(c1->value, f_e(c2->value, c1->get_edge_value(i)));
                     }
                 }
             }
         }
-        // Clear the contents of this level
-        root_clusters[level].clear();
-        contractions.clear();
     }
 }
 
