@@ -36,7 +36,7 @@ private:
     // Class data and parameters
     std::vector<Cluster> leaves;
     std::vector<std::vector<Cluster*>> root_clusters;
-    std::vector<std::pair<std::pair<Cluster*,Cluster*>,bool>> contractions;
+    std::vector<std::pair<Cluster*,Cluster*>> contractions;
     std::vector<std::pair<Cluster*,vertex_t>> lower_deg[2]; // lower_deg helps to identify clusters who became low degree during a deletion update
     QueryType query_type;
     std::function<v_t(v_t, v_t)> f_v;
@@ -295,9 +295,10 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
             else
                 root_clusters_histogram[root_clusters[level].size()] += 1;
         #endif
-        // Merge deg exactly 3 root clusters with all of its deg 1 neighbors
+        // Merge deg 3-5 root clusters with all of its deg 1 neighbors
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 3) [[unlikely]] {
+            if (!cluster->parent && cluster->get_degree() > 2) [[unlikely]] {
+                assert(cluster->get_degree() <= 5);
                 auto parent = allocate_cluster();
                 if constexpr (!std::is_same<e_t, empty_t>::value) {
                     parent->value = identity_v;
@@ -320,7 +321,25 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                         }
                     }
                 }
-                contractions.push_back({{cluster, cluster}, true});
+                if (cluster->neighbors_set)
+                for (auto neighbor_pair : *cluster->neighbors_set) {
+                    auto neighbor = neighbor_pair.first;
+                    if (neighbor->get_degree() == 1) [[unlikely]] {
+                        auto old_parent = neighbor->parent;
+                        neighbor->parent = cluster->parent;
+                        int lev = level+1;
+                        while (old_parent) {
+                            auto temp = old_parent;
+                            old_parent = old_parent->parent;
+                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
+                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
+                            free_cluster(temp);
+                            lev++;
+                        }
+                    }
+                }
+                contractions.push_back({cluster, cluster});
+                parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
             }
         }
         // Always combine deg 1 root clusters with its neighboring cluster
@@ -330,7 +349,7 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                 if (neighbor->parent) {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
-                    contractions.push_back({{cluster,neighbor},false});
+                    contractions.push_back({cluster,neighbor});
                 } else {
                     auto parent = allocate_cluster();
                     if constexpr (!std::is_same<e_t, empty_t>::value) {
@@ -339,7 +358,8 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                     cluster->parent = parent;
                     neighbor->parent = parent;
                     root_clusters[level+1].push_back(parent);
-                    contractions.push_back({{cluster,neighbor},true});
+                    contractions.push_back({cluster,neighbor});
+                    parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
                 }
                 // For deg exactly 3 neighbor make sure all deg 1 neighbors combine with it
                 if (neighbor->get_degree() == 3) [[unlikely]] {
@@ -348,7 +368,7 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                         if (entry && entry->get_degree() == 1 && entry->parent != neighbor->parent) [[unlikely]] {
                             auto old_parent = entry->parent;
                             entry->parent = neighbor->parent;
-                            contractions.push_back({{entry, neighbor},false});
+                            contractions.push_back({entry, neighbor});
                             neighbor->parent->remove_neighbor(old_parent);
                             auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), old_parent);
                             if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
@@ -371,7 +391,8 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                         cluster->parent = parent;
                         neighbor->parent = parent;
                         root_clusters[level+1].push_back(parent);
-                        contractions.push_back({{cluster,neighbor},true});
+                        contractions.push_back({cluster,neighbor});
+                        parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
                         break;
                     }
                 }
@@ -382,7 +403,7 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                         if (neighbor && neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) [[unlikely]] {
                             if (neighbor->contracts()) continue;
                             cluster->parent = neighbor->parent;
-                            contractions.push_back({{cluster,neighbor},false}); // The order here is important
+                            contractions.push_back({cluster,neighbor}); // The order here is important
                             break;
                         }
                     }
@@ -398,7 +419,8 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                 }
                 cluster->parent = parent;
                 root_clusters[level+1].push_back(parent);
-                contractions.push_back({{cluster,cluster},true});
+                contractions.push_back({cluster,cluster});
+                parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
             }
         }
         // Fill in the neighbor lists of the new clusters
@@ -412,14 +434,15 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
 template<typename v_t, typename e_t>
 inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
     for (auto contraction : contractions) {
-        auto c1 = contraction.first.first;
-        auto c2 = contraction.first.second;
+        auto c1 = contraction.first;
+        auto c2 = contraction.second;
         auto parent = c1->parent;
-        bool new_parent = contraction.second;
+        bool new_parent = ((long) parent->neighbors_set == 1);
         if (new_parent) {
             for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                 auto neighbor = c1->neighbors[i];
-                if (neighbor && neighbor != c2 && parent != neighbor->parent) {
+                if (neighbor && neighbor != c2 && parent != neighbor->parent && 
+                (neighbor->parent < parent || (long) neighbor->parent->neighbors_set != 1)) {
                     if constexpr (std::is_same<e_t, empty_t>::value) {
                         parent->insert_neighbor(neighbor->parent);
                         neighbor->parent->insert_neighbor(parent);
@@ -432,7 +455,8 @@ inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
             if (c1->neighbors_set) [[unlikely]]
             for (auto neighbor_pair : *c1->neighbors_set) {
                 Cluster* neighbor = neighbor_pair.first;
-                if (neighbor && neighbor != c2 && parent != neighbor->parent) {
+                if (neighbor && neighbor != c2 && parent != neighbor->parent && 
+                (neighbor->parent < parent || (long) neighbor->parent->neighbors_set != 1)) {
                     if constexpr (std::is_same<e_t, empty_t>::value) {
                         parent->insert_neighbor(neighbor->parent);
                         neighbor->parent->insert_neighbor(parent);
@@ -445,27 +469,29 @@ inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
             if (c1 != c2) [[likely]] {
                 for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                     auto neighbor = c2->neighbors[i];
-                    if (neighbor && neighbor != c1 && parent != neighbor->parent) {
-                    if constexpr (std::is_same<e_t, empty_t>::value) {
-                        parent->insert_neighbor(neighbor->parent);
-                        neighbor->parent->insert_neighbor(parent);
-                    } else {
-                        parent->insert_neighbor_with_value(neighbor->parent, c2->get_edge_value(i));
-                        neighbor->parent->insert_neighbor_with_value(parent, c2->get_edge_value(i));
-                    }
+                    if (neighbor && neighbor != c1 && parent != neighbor->parent && 
+                    (neighbor->parent < parent || (long) neighbor->parent->neighbors_set != 1)) {
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                            parent->insert_neighbor(neighbor->parent);
+                            neighbor->parent->insert_neighbor(parent);
+                        } else {
+                            parent->insert_neighbor_with_value(neighbor->parent, c2->get_edge_value(i));
+                            neighbor->parent->insert_neighbor_with_value(parent, c2->get_edge_value(i));
+                        }
                     }
                 }
                 if  (c2->neighbors_set) [[unlikely]]
                 for (auto neighbor_pair : *c2->neighbors_set){
                     Cluster* neighbor = neighbor_pair.first;
-                    if (neighbor && neighbor != c1 && parent != neighbor->parent) {
-                    if constexpr (std::is_same<e_t, empty_t>::value) {
-                        parent->insert_neighbor(neighbor->parent);
-                        neighbor->parent->insert_neighbor(parent);
-                    } else {
-                        parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
-                        neighbor->parent->insert_neighbor_with_value(parent, neighbor_pair.second);
-                    }
+                    if (neighbor && neighbor != c1 && parent != neighbor->parent && 
+                    (neighbor->parent < parent || (long) neighbor->parent->neighbors_set != 1)) {
+                        if constexpr (std::is_same<e_t, empty_t>::value) {
+                            parent->insert_neighbor(neighbor->parent);
+                            neighbor->parent->insert_neighbor(parent);
+                        } else {
+                            parent->insert_neighbor_with_value(neighbor->parent, neighbor_pair.second);
+                            neighbor->parent->insert_neighbor_with_value(parent, neighbor_pair.second);
+                        }
                     }
                 }
             }
@@ -473,9 +499,9 @@ inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
             // We ordered contractions so c2 is the one that had a parent already
             if (c1->get_degree() == 2) {
                 assert(UFO_ARRAY_MAX >= 2);
-                for (int i = 0; i < UFO_ARRAY_MAX; i++){
+                for (int i = 0; i < UFO_ARRAY_MAX; i++) {
                     auto neighbor = c1->neighbors[i];
-                    if (neighbor && neighbor != c2)
+                    if (neighbor && neighbor != c2 && (long) neighbor->parent->neighbors_set != 1)
                     if constexpr (std::is_same<e_t, empty_t>::value) {
                         insert_adjacency(parent, neighbor->parent);
                     } else {
@@ -497,6 +523,9 @@ inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
             }
         }
     }
+    for (auto cluster : root_clusters[level])
+        if (cluster->parent && cluster->parent->neighbors_set == (absl::flat_hash_map<Cluster*,e_t>*) 1)
+            cluster->parent->neighbors_set = nullptr;
 }
 
 template<typename v_t, typename e_t>

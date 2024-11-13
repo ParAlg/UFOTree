@@ -70,7 +70,7 @@ template<typename v_t, typename e_t>
 inline int UFOCluster<v_t,e_t>::get_degree() {
     int deg = 0;
     for (auto neighbor : this->neighbors) if (neighbor) deg++;
-    if (neighbors_set) [[unlikely]] deg += neighbors_set->size();
+    if ((long) neighbors_set > 1) [[unlikely]] deg += neighbors_set->size();
     return deg;
 }
 
@@ -91,14 +91,12 @@ inline bool UFOCluster<v_t,e_t>::parent_high_fanout() {
 template<typename v_t, typename e_t>
 inline bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
     for (auto neighbor : neighbors) if (neighbor && neighbor == c) return true;
-    if (neighbors_set && neighbors_set->find(c) != neighbors_set->end()) return true;
+    if ((long) neighbors_set > 1 && neighbors_set->find(c) != neighbors_set->end()) return true;
     return false;
 }
 
 template<typename v_t, typename e_t>
 inline void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
-    assert(UFO_ARRAY_MAX >= 3); // Can we optimize this part out?
-    for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
     assert(!contains_neighbor(c));
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
         if (this->neighbors[i] == nullptr) [[likely]] {
@@ -116,8 +114,6 @@ inline void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
 template<typename v_t, typename e_t>
 inline void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
     if constexpr (!std::is_same<e_t, empty_t>::value) {
-        assert(UFO_ARRAY_MAX >= 3);
-        for (int i = 0; i < UFO_ARRAY_MAX; ++i) if (this->neighbors[i] == c) return;
         assert(!contains_neighbor(c));
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (this->neighbors[i] == nullptr) [[likely]] {

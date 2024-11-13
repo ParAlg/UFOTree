@@ -88,8 +88,6 @@ void UFOTree<v_t, e_t>::print_tree() {
 
 TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
@@ -100,8 +98,6 @@ TEST(UFOTreeSuite, incremental_linkedlist_correctness_test) {
 
 TEST(UFOTreeSuite, incremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
@@ -115,8 +111,6 @@ TEST(UFOTreeSuite, incremental_binarytree_correctness_test) {
 
 TEST(UFOTreeSuite, incremental_star_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
@@ -132,8 +126,6 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int, int> tree(n);
 
         auto seed = seeds[trial];
@@ -153,8 +145,6 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
 
 TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
     vertex_t n = 128;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
@@ -169,8 +159,6 @@ TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
 
 TEST(UFOTreeSuite, decremental_binarytree_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < (n-1)/2; i++) {
@@ -192,8 +180,6 @@ TEST(UFOTreeSuite, decremental_binarytree_correctness_test) {
 
 TEST(UFOTreeSuite, decremental_star_correctness_test) {
     vertex_t n = 256;
-    QueryType qt = PATH;
-    auto f = [](int x, int y)->int{return x + y;};
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
@@ -214,8 +200,6 @@ TEST(UFOTreeSuite, decremental_random_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
-        QueryType qt = PATH;
-        auto f = [](int x, int y)->int{return x + y;};
         UFOTree<int, int> tree(n);
         std::pair<vertex_t, vertex_t> edges[n-1];
 
