@@ -32,7 +32,6 @@ public:
     UFOCluster() : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value() {};
     UFOCluster(v_t val) : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
     // Helper functions
-    Cluster* get_neighbor();
     Cluster* get_root();
     bool contracts();
     int get_degree();
@@ -45,12 +44,6 @@ public:
     e_t get_edge_value(int index);
     size_t calculate_size();
 };
-
-template<typename v_t, typename e_t>
-inline UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_neighbor() {
-    assert(UFO_ARRAY_MAX > 0 && neighbors[0]);
-    return neighbors[0];
-}
 
 template<typename v_t, typename e_t>
 inline UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_root() {
@@ -79,7 +72,7 @@ inline bool UFOCluster<v_t,e_t>::parent_high_fanout() {
     assert(parent);
     int parent_degree = parent->get_degree();
     if (get_degree() == 1) {
-        auto neighbor = get_neighbor();
+        auto neighbor = neighbors[0];
         if (neighbor->parent == parent)
         if (neighbor->get_degree() - parent_degree > 2) return true;
     } else {

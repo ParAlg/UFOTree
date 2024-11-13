@@ -28,8 +28,8 @@ bool UFOTree<v_t, e_t>::is_valid() {
             }
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
-                    if (cluster->get_neighbor()->get_degree() > 2) return false;
-                    else if (!cluster->get_neighbor()->contracts()) return false;
+                    if (cluster->neighbors[0]->get_degree() > 2) return false;
+                    else if (!cluster->neighbors[0]->contracts()) return false;
                 } else if (cluster->get_degree() == 2) {
                     for (auto neighbor : cluster->neighbors)
                         if (neighbor && neighbor->get_degree() < 3 && !neighbor->contracts()) return false;

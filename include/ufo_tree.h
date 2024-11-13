@@ -345,7 +345,7 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
         // Always combine deg 1 root clusters with its neighboring cluster
         for (auto cluster : root_clusters[level]) {
             if (!cluster->parent && cluster->get_degree() == 1) [[unlikely]] {
-                auto neighbor = cluster->get_neighbor();  // Deg 1 cluster only one neighbor
+                auto neighbor = cluster->neighbors[0];
                 if (neighbor->parent) {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
@@ -540,7 +540,7 @@ inline bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, C
     else if (level < lower_deg[1].size() && lower_deg[1][level].first == child) [[unlikely]] child_degree = lower_deg[1][level].second;
     else [[likely]] child_degree = child->get_degree();
     if (child->get_degree() == 1) {
-        auto neighbor = child->get_neighbor();
+        auto neighbor = child->neighbors[0];
         if (neighbor->parent == cluster && neighbor->get_degree() - cluster->get_degree() > 2) [[unlikely]] return true;
     } else if (child_degree - cluster_degree > 2) [[unlikely]] return true;
     return false;
@@ -588,7 +588,7 @@ and add it as a root cluster to be processed. */
 template<typename v_t, typename e_t>
 inline void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
     if (c->get_degree() == 1) {
-        auto center = c->get_neighbor();
+        auto center = c->neighbors[0];
         if (c->parent != center->parent) return;
         assert(center->get_degree() <= 5);
         if (center->parent == c->parent) {
