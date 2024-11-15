@@ -36,6 +36,7 @@ private:
     // Class data and parameters
     std::vector<Cluster> leaves;
     std::vector<std::vector<Cluster*>> root_clusters;
+    int max_level;
     std::vector<std::pair<Cluster*,Cluster*>> contractions;
     std::vector<std::pair<Cluster*,vertex_t>> lower_deg[2]; // lower_deg helps to identify clusters who became low degree during a deletion update
     QueryType query_type;
@@ -195,6 +196,7 @@ template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
+    max_level = 0;
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
     insert_adjacency(&leaves[u], &leaves[v]);
@@ -204,6 +206,7 @@ template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
+    max_level = 0;
     remove_ancestors(&leaves[u]);
     remove_ancestors(&leaves[v]);
     insert_adjacency(&leaves[u], &leaves[v], value);
@@ -215,6 +218,7 @@ template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
+    max_level = 0;
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
     while (curr_u != curr_v) {
@@ -283,11 +287,12 @@ inline void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
         if (position != root_clusters[level].end()) root_clusters[level].erase(position);
         free_cluster(prev);
     } else [[unlikely]] root_clusters[level].push_back(prev);
+    if (level > max_level) max_level = level;
 }
 
 template<typename v_t, typename e_t>
 inline void UFOTree<v_t, e_t>::recluster_tree() {
-    for (int level = 0; level < root_clusters.size(); level++) {
+    for (int level = 0; level <= max_level; level++) {
         if (root_clusters[level].empty()) [[unlikely]] continue;
         // Update root cluster stats if we are collecting them
         #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -374,6 +379,7 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
         // Clear the contents of this level
         root_clusters[level].clear();
         contractions.clear();
+        if (level == max_level && !root_clusters[max_level+1].empty()) max_level++;
     }
 }
 
