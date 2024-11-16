@@ -53,7 +53,6 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
-    void recluster_high_degree_root(Cluster* c, int level);
     void populate_neighbors(int level);
     bool is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level);
     void disconnect_siblings(Cluster* c, int level);
@@ -301,29 +300,51 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
             else
                 root_clusters_histogram[root_clusters[level].size()] += 1;
         #endif
-        // Always combine deg 1 root clusters with its neighboring cluster
+        // Merge deg 3-5 root clusters with all of its deg 1 neighbors
         for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->get_degree() == 1) [[unlikely]] {
-                auto neighbor = cluster->neighbors[0];
-                if (neighbor->parent) {
-                    if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
-                    cluster->parent = neighbor->parent;
-                    contractions.push_back({cluster,neighbor});
-                } else {
-                    if (neighbor->get_degree() > 2) [[unlikely]] {
-                        recluster_high_degree_root(neighbor, level);
-                    } else [[likely]] {
-                        auto parent = allocate_cluster();
-                        if constexpr (!std::is_same<e_t, empty_t>::value) {
-                            parent->value = identity_v;
+            if (!cluster->parent && cluster->get_degree() > 2) [[unlikely]] {
+                assert(cluster->get_degree() <= 5);
+                auto parent = allocate_cluster();
+                if constexpr (!std::is_same<e_t, empty_t>::value) {
+                    parent->value = identity_v;
+                }
+                cluster->parent = parent;
+                root_clusters[level+1].push_back(parent);
+                assert(UFO_ARRAY_MAX >= 3);
+                for (auto neighbor : cluster->neighbors) {
+                    if (neighbor && neighbor->get_degree() == 1) [[unlikely]] {
+                        auto curr = neighbor->parent;
+                        int lev = level+1;
+                        while (curr) {
+                            auto temp = curr;
+                            curr = curr->parent;
+                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
+                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
+                            free_cluster(temp);
+                            lev++;
                         }
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        root_clusters[level+1].push_back(parent);
-                        contractions.push_back({cluster,neighbor});
-                        parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
+                        neighbor->parent = cluster->parent;
                     }
                 }
+                if (cluster->neighbors_set)
+                for (auto neighbor_pair : *cluster->neighbors_set) {
+                    auto neighbor = neighbor_pair.first;
+                    if (neighbor->get_degree() == 1) [[unlikely]] {
+                        auto curr = neighbor->parent;
+                        int lev = level+1;
+                        while (curr) {
+                            auto temp = curr;
+                            curr = curr->parent;
+                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
+                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
+                            free_cluster(temp);
+                            lev++;
+                        }
+                        neighbor->parent = cluster->parent;
+                    }
+                }
+                contractions.push_back({cluster, cluster});
+                parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
             }
         }
         // Combine deg 2 root clusters with deg 2 root clusters
@@ -343,9 +364,6 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                         parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
                         break;
                     }
-                    else if (neighbor && !neighbor->parent && neighbor->get_degree() > 2) [[unlikely]] {
-                        recluster_high_degree_root(neighbor, level);
-                    }
                 }
                 // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
                 if (!cluster->parent) [[unlikely]] {
@@ -358,6 +376,24 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
                             break;
                         }
                     }
+                }
+            // Always combine deg 1 root clusters with its neighboring cluster
+            } else if (!cluster->parent && cluster->get_degree() == 1) [[unlikely]] {
+                auto neighbor = cluster->neighbors[0];
+                if (neighbor->parent) {
+                    if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
+                    cluster->parent = neighbor->parent;
+                    contractions.push_back({cluster,neighbor});
+                } else {
+                    auto parent = allocate_cluster();
+                    if constexpr (!std::is_same<e_t, empty_t>::value) {
+                        parent->value = identity_v;
+                    }
+                    cluster->parent = parent;
+                    neighbor->parent = parent;
+                    root_clusters[level+1].push_back(parent);
+                    contractions.push_back({cluster,neighbor});
+                    parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
                 }
             }
         }
@@ -380,52 +416,6 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
         root_clusters[level].clear();
         contractions.clear();
         if (level == max_level && !root_clusters[max_level+1].empty()) max_level++;
-    }
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::recluster_high_degree_root(Cluster* c, int level) {
-    assert(c->get_degree() >=3 && c->get_degree() <= 5);
-    assert(!c->parent);
-    auto parent = allocate_cluster();
-    if constexpr (!std::is_same<e_t, empty_t>::value) {
-        parent->value = identity_v;
-    }
-    c->parent = parent;
-    root_clusters[level+1].push_back(parent);
-    contractions.push_back({c,c});
-    parent->neighbors_set = (absl::flat_hash_map<Cluster*,e_t>*) 1;
-    for (auto neighbor : c->neighbors) {
-        if (neighbor->get_degree() == 1) [[unlikely]] {
-            auto old_parent = neighbor->parent;
-            neighbor->parent = c->parent;
-            int lev = level+1;
-            while (old_parent) {
-                auto temp = old_parent;
-                old_parent = old_parent->parent;
-                auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
-                if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
-                free_cluster(temp);
-                lev++;
-            }
-        }
-    }
-    if (c->neighbors_set)
-    for (auto neighbor_pair : *c->neighbors_set) {
-        auto neighbor = neighbor_pair.first;
-        if (neighbor->get_degree() == 1) [[unlikely]] {
-            auto old_parent = neighbor->parent;
-            neighbor->parent = c->parent;
-            int lev = level+1;
-            while (old_parent) {
-                auto temp = old_parent;
-                old_parent = old_parent->parent;
-                auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
-                if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
-                free_cluster(temp);
-                lev++;
-            }
-        }
     }
 }
 
