@@ -63,7 +63,7 @@ template<typename v_t, typename e_t>
 inline int UFOCluster<v_t,e_t>::get_degree() {
     int deg = 0;
     for (auto neighbor : this->neighbors) if (neighbor) deg++;
-    if ((long) neighbors_set > 1) [[unlikely]] deg += neighbors_set->size();
+    if (neighbors_set) [[unlikely]] deg += neighbors_set->size();
     return deg;
 }
 
@@ -84,7 +84,7 @@ inline bool UFOCluster<v_t,e_t>::parent_high_fanout() {
 template<typename v_t, typename e_t>
 inline bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
     for (auto neighbor : neighbors) if (neighbor && neighbor == c) return true;
-    if ((long) neighbors_set > 1 && neighbors_set->find(c) != neighbors_set->end()) return true;
+    if (neighbors_set && neighbors_set->find(c) != neighbors_set->end()) return true;
     return false;
 }
 
