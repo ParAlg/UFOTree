@@ -5,11 +5,11 @@
 #include "topology_tree.h"
 #include "rc_tree.h"
 #include "top_tree.h"
+#include "../baselines/dynamic_trees/link_cut_tree/include/link_cut_tree.hpp"
 #include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
+#include "../baselines/dynamic_trees/euler_tour_tree/include/splay_tree_ett.hpp"
 #include <fstream>
 
-
-using namespace skip_list_ett;
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
@@ -25,20 +25,21 @@ int main(int argc, char** argv) {
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
-    {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
-    {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
-    {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
-    {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
-    {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
-    {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
-    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1}
+    {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 5},
+    {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 5},
+    {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 5},
+    {"Star", dynamic_tree_benchmark::star_benchmark, true, 5},
+    {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 5},
+    {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 5},
+    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 5}
   };
 
   for (vertex_t n : n_list) {
     std::string filename = "../results/update_speed_" + std::to_string(n) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,Top Tree\n";
+    // output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,Top Tree,\n";
+    output_csv << "Test Case,Euler Tour Tree (Skip List),Euler Tour Tree (Splay Tree),Top Tree,Link Cut Tree, UFO Tree,\n";
 
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);
@@ -51,30 +52,38 @@ int main(int argc, char** argv) {
         update_sequences.push_back(updates);
       }
       double time;
-      std::cout << "[ RUNNING " << test_case_name << " UPDATE SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
+      std::cout << "[ RUNNING " << test_case_name << " UPDATE SPEED BENCHMARK WITH n=" << n << " trials=" << num_trials << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
       // RC Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
-      else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
-      std::cout << "RCTree        : " << time << std::endl;
-      output_csv << time << ",";
+      // if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<RCTree<int>>(n, update_sequences);
+      // else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
+      // std::cout << "RCTree        : " << time << std::endl;
+      // output_csv << time << ",";
       // Topology Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int, empty_t>>(n, update_sequences);
-      else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences);
-      std::cout << "TopologyTree  : " << time << std::endl;
+      // if (!ternarize) time = dynamic_tree_benchmark::get_update_speed<TopologyTree<int, empty_t>>(n, update_sequences);
+      // else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences);
+      // std::cout << "TopologyTree  : " << time << std::endl;
+      // output_csv << time << ",";
+      // Euler Tour Tree (Skip List)
+      time = dynamic_tree_benchmark::get_update_speed<skip_list_ett::EulerTourTree>(n, update_sequences);
+      std::cout << "SkipListETT   : " << time << std::endl;
       output_csv << time << ",";
-      // UFO Tree
-      time = dynamic_tree_benchmark::get_update_speed<UFOTree<int, empty_t>>(n, update_sequences);
-      std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << time << ",";
-      // Euler Tour Tree
-      time = dynamic_tree_benchmark::get_update_speed<EulerTourTree>(n, update_sequences);
-      std::cout << "EulerTourTree : " << time << std::endl;
+      // Euler Tour Tree (Splay Tree)
+      time = dynamic_tree_benchmark::get_update_speed<splay_tree_ett::EulerTourTree>(n, update_sequences);
+      std::cout << "SplayTreeETT  : " << time << std::endl;
       output_csv << time << ",";
       // Top Tree
-      time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
-      std::cout << "TopTree       : " << time << std::endl;
+      time = dynamic_tree_benchmark::get_update_speed<TopTree<empty_t>>(n, update_sequences);
+      std::cout << "SplayTopTree  : " << time << std::endl;
+      output_csv << time << ",";
+      // UFO Tree
+      time = dynamic_tree_benchmark::get_update_speed<UFOTree<empty_t, empty_t>>(n, update_sequences);
+      std::cout << "UFOTree       : " << time << std::endl;
+      output_csv << time << ",";
+      // Link Cut Tree
+      time = dynamic_tree_benchmark::get_update_speed<link_cut_tree::LinkCutTree>(n, update_sequences);
+      std::cout << "LinkCutTree   : " << time << std::endl;
       output_csv << time << ",";
       
       std::cout << std::endl;

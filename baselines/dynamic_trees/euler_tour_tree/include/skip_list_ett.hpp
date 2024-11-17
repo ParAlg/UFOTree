@@ -29,6 +29,9 @@ class EulerTourTree {
   void Link(int u, int v);
   void Cut(int u, int v);
 
+  void link(int u, int v){Link(u,v);}
+  void cut(int u, int v){ Cut(u,v);}
+
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.
   void BatchLink(std::pair<int, int>* links, int len);
@@ -40,9 +43,6 @@ class EulerTourTree {
   size_t count_nodes();
   size_t get_height();
 
-  void link(int u, int v){Link(u,v);}
-  
-  void cut(int u, int v){ Cut(u,v);}
  private:
   int num_verts;
   skip_list::Element* verts;

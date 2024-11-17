@@ -65,8 +65,11 @@ target_include_directories(dynamic_tree_tests PRIVATE include util baselines)
 
 add_executable(benchmark_update_speed
   benchmark/benchmark_update_speed.cpp
+  baselines/dynamic_trees/link_cut_tree/src/link_cut_tree.cpp
   baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
   baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/dynamic_trees/euler_tour_tree/src/splay_tree_ett.cpp
+  baselines/sequence/splay_tree/src/splay_tree.cpp
 )
 target_link_libraries(benchmark_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_update_speed PRIVATE include util baselines)

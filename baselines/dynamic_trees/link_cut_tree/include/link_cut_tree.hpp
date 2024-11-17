@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include "types.h"
 
 namespace link_cut_tree {
 
@@ -11,6 +12,9 @@ class LinkCutTree {
   LinkCutTree(int _num_verts);
   ~LinkCutTree();
   
+  void link(vertex_t u, vertex_t v);
+  void cut(vertex_t u, vertex_t v);
+
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.
   void BatchLink(std::pair<int, int>* links, int len);

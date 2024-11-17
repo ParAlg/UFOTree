@@ -160,6 +160,14 @@ bool* LinkCutTree::BatchConnected(std::pair<int, int>* queries, int len) {
   return ans;
 }
 
+void LinkCutTree::link(vertex_t u, vertex_t v) {
+  verts[u].link(&verts[v]);
+}
+
+void LinkCutTree::cut(vertex_t u, vertex_t v) {
+  verts[u].cut(&verts[v]);
+}
+
 void LinkCutTree::BatchLink(std::pair<int, int>* links, int len) {
   for (int i = 0; i < len; i++)
     verts[links[i].first].link(&verts[links[i].second]);
