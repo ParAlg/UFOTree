@@ -153,19 +153,24 @@ LinkCutTree::~LinkCutTree() {
   delete[] verts;
 }
 
-bool* LinkCutTree::BatchConnected(std::pair<int, int>* queries, int len) {
-  bool* ans = new bool[len];
-  for (int i = 0; i < len; i++)
-    ans[i] = verts[queries[i].first].get_root() == verts[queries[i].second].get_root();
-  return ans;
-}
-
 void LinkCutTree::link(vertex_t u, vertex_t v) {
   verts[u].link(&verts[v]);
 }
 
 void LinkCutTree::cut(vertex_t u, vertex_t v) {
   verts[u].cut(&verts[v]);
+}
+
+// Get root calls expose so the amortization is preserved
+bool LinkCutTree::connected(vertex_t u, vertex_t v) {
+  return verts[u].get_root() == verts[v].get_root();
+}
+
+bool* LinkCutTree::BatchConnected(std::pair<int, int>* queries, int len) {
+  bool* ans = new bool[len];
+  for (int i = 0; i < len; i++)
+    ans[i] = verts[queries[i].first].get_root() == verts[queries[i].second].get_root();
+  return ans;
 }
 
 void LinkCutTree::BatchLink(std::pair<int, int>* links, int len) {

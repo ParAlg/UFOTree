@@ -14,6 +14,7 @@ class LinkCutTree {
   
   void link(vertex_t u, vertex_t v);
   void cut(vertex_t u, vertex_t v);
+  bool connected(vertex_t u, vertex_t v);
 
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.
