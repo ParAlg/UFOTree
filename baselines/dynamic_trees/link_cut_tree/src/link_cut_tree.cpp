@@ -183,4 +183,189 @@ void LinkCutTree::BatchCut(std::pair<int, int>* cuts, int len) {
     verts[cuts[i].first].cut(&verts[cuts[i].second]);
 }
 
+
+// ============= Link Cut Tree With Integer Path Queries Below This Point ===============
+
+class NodeInt {
+ public:
+  NodeInt();
+  NodeInt(NodeInt* _par, NodeInt* left, NodeInt *right, int _val = 0);
+
+  NodeInt* get_root();
+  void cut(NodeInt* neighbor);
+  void cut_from_par();
+  void link(NodeInt* child);
+  NodeInt* lca(NodeInt* other);
+  void evert(); // reroot
+  int path_to_root_query();
+
+ private:
+  NodeInt* par; // parent
+  NodeInt* c[2]; // children
+  int val;
+  bool flip; // whether children are reversed; used for evert()
+
+  NodeInt* get_real_par();
+  void rot();
+  void splay();
+  NodeInt* expose();
+  void fix_c();
+  void push_flip();
+};
+
+NodeInt::NodeInt(NodeInt* _par, NodeInt* left, NodeInt *right, int _val)
+  : par(_par), c{left, right}, val(_val), flip(0) {
+  fix_c();
+}
+
+NodeInt::NodeInt() : NodeInt(nullptr, nullptr, nullptr, 0) {}
+
+NodeInt* NodeInt::get_real_par() {
+  return par != nullptr && this != par->c[0] && this != par->c[1] ? nullptr : par;
+}
+
+void NodeInt::fix_c() {
+  for (int i = 0; i < 2; i++)
+    if (c[i] != nullptr)
+      c[i]->par = this;
+}
+
+void NodeInt::push_flip() {
+  if (flip) {
+    flip = 0;
+    std::swap(c[0], c[1]);
+    for (int i = 0; i < 2; i++)
+      if (c[i] != nullptr)
+        c[i]->flip ^= 1;
+  }
+}
+
+void NodeInt::rot() { // rotate v towards its parent; v must have real parent
+  NodeInt* p = get_real_par();
+  par = p->par;
+  if (par != nullptr)
+    for (int i = 0; i < 2; i++)
+      if (par->c[i] == p) {
+        par->c[i] = this;
+        par->fix_c();
+      }
+  const bool rot_dir = this == p->c[0];
+  p->c[!rot_dir] = c[rot_dir];
+  c[rot_dir] = p;
+  p->fix_c();
+  fix_c();
+}
+
+void NodeInt::splay() {
+  NodeInt* p, * gp;
+  push_flip(); // guarantee flip bit isn't set after calling splay()
+  while ((p = get_real_par()) != nullptr) {
+    gp = p->get_real_par();
+    if (gp != nullptr)
+      gp->push_flip();
+    p->push_flip();
+    push_flip();
+    if (gp != nullptr)
+      ((gp->c[0] == p) == (p->c[0] == this) ? p : this)->rot();
+    rot();
+  }
+}
+
+// returns 1st vertex encountered that was originally in same path as root (used
+// for LCA)
+NodeInt* NodeInt::expose() {
+  NodeInt* ret = this;
+  for (NodeInt* curr = this, * pref = nullptr; curr != nullptr;
+       ret = curr, pref = this, curr = par) {
+    curr->splay();
+    curr->c[1] = pref;
+    curr->fix_c();
+    splay();
+  }
+  return ret;
+}
+
+void NodeInt::evert() {
+  expose();
+  flip ^= 1;
+  push_flip();
+}
+
+NodeInt* NodeInt::get_root() {
+  expose();
+  NodeInt* root = this;
+  push_flip();
+  while (root->c[0] != nullptr) {
+    root = root->c[0];
+    root->push_flip();
+  }
+  root->splay();
+  return root;
+}
+
+void NodeInt::cut_from_par() {
+  expose();
+  c[0] = c[0]->par = nullptr;
+  fix_c();
+}
+
+void NodeInt::cut(NodeInt* neighbor) {
+  neighbor->evert();
+  evert();
+  neighbor->par = nullptr;
+  for (int i = 0; i < 2; i++)
+    if (c[i] == neighbor)
+      c[i] = nullptr;
+  fix_c();
+}
+
+void NodeInt::link(NodeInt* child) {
+  child->evert();
+  expose();
+  child->par = this;
+}
+
+NodeInt* NodeInt::lca(NodeInt* other) {
+  expose();
+  return other->expose();
+}
+
+LinkCutTreeInt::LinkCutTreeInt(int _num_verts) : num_verts(_num_verts) {
+  verts = new NodeInt[num_verts];
+}
+
+LinkCutTreeInt::~LinkCutTreeInt() {
+  delete[] verts;
+}
+
+void LinkCutTreeInt::link(vertex_t u, vertex_t v, int weight) {
+  verts[u].link(&verts[v]);
+}
+
+void LinkCutTreeInt::cut(vertex_t u, vertex_t v) {
+  verts[u].cut(&verts[v]);
+}
+
+// Get root calls expose so the amortization is preserved
+bool LinkCutTreeInt::connected(vertex_t u, vertex_t v) {
+  return verts[u].get_root() == verts[v].get_root();
+}
+
+bool* LinkCutTreeInt::BatchConnected(std::pair<int, int>* queries, int len) {
+  bool* ans = new bool[len];
+  for (int i = 0; i < len; i++)
+    ans[i] = verts[queries[i].first].get_root() == verts[queries[i].second].get_root();
+  return ans;
+}
+
+void LinkCutTreeInt::BatchLink(std::pair<int, int>* links, int len) {
+  for (int i = 0; i < len; i++)
+    verts[links[i].first].link(&verts[links[i].second]);
+}
+
+void LinkCutTreeInt::BatchCut(std::pair<int, int>* cuts, int len) {
+  for (int i = 0; i < len; i++)
+    verts[cuts[i].first].cut(&verts[cuts[i].second]);
+}
+
 } // namespace link_cut_tree
