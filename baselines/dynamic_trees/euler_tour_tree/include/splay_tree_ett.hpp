@@ -19,6 +19,7 @@ class EulerTourTree {
   void Link(int u, int v);
   void Cut(int u, int v);
 
+  bool connected(int u, int v){return IsConnected(u,v);}
   void link(int u, int v){Link(u,v);}
   void cut(int u, int v){ Cut(u,v);}
 

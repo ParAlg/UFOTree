@@ -39,21 +39,15 @@ double get_conn_query_speed(vertex_t n, std::vector<std::vector<Update>> update_
         auto updates = update_sequences[i];
         auto queries = query_sequences[i];
         DynamicTree tree(n);
-        bool first_delete = true;
         for (Update update : updates) {
             if (update.type == INSERT) {
                 tree.link(update.edge.src, update.edge.dst);
-            } else if (update.type == DELETE) {
-                if (first_delete) {
-                    my_timer.start();
-                    for (auto query : queries) tree.connected(query.u, query.v);
-                    my_timer.stop();
-                    first_delete = false;
-                }
-                tree.cut(update.edge.src, update.edge.dst);
             } else {
-                std::cerr << "Invalid update type: " << update.type << std::endl;
-                std::abort();
+                my_timer.start();
+                bool connected;
+                for (auto query : queries) connected = tree.connected(query.u, query.v);
+                my_timer.stop();
+                if (connected) break;
             }
         }
     }
@@ -68,21 +62,14 @@ double get_path_query_speed(vertex_t n, std::vector<std::vector<Update>> update_
         auto updates = update_sequences[i];
         auto queries = query_sequences[i];
         DynamicTree tree(n);
-        bool first_delete = true;
         for (Update update : updates) {
             if (update.type == INSERT) {
                 tree.link(update.edge.src, update.edge.dst);
-            } else if (update.type == DELETE) {
-                if (first_delete) {
-                    my_timer.start();
-                    for (auto query : queries) tree.path_query(query.u, query.v);
-                    my_timer.stop();
-                    first_delete = false;
-                }
-                tree.cut(update.edge.src, update.edge.dst);
             } else {
-                std::cerr << "Invalid update type: " << update.type << std::endl;
-                std::abort();
+                my_timer.start();
+                for (auto query : queries) tree.path_query(query.u, query.v);
+                my_timer.stop();
+                break;
             }
         }
     }
