@@ -1,4 +1,5 @@
 #include <dynamic_trees/link_cut_tree/include/link_cut_tree.hpp>
+#include <absl/container/flat_hash_map.h>
 
 namespace link_cut_tree {
 
@@ -161,7 +162,6 @@ void LinkCutTree::cut(vertex_t u, vertex_t v) {
   verts[u].cut(&verts[v]);
 }
 
-// Get root calls expose so the amortization is preserved
 bool LinkCutTree::connected(vertex_t u, vertex_t v) {
   return verts[u].get_root() == verts[v].get_root();
 }
@@ -189,39 +189,46 @@ void LinkCutTree::BatchCut(std::pair<int, int>* cuts, int len) {
 class NodeInt {
  public:
   NodeInt();
-  NodeInt(NodeInt* _par, NodeInt* left, NodeInt *right, int _val = 0);
 
-  NodeInt* get_root();
+  void link(NodeInt* child, int weight);
   void cut(NodeInt* neighbor);
-  void cut_from_par();
-  void link(NodeInt* child);
-  NodeInt* lca(NodeInt* other);
   void evert(); // reroot
-  int path_to_root_query();
+  NodeInt* get_root();
+  int path_query(NodeInt* other);
 
  private:
   NodeInt* par; // parent
   NodeInt* c[2]; // children
-  int val;
+  NodeInt* n[2]; // store the nodes directly left and right in the splay tree by key
+  int max; // maintain the maximum edge weight in the splay tree subtree rooted at this
   bool flip; // whether children are reversed; used for evert()
+  absl::flat_hash_map<NodeInt*, int> edges; // store the weights of edges to all neighbors
 
   NodeInt* get_real_par();
+  NodeInt* get_leftmost();
   void rot();
   void splay();
-  NodeInt* expose();
+  void expose();
   void fix_c();
+  void recompute_max();
   void push_flip();
 };
 
-NodeInt::NodeInt(NodeInt* _par, NodeInt* left, NodeInt *right, int _val)
-  : par(_par), c{left, right}, val(_val), flip(0) {
-  fix_c();
-}
-
-NodeInt::NodeInt() : NodeInt(nullptr, nullptr, nullptr, 0) {}
+NodeInt::NodeInt() : par(nullptr), c{nullptr, nullptr}, n{nullptr, nullptr},
+    max(MIN_INT), flip(0), edges() {}
 
 NodeInt* NodeInt::get_real_par() {
   return par != nullptr && this != par->c[0] && this != par->c[1] ? nullptr : par;
+}
+
+NodeInt* NodeInt::get_leftmost() { // only called when this is root of splay tree
+  NodeInt* left = this;
+  push_flip();
+  while (left->c[0] != nullptr) {
+    left = left->c[0];
+    left->push_flip();
+  }
+  return left;
 }
 
 void NodeInt::fix_c() {
@@ -230,10 +237,20 @@ void NodeInt::fix_c() {
       c[i]->par = this;
 }
 
+void NodeInt::recompute_max() {
+  max = MIN_INT;
+  if (n[0] != nullptr) max = std::max(max, edges[n[0]]);
+  if (n[1] != nullptr) max = std::max(max, edges[n[1]]);
+  for (int i = 0; i < 2; i++)
+    if (c[i] != nullptr)
+      max = std::max(max, c[i]->max);
+}
+
 void NodeInt::push_flip() {
   if (flip) {
     flip = 0;
     std::swap(c[0], c[1]);
+    std::swap(n[0], n[1]);
     for (int i = 0; i < 2; i++)
       if (c[i] != nullptr)
         c[i]->flip ^= 1;
@@ -253,7 +270,9 @@ void NodeInt::rot() { // rotate v towards its parent; v must have real parent
   p->c[!rot_dir] = c[rot_dir];
   c[rot_dir] = p;
   p->fix_c();
+  p->recompute_max();
   fix_c();
+  recompute_max();
 }
 
 void NodeInt::splay() {
@@ -271,18 +290,29 @@ void NodeInt::splay() {
   }
 }
 
-// returns 1st vertex encountered that was originally in same path as root (used
-// for LCA)
-NodeInt* NodeInt::expose() {
-  NodeInt* ret = this;
-  for (NodeInt* curr = this, * pref = nullptr; curr != nullptr;
-       ret = curr, pref = this, curr = par) {
+// returns 1st vertex encountered that was originally in same path as root
+void NodeInt::expose() {
+  NodeInt* curr = this;
+  NodeInt* head = nullptr;
+  while (curr) {
     curr->splay();
-    curr->c[1] = pref;
-    curr->fix_c();
-    splay();
+    if (head) {
+      curr->c[1] = head;
+      if (curr->n[1]) {
+        curr->n[1]->push_flip();
+        curr->n[1]->n[0] = nullptr;
+        curr->n[1]->recompute_max();
+      }
+      curr->n[1] = head;
+      head->n[0] = curr;
+      curr->fix_c();
+      head->recompute_max();
+      curr->recompute_max();
+    }
+    head = curr->get_leftmost();
+    head->splay();
+    curr = head->par;
   }
-  return ret;
 }
 
 void NodeInt::evert() {
@@ -303,31 +333,27 @@ NodeInt* NodeInt::get_root() {
   return root;
 }
 
-void NodeInt::cut_from_par() {
-  expose();
-  c[0] = c[0]->par = nullptr;
-  fix_c();
+int NodeInt::path_query(NodeInt* other) {
+  evert();
+  other->expose();
+  return max;
 }
 
 void NodeInt::cut(NodeInt* neighbor) {
-  neighbor->evert();
   evert();
+  expose();
+  neighbor->splay();
   neighbor->par = nullptr;
-  for (int i = 0; i < 2; i++)
-    if (c[i] == neighbor)
-      c[i] = nullptr;
-  fix_c();
+  this->edges.erase(neighbor);
+  neighbor->edges.erase(this);
 }
 
-void NodeInt::link(NodeInt* child) {
+void NodeInt::link(NodeInt* child, int weight) {
+  this->edges.insert({child, weight});
+  child->edges.insert({this, weight});
   child->evert();
   expose();
   child->par = this;
-}
-
-NodeInt* NodeInt::lca(NodeInt* other) {
-  expose();
-  return other->expose();
 }
 
 LinkCutTreeInt::LinkCutTreeInt(int _num_verts) : num_verts(_num_verts) {
@@ -339,33 +365,19 @@ LinkCutTreeInt::~LinkCutTreeInt() {
 }
 
 void LinkCutTreeInt::link(vertex_t u, vertex_t v, int weight) {
-  verts[u].link(&verts[v]);
+  verts[u].link(&verts[v], weight);
 }
 
 void LinkCutTreeInt::cut(vertex_t u, vertex_t v) {
   verts[u].cut(&verts[v]);
 }
 
-// Get root calls expose so the amortization is preserved
 bool LinkCutTreeInt::connected(vertex_t u, vertex_t v) {
   return verts[u].get_root() == verts[v].get_root();
 }
 
-bool* LinkCutTreeInt::BatchConnected(std::pair<int, int>* queries, int len) {
-  bool* ans = new bool[len];
-  for (int i = 0; i < len; i++)
-    ans[i] = verts[queries[i].first].get_root() == verts[queries[i].second].get_root();
-  return ans;
-}
-
-void LinkCutTreeInt::BatchLink(std::pair<int, int>* links, int len) {
-  for (int i = 0; i < len; i++)
-    verts[links[i].first].link(&verts[links[i].second]);
-}
-
-void LinkCutTreeInt::BatchCut(std::pair<int, int>* cuts, int len) {
-  for (int i = 0; i < len; i++)
-    verts[cuts[i].first].cut(&verts[cuts[i].second]);
+int LinkCutTreeInt::path_query(vertex_t u, vertex_t v) {
+  return verts[u].path_query(&verts[v]);
 }
 
 } // namespace link_cut_tree

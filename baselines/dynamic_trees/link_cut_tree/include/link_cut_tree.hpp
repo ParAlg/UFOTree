@@ -1,7 +1,9 @@
 #pragma once
-
 #include <algorithm>
 #include "types.h"
+
+#define MIN_INT (std::numeric_limits<int>::min())
+
 
 namespace link_cut_tree {
 
@@ -40,12 +42,7 @@ class LinkCutTreeInt {
   void link(vertex_t u, vertex_t v, int weight = 0);
   void cut(vertex_t u, vertex_t v);
   bool connected(vertex_t u, vertex_t v);
-
-  bool* BatchConnected(std::pair<int, int>* queries, int len);
-  // Inserting all links in [links] must keep the graph acylic.
-  void BatchLink(std::pair<int, int>* links, int len);
-  // All edges in [cuts] must be in the graph, and no edges may be repeated.
-  void BatchCut(std::pair<int, int>* cuts, int len);
+  int path_query(vertex_t u, vertex_t v);
 
  private:
   NodeInt* verts;
