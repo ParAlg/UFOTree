@@ -40,9 +40,9 @@ int main(int argc, char** argv) {
     std::string filename = "../results/query_speed_" + std::to_string(n) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Euler Tour Tree (Skip List),Euler Tour Tree (Splay Tree),Topology Tree,RC Tree,\n";
 
-    // Connectivity queries benchmark
+    // Connectivity query speed benchmark
+    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Euler Tour Tree (Skip List),Euler Tour Tree (Splay Tree),Topology Tree,RC Tree";
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);
       auto update_generator = std::get<1>(test_case);
@@ -58,45 +58,45 @@ int main(int argc, char** argv) {
       }
       double time;
       std::cout << "[ RUNNING " << test_case_name << " CONNECTIVITY QUERY SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
-      output_csv << test_case_name << "_conn" << ",";
+      output_csv << "\n" << test_case_name << "_conn";
 
       // UFO Tree
       time = dynamic_tree_benchmark::get_conn_query_speed<UFOTree<empty_t, empty_t>>(n, update_sequences, query_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Link Cut Tree
       time = dynamic_tree_benchmark::get_conn_query_speed<link_cut_tree::LinkCutTree>(n, update_sequences, query_sequences);
       std::cout << "LinkCutTree   : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Top Tree
       time = dynamic_tree_benchmark::get_conn_query_speed<TopTree<empty_t>>(n, update_sequences, query_sequences);
       std::cout << "SplayTopTree  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Euler Tour Tree (Skip List)
       time = dynamic_tree_benchmark::get_conn_query_speed<skip_list_ett::EulerTourTree>(n, update_sequences, query_sequences);
       std::cout << "SkipListETT   : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Euler Tour Tree (Splay Tree)
       time = dynamic_tree_benchmark::get_conn_query_speed<splay_tree_ett::EulerTourTree>(n, update_sequences, query_sequences);
       std::cout << "SplayTreeETT  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Topology Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_conn_query_speed<TopologyTree<int, empty_t>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_conn_query_speed<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences, query_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // RC Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_conn_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_conn_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
       std::cout << "RCTree        : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
 
       std::cout << std::endl;
-      output_csv << "\n";
     }
 
-    // Path queries benchmark
-    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Topology Tree,RC Tree,\n";
+    // Path query speed benchmark
+    output_csv << "\n";
+    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Topology Tree,RC Tree";
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);
       auto update_generator = std::get<1>(test_case);
@@ -112,33 +112,32 @@ int main(int argc, char** argv) {
       }
       double time;
       std::cout << "[ RUNNING " << test_case_name << " PATH QUERY SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
-      output_csv << test_case_name << "_path" << ",";
+      output_csv << "\n" << test_case_name << "_path";
 
       // UFO Tree
       time = dynamic_tree_benchmark::get_path_query_speed<UFOTree<int, int>>(n, update_sequences, query_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Link Cut Tree
       time = dynamic_tree_benchmark::get_path_query_speed<link_cut_tree::LinkCutTreeInt>(n, update_sequences, query_sequences);
       std::cout << "LinkCutTree   : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       //Top Tree
       time = dynamic_tree_benchmark::get_path_query_speed<TopTree<int>>(n, update_sequences, query_sequences);
       std::cout << "SplayTopTree  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // Topology Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<TopologyTree<int, int>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences, query_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
       // RC Tree
       if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
       std::cout << "RCTree        : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << "," << time;
 
       std::cout << std::endl;
-      output_csv << "\n";
     }
 
     output_csv.close();
