@@ -323,14 +323,7 @@ void NodeInt::evert() {
 }
 
 NodeInt* NodeInt::get_root() {
-  NodeInt* root = expose();
-  // root->push_flip();
-  // while (root->c[0] != nullptr) {
-  //   root = root->c[0];
-  //   root->push_flip();
-  // }
-  // root->splay();
-  return root;
+  return expose();
 }
 
 int NodeInt::path_query(NodeInt* other) {

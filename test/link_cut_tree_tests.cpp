@@ -143,6 +143,64 @@ TEST(LinkCutTreeIntSuite, decremental_random_correctness_test) {
     }
 }
 
+TEST(LinkCutTreeIntSuite, testLinkedListMaxQueries) {
+    std::vector<int> test_vals = {10, 100, 1000};
+    srand(time(NULL));
+    int seed = rand(); 
+    srand(seed);
+    int num_trials = 100;
+    for(int n : test_vals) {
+        for(int trial = 0; trial < num_trials; ++trial) {
+            LinkCutTreeInt tree(n);
+            vertex_t u = rand() % (n-1), v = rand() % n;
+            if(v == u) v++;
+            if(v < u) std::swap(u,v);
+            int max_edge_val = std::numeric_limits<int>::min();
+            for(int i = 0; i < n-1; i++) {
+                int weight = rand() % 100;
+                tree.link(i, i+1, weight);
+                if (i >= u && i < v) max_edge_val = std::max(max_edge_val, weight);
+            }
+            auto returned_query = tree.path_query(u, v);
+            ASSERT_EQ(returned_query, max_edge_val);
+        }
+    }
+}
+
+TEST(LinkCutTreeIntSuite, BinaryTreeMaxQueryTest) {
+    std::vector<int> test_vals = {7, 31, 127, 1023};
+    srand(time(NULL));
+    int seed = rand();
+    seed = 0;
+    srand(seed);
+    int num_trials = 100;
+    for(int n : test_vals) {
+        for(int trial = 0; trial < num_trials; ++trial){
+            LinkCutTreeInt tree(n);
+            std::vector<int> path;
+            for (int i = 0; i < n - 1; i = (2*i) + 2) path.push_back(i);
+            vertex_t upper = rand() % (path.size() - 1), lower = rand() % path.size();
+            if(lower == upper) lower++;
+            if(lower < upper) std::swap(lower, upper);
+            auto u = path[upper], v = path[lower];
+            int j = 0;
+            int max_edge_val = std::numeric_limits<int>::min();
+            for(int i = 0; i < (n/2); i++) { 
+                auto weight1 = rand() % 100;
+                auto weight2 = rand() % 100; 
+                tree.link(i, (2*i) + 1, weight1);
+                tree.link(i, (2*i) + 2, weight2);
+                if (i == path[j]) {
+                    if (i >= u && i < v) max_edge_val = std::max(max_edge_val, weight2);
+                    j++;
+                }
+            }
+            auto returned_query = tree.path_query(u, v);
+            ASSERT_EQ(returned_query, max_edge_val);
+        }
+    }
+}
+
 // =============================== REGULAR LINK CUT TREE TESTS BELOW THIS POINT ========================================
 
 TEST(LinkCutTreeSuite, incremental_linkedlist_correctness_test) {
