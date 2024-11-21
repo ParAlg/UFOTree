@@ -208,7 +208,7 @@ class NodeInt {
   NodeInt* get_leftmost();
   void rot();
   void splay();
-  void expose();
+  NodeInt* expose();
   void fix_c();
   void recompute_max();
   void push_flip();
@@ -290,46 +290,46 @@ void NodeInt::splay() {
   }
 }
 
-// returns 1st vertex encountered that was originally in same path as root
-void NodeInt::expose() {
+// returns the root of the tree
+NodeInt* NodeInt::expose() {
   NodeInt* curr = this;
   NodeInt* head = nullptr;
   while (curr) {
     curr->splay();
-    if (head) {
-      curr->c[1] = head;
-      if (curr->n[1]) {
-        curr->n[1]->push_flip();
-        curr->n[1]->n[0] = nullptr;
-        curr->n[1]->recompute_max();
-      }
-      curr->n[1] = head;
-      head->n[0] = curr;
-      curr->fix_c();
-      head->recompute_max();
-      curr->recompute_max();
+    curr->c[1] = head;
+    if (curr->n[1]) {
+      curr->n[1]->push_flip();
+      curr->n[1]->n[0] = nullptr;
+      curr->n[1]->recompute_max();
     }
+    curr->n[1] = head;
+    if (head) {
+      head->n[0] = curr;
+      head->recompute_max();
+    }
+    curr->fix_c();
+    curr->recompute_max();
     head = curr->get_leftmost();
     head->splay();
     curr = head->par;
   }
+  return head;
 }
 
 void NodeInt::evert() {
-  expose();
-  flip ^= 1;
-  push_flip();
+  NodeInt* head = expose();
+  head->flip ^= 1;
+  head->push_flip();
 }
 
 NodeInt* NodeInt::get_root() {
-  expose();
-  NodeInt* root = this;
-  push_flip();
-  while (root->c[0] != nullptr) {
-    root = root->c[0];
-    root->push_flip();
-  }
-  root->splay();
+  NodeInt* root = expose();
+  // root->push_flip();
+  // while (root->c[0] != nullptr) {
+  //   root = root->c[0];
+  //   root->push_flip();
+  // }
+  // root->splay();
   return root;
 }
 
@@ -340,10 +340,14 @@ int NodeInt::path_query(NodeInt* other) {
 }
 
 void NodeInt::cut(NodeInt* neighbor) {
+  neighbor->evert();
   evert();
-  expose();
-  neighbor->splay();
-  neighbor->par = nullptr;
+  neighbor->push_flip();
+  push_flip();
+  neighbor->c[0] = nullptr;
+  neighbor->n[0] = nullptr;
+  par = nullptr;
+  n[1] = nullptr;
   this->edges.erase(neighbor);
   neighbor->edges.erase(this);
 }
@@ -352,6 +356,7 @@ void NodeInt::link(NodeInt* child, int weight) {
   this->edges.insert({child, weight});
   child->edges.insert({this, weight});
   child->evert();
+  child->splay();
   expose();
   child->par = this;
 }
@@ -373,7 +378,8 @@ void LinkCutTreeInt::cut(vertex_t u, vertex_t v) {
 }
 
 bool LinkCutTreeInt::connected(vertex_t u, vertex_t v) {
-  return verts[u].get_root() == verts[v].get_root();
+  bool conn = verts[u].get_root() == verts[v].get_root();
+  return conn;
 }
 
 int LinkCutTreeInt::path_query(vertex_t u, vertex_t v) {

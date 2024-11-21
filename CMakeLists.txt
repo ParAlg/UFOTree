@@ -46,11 +46,13 @@ FetchContent_MakeAvailable(abseil-cpp)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
+  test/link_cut_tree_tests.cpp
   test/top_tree_tests.cpp
   test/rc_tree_tests.cpp
   test/topology_tree_tests.cpp
   test/ufo_tree_tests.cpp
   test/ternarization_tests.cpp
+  baselines/dynamic_trees/link_cut_tree/src/link_cut_tree.cpp
 )
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
 target_include_directories(dynamic_tree_tests PRIVATE include util baselines)
