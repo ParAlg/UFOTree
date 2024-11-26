@@ -147,7 +147,7 @@ TEST(LinkCutTreeIntSuite, decremental_random_correctness_test) {
 TEST(LinkCutTreeIntSuite, testLinkedListMaxQueries) {
     std::vector<int> test_vals = {10, 100, 1000};
     srand(time(NULL));
-    int seed = rand(); 
+    int seed = rand();
     srand(seed);
     int num_trials = 100;
     for(int n : test_vals) {
@@ -162,7 +162,7 @@ TEST(LinkCutTreeIntSuite, testLinkedListMaxQueries) {
                 tree.link(i, i+1, weight);
                 if (i >= u && i < v) max_edge_val = std::max(max_edge_val, weight);
             }
-            auto returned_query = tree.path_query(u, v);
+            auto returned_query = tree.path_query(u,v).first;
             ASSERT_EQ(returned_query, max_edge_val);
         }
     }
@@ -196,7 +196,7 @@ TEST(LinkCutTreeIntSuite, BinaryTreeMaxQueryTest) {
                     j++;
                 }
             }
-            auto returned_query = tree.path_query(u, v);
+            auto returned_query = tree.path_query(u,v).first;
             ASSERT_EQ(returned_query, max_edge_val);
         }
     }
@@ -232,7 +232,7 @@ TEST(LinkCutTreeIntSuite, PathQuerySanityCheckTest) {
         for (int query = 0; query < num_queries; query++) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
-            if (u != v) ASSERT_EQ(ufo.path_query(u,v), lct.path_query(u,v)) << u << " " << v;
+            if (u != v) ASSERT_EQ(ufo.path_query(u,v), lct.path_query(u,v).first) << u << " " << v;
         }
         for (int i = 0; i < n/10; i++) {
             auto e = edges[i];
@@ -243,7 +243,7 @@ TEST(LinkCutTreeIntSuite, PathQuerySanityCheckTest) {
             vertex_t u = rand() % n;
             vertex_t v = rand() % n;
             if (u != v && ufo.connected(u,v))
-                ASSERT_EQ(ufo.path_query(u,v), lct.path_query(u,v)) << u << " " << v;
+                ASSERT_EQ(ufo.path_query(u,v), lct.path_query(u,v).first) << u << " " << v;
         }
     }
 }

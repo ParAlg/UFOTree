@@ -194,7 +194,7 @@ class NodeInt {
   void cut(NodeInt* neighbor);
   void evert(); // reroot
   NodeInt* get_root();
-  int path_query(NodeInt* other);
+  std::pair<int,std::pair<NodeInt*,NodeInt*>> path_query(NodeInt* other);
 
  private:
   NodeInt* par; // parent
@@ -206,6 +206,9 @@ class NodeInt {
 
   NodeInt* get_real_par();
   NodeInt* get_leftmost();
+  NodeInt* get_predecessor();
+  NodeInt* get_successor();
+  std::pair<NodeInt*,NodeInt*> get_edge_with_weight(int weight);
   void rot();
   void splay();
   NodeInt* expose();
@@ -221,7 +224,7 @@ NodeInt* NodeInt::get_real_par() {
   return par != nullptr && this != par->c[0] && this != par->c[1] ? nullptr : par;
 }
 
-NodeInt* NodeInt::get_leftmost() { // only called when this is root of splay tree
+NodeInt* NodeInt::get_leftmost() {
   NodeInt* left = this;
   push_flip();
   while (left->c[0] != nullptr) {
@@ -231,6 +234,44 @@ NodeInt* NodeInt::get_leftmost() { // only called when this is root of splay tre
   left->splay();
   return left;
 }
+
+NodeInt* NodeInt::get_predecessor() {
+  push_flip();
+  NodeInt* curr = c[0];
+  curr->push_flip();
+  while (curr->c[1] != nullptr) {
+    curr = curr->c[1];
+    curr->push_flip();
+  }
+  curr->splay();
+  return curr;
+}
+
+NodeInt* NodeInt::get_successor() {
+  push_flip();
+  NodeInt* curr = c[1];
+  curr->push_flip();
+  while (curr->c[0] != nullptr) {
+    curr = curr->c[0];
+    curr->push_flip();
+  }
+  curr->splay();
+  return curr;
+}
+
+std::pair<NodeInt*,NodeInt*> NodeInt::get_edge_with_weight(int weight) {
+  NodeInt* node = this;
+  while (node->w[0] != weight && node->w[1] != weight) {
+    for (int i = 0; i < 2; i++)
+      if (node->c[i] != nullptr && node->c[i]->max == weight)
+        node = node->c[i];
+  }
+  node->splay();
+  if (node->w[0] == weight)
+    return {node, node->get_predecessor()};
+  return {node, node->get_successor()};
+}
+
 
 void NodeInt::fix_c() {
   for (int i = 0; i < 2; i++)
@@ -325,10 +366,13 @@ NodeInt* NodeInt::get_root() {
   return expose();
 }
 
-int NodeInt::path_query(NodeInt* other) {
+std::pair<int,std::pair<NodeInt*,NodeInt*>> NodeInt::path_query(NodeInt* other) {
   evert();
   other->expose();
-  return max;
+  std::pair<int,std::pair<NodeInt*,NodeInt*>> max_edge;
+  max_edge.first = max;
+  max_edge.second = get_edge_with_weight(max);
+  return max_edge;
 }
 
 void NodeInt::cut(NodeInt* neighbor) {
@@ -373,8 +417,13 @@ bool LinkCutTreeInt::connected(vertex_t u, vertex_t v) {
   return conn;
 }
 
-int LinkCutTreeInt::path_query(vertex_t u, vertex_t v) {
-  return verts[u].path_query(&verts[v]);
+std::pair<int,Edge> LinkCutTreeInt::path_query(vertex_t u, vertex_t v) {
+  auto pointer_edge = verts[u].path_query(&verts[v]);
+  std::pair<int,Edge> edge;
+  edge.first = pointer_edge.first;
+  edge.second.src = pointer_edge.second.first-verts;
+  edge.second.dst = pointer_edge.second.second-verts;
+  return edge;
 }
 
 } // namespace link_cut_tree

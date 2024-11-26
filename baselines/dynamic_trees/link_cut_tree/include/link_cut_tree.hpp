@@ -38,9 +38,10 @@ class LinkCutTreeInt {
   ~LinkCutTreeInt();
   
   void link(vertex_t u, vertex_t v, int weight = 0);
+  void link(vertex_t u, vertex_t v, std::pair<int,Edge> weight) { link(u,v, weight.first); }
   void cut(vertex_t u, vertex_t v);
   bool connected(vertex_t u, vertex_t v);
-  int path_query(vertex_t u, vertex_t v);
+  std::pair<int,Edge> path_query(vertex_t u, vertex_t v);
 
  private:
   NodeInt* verts;
