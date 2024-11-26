@@ -17,9 +17,9 @@ int main(int argc, char** argv) {
     std::tuple<std::string, int> test_cases[] = {
         {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
         {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/s0c-enwiki_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/stack-overflow_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/usa-roads_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/enwiki_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 1},
         {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
         {"/ssd1/quinten/graphdata/twitter_sym.bin", 1},
     };

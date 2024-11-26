@@ -199,10 +199,10 @@ class NodeInt {
  private:
   NodeInt* par; // parent
   NodeInt* c[2]; // children
-  NodeInt* n[2]; // store the nodes directly left and right in the splay tree by key
+  int w[2]; // store the weights of the up and down preferred edges
   int max; // maintain the maximum edge weight in the splay tree subtree rooted at this
+  bool head; // whether the node is a head of a path, so don't use value w[0]
   bool flip; // whether children are reversed; used for evert()
-  absl::flat_hash_map<NodeInt*, int> edges; // store the weights of edges to all neighbors
 
   NodeInt* get_real_par();
   NodeInt* get_leftmost();
@@ -214,8 +214,8 @@ class NodeInt {
   void push_flip();
 };
 
-NodeInt::NodeInt() : par(nullptr), c{nullptr, nullptr}, n{nullptr, nullptr},
-    max(MIN_INT), flip(0), edges() {}
+NodeInt::NodeInt() : par(nullptr), c{nullptr, nullptr}, w{INT_MIN, INT_MIN},
+    max(INT_MIN), head(1), flip(0) {}
 
 NodeInt* NodeInt::get_real_par() {
   return par != nullptr && this != par->c[0] && this != par->c[1] ? nullptr : par;
@@ -228,6 +228,7 @@ NodeInt* NodeInt::get_leftmost() { // only called when this is root of splay tre
     left = left->c[0];
     left->push_flip();
   }
+  left->splay();
   return left;
 }
 
@@ -238,9 +239,7 @@ void NodeInt::fix_c() {
 }
 
 void NodeInt::recompute_max() {
-  max = MIN_INT;
-  if (n[0] != nullptr) max = std::max(max, edges[n[0]]);
-  if (n[1] != nullptr) max = std::max(max, edges[n[1]]);
+  max = head ? w[1]: std::max(w[0], w[1]);
   for (int i = 0; i < 2; i++)
     if (c[i] != nullptr)
       max = std::max(max, c[i]->max);
@@ -250,7 +249,7 @@ void NodeInt::push_flip() {
   if (flip) {
     flip = 0;
     std::swap(c[0], c[1]);
-    std::swap(n[0], n[1]);
+    std::swap(w[0], w[1]);
     for (int i = 0; i < 2; i++)
       if (c[i] != nullptr)
         c[i]->flip ^= 1;
@@ -293,27 +292,27 @@ void NodeInt::splay() {
 // returns the root of the tree
 NodeInt* NodeInt::expose() {
   NodeInt* curr = this;
-  NodeInt* head = nullptr;
+  NodeInt* prev = nullptr;
   while (curr) {
     curr->splay();
-    curr->c[1] = head;
-    if (curr->n[1]) {
-      curr->n[1]->push_flip();
-      curr->n[1]->n[0] = nullptr;
-      curr->n[1]->recompute_max();
+    NodeInt* lower = curr->c[1];
+    curr->c[1] = prev;
+    curr->w[1] = INT_MIN;
+    if (prev) {
+      curr->w[1] = prev->w[0];
+      prev->head = false;
+      prev->recompute_max();
     }
-    curr->n[1] = head;
-    if (head) {
-      head->n[0] = curr;
-      head->recompute_max();
-    }
-    curr->fix_c();
     curr->recompute_max();
-    head = curr->get_leftmost();
-    head->splay();
-    curr = head->par;
+    if (lower) {
+      NodeInt* left = lower->get_leftmost();
+      left->head = true;
+      left->recompute_max();
+    }
+    prev = curr->get_leftmost();
+    curr = prev->par;
   }
-  return head;
+  return prev;
 }
 
 void NodeInt::evert() {
@@ -338,20 +337,19 @@ void NodeInt::cut(NodeInt* neighbor) {
   neighbor->push_flip();
   push_flip();
   neighbor->c[0] = nullptr;
-  neighbor->n[0] = nullptr;
+  neighbor->w[0] = INT_MIN;
+  neighbor->recompute_max();
   par = nullptr;
-  n[1] = nullptr;
-  this->edges.erase(neighbor);
-  neighbor->edges.erase(this);
+  w[1] = INT_MIN;
+  recompute_max();
 }
 
 void NodeInt::link(NodeInt* child, int weight) {
-  this->edges.insert({child, weight});
-  child->edges.insert({this, weight});
   child->evert();
   child->splay();
-  expose();
   child->par = this;
+  child->w[0] = weight;
+  child->head = true;
 }
 
 LinkCutTreeInt::LinkCutTreeInt(int _num_verts) : num_verts(_num_verts) {

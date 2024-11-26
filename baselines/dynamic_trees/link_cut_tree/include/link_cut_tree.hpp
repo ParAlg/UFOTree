@@ -2,8 +2,6 @@
 #include <algorithm>
 #include "types.h"
 
-#define MIN_INT (std::numeric_limits<int>::min())
-
 
 namespace link_cut_tree {
 

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <unordered_set>
 #include "../baselines/dynamic_trees/link_cut_tree/include/link_cut_tree.hpp"
+#include "ufo_tree.h"
 
 
 using namespace link_cut_tree;
@@ -197,6 +198,52 @@ TEST(LinkCutTreeIntSuite, BinaryTreeMaxQueryTest) {
             }
             auto returned_query = tree.path_query(u, v);
             ASSERT_EQ(returned_query, max_edge_val);
+        }
+    }
+}
+
+TEST(LinkCutTreeIntSuite, PathQuerySanityCheckTest) {
+    int num_trials = 1;
+    int num_queries = 1000;
+    int seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+    for (int trial = 0; trial < num_trials; trial++) {
+        vertex_t n = 256;
+        QueryType q = PATH;
+        auto f = [](int x, int y){return std::max(x,y);};
+        int im = INT_MIN;
+        UFOTree<int, int> ufo(n, q, f, f, im, im, im, im);
+        LinkCutTreeInt lct(n);
+
+        auto seed = seeds[trial];
+        srand(seed);
+        std::vector<Edge> edges;
+        while (edges.size() < n-1) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v && !ufo.connected(u,v)) {
+                int weight = rand() % 1000;
+                ufo.link(u,v,weight);
+                lct.link(u,v,weight);
+                edges.push_back({u,v});
+            }
+        }
+        for (int query = 0; query < num_queries; query++) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v) ASSERT_EQ(ufo.path_query(u,v), lct.path_query(u,v)) << u << " " << v;
+        }
+        for (int i = 0; i < n/10; i++) {
+            auto e = edges[i];
+            ufo.cut(e.src, e.dst);
+            lct.cut(e.src, e.dst);
+        }
+        for (int query = 0; query < num_queries; query++) {
+            vertex_t u = rand() % n;
+            vertex_t v = rand() % n;
+            if (u != v && ufo.connected(u,v))
+                ASSERT_EQ(ufo.path_query(u,v), lct.path_query(u,v)) << u << " " << v;
         }
     }
 }

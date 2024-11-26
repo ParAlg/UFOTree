@@ -701,7 +701,7 @@ bool UFOTree<v_t, e_t>::connected(vertex_t u, vertex_t v) {
 
 template<typename v_t, typename e_t>
 e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
-  assert(u < leaves.size()-1 && v > 0 && u < v && connected(u, v)); 
+    assert(u < leaves.size() && u >= 0 && v < leaves.size() && v >= 0 && u != v && connected(u, v)); 
 
     e_t path_u1, path_u2, path_v1, path_v2;
     path_u1 = path_u2 = path_v1 = path_v2 = identity_e;
@@ -717,13 +717,14 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
     }
     auto curr_u = &leaves[u];
     auto curr_v = &leaves[v];
-    while (curr_u->parent != curr_v->parent) { 
+    while (curr_u->parent != curr_v->parent) {
         // NOTE(ATHARVA): Make this all into one function.
         if (curr_u->get_degree() > 2) {
             if (curr_u->parent->get_degree() == 2) {
-                // Superunary to Superunary/Binary
+                // Superunary to Binary
                 bdry_u1 = curr_u->parent->neighbors[0];
                 bdry_u2 = curr_u->parent->neighbors[1];
+                path_u2 = path_u1;
             }
         } else {
             for (int i = 0; i < 2; i++) {
@@ -763,10 +764,10 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                     break;
                 }
             }
-        }
-        if (!curr_u->contracts()) {
-            if (bdry_u1) bdry_u1 = bdry_u1->parent;
-            if (bdry_u2) bdry_u2 = bdry_u2->parent;
+            if (!curr_u->contracts()) {
+                if (bdry_u1) bdry_u1 = bdry_u1->parent;
+                if (bdry_u2) bdry_u2 = bdry_u2->parent;
+            }
         }
         curr_u = curr_u->parent;
         // Same thing for the side of curr_v
@@ -775,6 +776,7 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                 // Superunary to Superunary/Binary
                 bdry_v1 = curr_v->parent->neighbors[0];
                 bdry_v2 = curr_v->parent->neighbors[1];
+                path_v2 = path_v1;
             }
         } else {
             for (int i = 0; i < 2; i++) {
@@ -814,10 +816,10 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
                     break;
                 }
             }
-        }
-        if (!curr_v->contracts()) {
-            if (bdry_v1) bdry_v1 = bdry_v1->parent;
-            if (bdry_v2) bdry_v2 = bdry_v2->parent;
+            if (!curr_v->contracts()) {
+                if (bdry_v1) bdry_v1 = bdry_v1->parent;
+                if (bdry_v2) bdry_v2 = bdry_v2->parent;
+            }
         }
         curr_v = curr_v->parent;
     }
@@ -831,15 +833,23 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
         total = f_e(total, (curr_u == bdry_v1) ? path_v1 : path_v2);
     else
         total = f_e(total, path_v1);
+    // If the LCA contracts them in a star merge, take both edges to the center
+    if (curr_u->get_degree() == 1 && curr_v->get_degree() == 1
+    && curr_u->neighbors[0] != curr_v) [[unlikely]] {
+        total = f_e(total, curr_u->get_edge_value(0));
+        total = f_e(total, curr_v->get_edge_value(0));
+    }
     // Add the value of the last edge (since they contract one must be deg <= 2)
-    for (int i = 0; i < 2; i++) {
-        if (curr_u->neighbors[i] == curr_v) {
-            total = f_e(total, curr_u->get_edge_value(i));
-            break;
-        }
-        if (curr_v->neighbors[i] == curr_u) {
-            total = f_e(total, curr_v->get_edge_value(i));
-            break;
+    else [[likely]] {
+        for (int i = 0; i < 2; i++) {
+            if (curr_u->neighbors[i] == curr_v) {
+                total = f_e(total, curr_u->get_edge_value(i));
+                break;
+            }
+            if (curr_v->neighbors[i] == curr_u) {
+                total = f_e(total, curr_v->get_edge_value(i));
+                break;
+            }
         }
     }
     return total;
