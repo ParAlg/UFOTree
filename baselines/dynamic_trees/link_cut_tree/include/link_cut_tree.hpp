@@ -35,6 +35,9 @@ class NodeInt;
 class LinkCutTreeInt {
  public:
   LinkCutTreeInt(int _num_verts);
+  LinkCutTreeInt(vertex_t n, QueryType q,
+    std::function<std::pair<int, Edge>(std::pair<int, Edge>, std::pair<int, Edge>)> f,
+    std::pair<int, Edge> id_v, std::pair<int, Edge> id_e) : LinkCutTreeInt(n) {}
   ~LinkCutTreeInt();
   
   void link(vertex_t u, vertex_t v, int weight = 0);

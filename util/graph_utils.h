@@ -29,7 +29,7 @@ struct graph_utils {
     }));
   }
 
-  static parlay::sequence<std::pair<int, edge>> gen_random_weight_edges(edges& e, long seed = -1){
+  static parlay::sequence<std::pair<int, edge>> generate_random_weight_edges(edges& e, long seed = -1){
     srand(seed);
     parlay::sequence<std::pair<int, edge>> v = parlay::map(e, [] (edge e1) {return std::pair(rand(), e1);});
     return v;
