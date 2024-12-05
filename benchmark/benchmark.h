@@ -246,6 +246,25 @@ std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
+std::vector<Update> dense_tree_update_generator(std::vector<Update> updates) {
+    std::vector<Update> new_updates;
+    std::vector<Edge> edges;
+    bool first_deletion = true;
+    for (auto update : updates) {
+        if (update.type == INSERT) edges.push_back(update.edge);
+        if (update.type == DELETE && first_deletion) {
+            first_deletion = false;
+            for (int i = 0; i < updates.size()*2; ++i) {
+                Edge edge = edges[rand() % edges.size()];
+                new_updates.push_back({DELETE, edge});
+                new_updates.push_back({INSERT, edge});
+            }
+        }
+        new_updates.push_back(update);
+    }
+    return new_updates;
+}
+
 std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {
     std::vector<Query> queries;
     srand(time(NULL));
