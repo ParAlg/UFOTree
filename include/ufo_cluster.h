@@ -33,9 +33,11 @@ public:
     or higher and the last neighbor pointer is actually a pointer to the NeighborsSet object containing
     the remaining neighbors of the cluster. */
     Cluster* neighbors[UFO_ARRAY_MAX];
+    int degree = 0;
+    int fanout = 0;
     // Constructors
-    UFOCluster() : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value() {};
-    UFOCluster(v_t val) : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
+    UFOCluster() : parent(), neighbors(), degree(), fanout(), edge_value1(), edge_value2(), edge_value3(), value() {};
+    UFOCluster(v_t val) : parent(), neighbors(), degree(), fanout(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
     // Helper functions
     Cluster* get_root();
     bool contracts();
@@ -112,6 +114,7 @@ bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
 template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
     assert(!contains_neighbor(c));
+    // degree++;
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
         if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
             int deg = GET_TAG(neighbors[UFO_ARRAY_MAX-1]);
@@ -136,6 +139,7 @@ template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
     if constexpr (!std::is_same<e_t, empty_t>::value) {
         assert(!contains_neighbor(c));
+        // degree++;
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
                 int deg = GET_TAG(neighbors[UFO_ARRAY_MAX-1]);
@@ -157,6 +161,7 @@ void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
 template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
     assert(contains_neighbor(c));
+    // degree--;
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
         if (UNTAG(neighbors[i]) == c) {
             neighbors[i] = TAG(nullptr, GET_TAG(neighbors[i]));
