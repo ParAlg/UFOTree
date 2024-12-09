@@ -28,9 +28,9 @@ int main(int argc, char** argv) {
     {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
     {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
     {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
-    {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 5},
-    {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 5},
-    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 5}
+    {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
+    {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
+    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1}
   };
 
   for (vertex_t n : n_list) {
@@ -53,6 +53,14 @@ int main(int argc, char** argv) {
       std::cout << "[ RUNNING " << test_case_name << " PEAK SPACE BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
+      // UFO Tree
+      space = dynamic_tree_benchmark::get_peak_space<UFOTree<int, empty_t>>(n, update_sequences);
+      std::cout << "UFOTree       : " << space << std::endl;
+      output_csv << space << ",";
+      // Euler Tour Tree
+      space = dynamic_tree_benchmark::get_peak_space<EulerTourTree>(n, update_sequences);
+      std::cout << "EulerTourTree : " << space << std::endl;
+      output_csv << space << ",";
       // RC Tree
       if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<RCTree<int>>(n, update_sequences);
       else space = dynamic_tree_benchmark::get_peak_space<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
@@ -62,14 +70,6 @@ int main(int argc, char** argv) {
       if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<TopologyTree<int, empty_t>>(n, update_sequences);
       else space = dynamic_tree_benchmark::get_peak_space<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences);
       std::cout << "TopologyTree  : " << space << std::endl;
-      output_csv << space << ",";
-      // UFO Tree
-      space = dynamic_tree_benchmark::get_peak_space<UFOTree<int, empty_t>>(n, update_sequences);
-      std::cout << "UFOTree       : " << space << std::endl;
-      output_csv << space << ",";
-      // Euler Tour Tree
-      space = dynamic_tree_benchmark::get_peak_space<EulerTourTree>(n, update_sequences);
-      std::cout << "EulerTourTree : " << space << std::endl;
       output_csv << space << ",";
 
       std::cout << std::endl;

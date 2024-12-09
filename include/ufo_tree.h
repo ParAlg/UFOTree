@@ -122,7 +122,7 @@ UFOTree<v_t, e_t>::~UFOTree() {
 }
 
 template<typename v_t, typename e_t>
-inline UFOCluster<v_t, e_t>* UFOTree<v_t, e_t>::allocate_cluster() {
+UFOCluster<v_t, e_t>* UFOTree<v_t, e_t>::allocate_cluster() {
     if (!free_clusters.empty()) {
         auto c = free_clusters.back();
         free_clusters.pop_back();
@@ -132,7 +132,7 @@ inline UFOCluster<v_t, e_t>* UFOTree<v_t, e_t>::allocate_cluster() {
 }
 
 template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
+void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
     c->parent = nullptr;
     if (c->has_neighbor_set()) [[unlikely]] delete c->get_neighbor_set();
     for (int i = 0; i < UFO_ARRAY_MAX; ++i)
@@ -144,10 +144,10 @@ template<typename v_t, typename e_t>
 size_t UFOTree<v_t, e_t>::space() {
     std::unordered_set<Cluster*> visited;
     size_t memory = sizeof(UFOTree<v_t, e_t>);
-    for(auto cluster : leaves){
+    for (auto cluster : leaves) {
         memory += cluster.calculate_size();
         auto parent = cluster.parent;
-        while(parent != nullptr && visited.count(parent) == 0){
+        while (parent != nullptr && visited.count(parent) == 0) {
             memory += parent->calculate_size();
             visited.insert(parent);
             parent = parent->parent;
@@ -236,7 +236,7 @@ void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
 /* Removes the ancestors of cluster c that are not high degree nor
 high fan-out and add them to root_clusters. */
 template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
+void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
     int level = start_level; // level is always the level of cluster prev, 0 being the leaves
     auto prev = c;
     auto curr = c->parent;
@@ -295,7 +295,7 @@ inline void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
 }
 
 template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::recluster_tree() {
+void UFOTree<v_t, e_t>::recluster_tree() {
     for (int level = 0; level <= max_level; level++) {
         if (root_clusters[level].empty()) [[unlikely]] continue;
         // Update root cluster stats if we are collecting them
@@ -446,7 +446,7 @@ inline void UFOTree<v_t, e_t>::recluster_tree() {
 }
 
 template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
+void UFOTree<v_t, e_t>::populate_neighbors(int level) {
     for (auto contraction : contractions) {
         auto c1 = contraction.first;
         auto c2 = contraction.second;
@@ -573,7 +573,7 @@ inline void UFOTree<v_t, e_t>::populate_neighbors(int level) {
 }
 
 template<typename v_t, typename e_t>
-inline bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level) {
+bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level) {
     int cluster_degree;
     if (level+1 < lower_deg[0].size() && lower_deg[0][level+1].first == cluster) [[unlikely]] cluster_degree = lower_deg[0][level+1].second;
     else if (level+1 < lower_deg[1].size() && lower_deg[1][level+1].first == cluster) [[unlikely]] cluster_degree = lower_deg[1][level+1].second;
@@ -583,54 +583,18 @@ inline bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, C
     if (level < lower_deg[0].size() && lower_deg[0][level].first == child) [[unlikely]] child_degree = lower_deg[0][level].second;
     else if (level < lower_deg[1].size() && lower_deg[1][level].first == child) [[unlikely]] child_degree = lower_deg[1][level].second;
     else [[likely]] child_degree = child->get_degree();
-    if (child->get_degree() == 1) {
+    if (child_degree == 1) {
         auto neighbor = child->neighbors[0];
-        if (neighbor->parent == cluster && neighbor->get_degree() - cluster->get_degree() > 2) [[unlikely]] return true;
+        if (neighbor->parent == cluster && neighbor->get_degree() - cluster_degree > 2) [[unlikely]] return true;
     } else if (child_degree - cluster_degree > 2) [[unlikely]] return true;
     return false;
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
-    auto curr_u = u;
-    auto curr_v = v;
-    while (curr_u && curr_v && curr_u != curr_v) {
-        curr_u->insert_neighbor(curr_v);
-        curr_v->insert_neighbor(curr_u);
-        curr_u = curr_u->parent;
-        curr_v = curr_v->parent;
-    }
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
-    auto curr_u = u;
-    auto curr_v = v;
-    while (curr_u && curr_v && curr_u != curr_v) {
-        curr_u->insert_neighbor_with_value(curr_v, value);
-        curr_v->insert_neighbor_with_value(curr_u, value);
-        curr_u = curr_u->parent;
-        curr_v = curr_v->parent;
-    }
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::remove_adjacency(Cluster* u, Cluster* v) {
-    auto curr_u = u;
-    auto curr_v = v;
-    while (curr_u && curr_v && curr_u != curr_v) {
-        curr_u->remove_neighbor(curr_v);
-        curr_v->remove_neighbor(curr_u);
-        curr_u = curr_u->parent;
-        curr_v = curr_v->parent;
-    }
 }
 
 /* Helper function which takes a cluster c and the level of that cluster. The function
 should find every cluster that shares a parent with c, disconnect it from their parent
 and add it as a root cluster to be processed. */
 template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
+void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
     if (c->get_degree() == 1) {
         auto center = c->neighbors[0];
         if (c->parent != center->parent) return;
@@ -689,6 +653,42 @@ inline void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
                 }
             }
         }
+    }
+}
+
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
+    auto curr_u = u;
+    auto curr_v = v;
+    while (curr_u && curr_v && curr_u != curr_v) {
+        curr_u->insert_neighbor(curr_v);
+        curr_v->insert_neighbor(curr_u);
+        curr_u = curr_u->parent;
+        curr_v = curr_v->parent;
+    }
+}
+
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
+    auto curr_u = u;
+    auto curr_v = v;
+    while (curr_u && curr_v && curr_u != curr_v) {
+        curr_u->insert_neighbor_with_value(curr_v, value);
+        curr_v->insert_neighbor_with_value(curr_u, value);
+        curr_u = curr_u->parent;
+        curr_v = curr_v->parent;
+    }
+}
+
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::remove_adjacency(Cluster* u, Cluster* v) {
+    auto curr_u = u;
+    auto curr_v = v;
+    while (curr_u && curr_v && curr_u != curr_v) {
+        curr_u->remove_neighbor(curr_v);
+        curr_v->remove_neighbor(curr_u);
+        curr_u = curr_u->parent;
+        curr_v = curr_v->parent;
     }
 }
 

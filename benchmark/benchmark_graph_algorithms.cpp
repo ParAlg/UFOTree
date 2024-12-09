@@ -13,17 +13,17 @@
 using namespace link_cut_tree;
 using namespace skip_list_ett;
 
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
 
   srand(time(NULL));
   std::tuple<std::string, int> test_cases[] = {
-    // {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
     {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
     {"/ssd1/quinten/graphdata/enwiki_sym.bin", 1},
-    // {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 1},
-    // {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 1},
-    // {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
-    // {"/ssd1/quinten/graphdata/twitter_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/twitter_sym.bin", 1},
   };
 
   std::string filename = "../results/update_speed_graph.csv";
@@ -50,13 +50,13 @@ int main(int argc, char** argv){
     output_csv << graph_name << "_mis" << ",";
 
     // RC Tree
-    // time = graph_benchmark::incremental_MSF_benchmark<TernarizedTree<RCTree<std::pair<int,Edge>>, std::pair<int,Edge>>>(updates, n);
-    // std::cout << "RCTree        : " << time << std::endl;
-    // output_csv << time << ",";
+    time = graph_benchmark::incremental_MSF_benchmark<TernarizedTree<RCTree<std::pair<int,Edge>>, std::pair<int,Edge>>>(updates, n);
+    std::cout << "RCTree        : " << time << std::endl;
+    output_csv << time << ",";
     // Topology Tree
-    // time = graph_benchmark::incremental_MSF_benchmark<TernarizedTree<TopologyTree<std::pair<int,Edge>, std::pair<int,Edge>>, std::pair<int,Edge>>>(updates, n);
-    // std::cout << "TopologyTree  : " << time << std::endl;
-    // output_csv << time << ",";
+    time = graph_benchmark::incremental_MSF_benchmark<TernarizedTree<TopologyTree<std::pair<int,Edge>, std::pair<int,Edge>>, std::pair<int,Edge>>>(updates, n);
+    std::cout << "TopologyTree  : " << time << std::endl;
+    output_csv << time << ",";
     // UFO Tree
     time = graph_benchmark::incremental_MSF_benchmark<UFOTree<std::pair<int,Edge>, std::pair<int,Edge>>>(updates, n);
     std::cout << "UFOTree       : " << time << std::endl;
