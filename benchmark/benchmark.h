@@ -174,6 +174,25 @@ std::vector<Update> star_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
+std::vector<Update> dandelion_benchmark(vertex_t n, long seed) {
+    std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(seed);
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
+
+    for (vertex_t i = 0; i < n/2; i++)
+        edges.push_back({ids[i],ids[i+1]});
+    for (vertex_t i = n/2+2; i < n; i++)
+        edges.push_back({ids[0],ids[i]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
+
+    return updates;
+}
+
 std::vector<Update> random_degree3_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;

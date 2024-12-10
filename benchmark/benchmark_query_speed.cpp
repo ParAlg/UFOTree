@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
     {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
     {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
     {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
+    {"Dandelion", dynamic_tree_benchmark::dandelion_benchmark, true, 1},
     {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
     {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
     {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1},
