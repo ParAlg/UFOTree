@@ -158,7 +158,7 @@ TEST(UFOTreeSuite, incremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, incremental_random_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 100;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
@@ -232,7 +232,7 @@ TEST(UFOTreeSuite, decremental_star_correctness_test) {
 }
 
 TEST(UFOTreeSuite, decremental_random_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 100;
     int seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
