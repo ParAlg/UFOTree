@@ -35,9 +35,10 @@ public:
     Cluster* neighbors[UFO_ARRAY_MAX];
     int degree = 0;
     int fanout = 0;
+    bool mark = false;
     // Constructors
-    UFOCluster() : parent(), neighbors(), degree(), fanout(), edge_value1(), edge_value2(), edge_value3(), value() {};
-    UFOCluster(v_t val) : parent(), neighbors(), degree(), fanout(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
+    UFOCluster() : neighbors() {};
+    UFOCluster(v_t val) : neighbors(), value(val) {};
     // Helper functions
     Cluster* get_root();
     bool contracts();

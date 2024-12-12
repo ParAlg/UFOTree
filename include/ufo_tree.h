@@ -134,54 +134,8 @@ void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
         c->neighbors[i] = nullptr;
     c->degree = 0;
     c->fanout = 0;
+    c->mark = false;
     free_clusters.push_back(c);
-}
-
-template<typename v_t, typename e_t>
-size_t UFOTree<v_t, e_t>::space() {
-    std::unordered_set<Cluster*> visited;
-    size_t memory = sizeof(UFOTree<v_t, e_t>);
-    for (auto cluster : leaves) {
-        memory += cluster.calculate_size();
-        auto parent = cluster.parent;
-        while (parent != nullptr && visited.count(parent) == 0) {
-            memory += parent->calculate_size();
-            visited.insert(parent);
-            parent = parent->parent;
-        }
-    }
-    return memory;
-}
-
-template<typename v_t, typename e_t>
-size_t UFOTree<v_t, e_t>::count_nodes() {
-    std::unordered_set<Cluster*> visited;
-    size_t node_count = 0;
-    for(auto cluster : leaves){
-        node_count += 1;
-        auto parent = cluster.parent;
-        while(parent != nullptr && visited.count(parent) == 0){
-            node_count += 1;
-            visited.insert(parent);
-            parent = parent->parent;
-        }
-    }
-    return node_count;
-}
-
-template<typename v_t, typename e_t>
-size_t UFOTree<v_t, e_t>::get_height() {
-    size_t max_height = 0;
-    for (vertex_t v = 0; v < leaves.size(); ++v) {
-        size_t height = 0;
-        Cluster* curr = &leaves[v];
-        while (curr) {
-            height++;
-            curr = curr->parent;
-        }
-        max_height = std::max(max_height, height);
-    }
-    return max_height;
 }
 
 /* Link vertex u and vertex v in the tree. Optionally include an
@@ -799,4 +753,51 @@ e_t UFOTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
         }
     }
     return total;
+}
+
+template<typename v_t, typename e_t>
+size_t UFOTree<v_t, e_t>::space() {
+    std::unordered_set<Cluster*> visited;
+    size_t memory = sizeof(UFOTree<v_t, e_t>);
+    for (auto cluster : leaves) {
+        memory += cluster.calculate_size();
+        auto parent = cluster.parent;
+        while (parent != nullptr && visited.count(parent) == 0) {
+            memory += parent->calculate_size();
+            visited.insert(parent);
+            parent = parent->parent;
+        }
+    }
+    return memory;
+}
+
+template<typename v_t, typename e_t>
+size_t UFOTree<v_t, e_t>::count_nodes() {
+    std::unordered_set<Cluster*> visited;
+    size_t node_count = 0;
+    for(auto cluster : leaves){
+        node_count += 1;
+        auto parent = cluster.parent;
+        while(parent != nullptr && visited.count(parent) == 0){
+            node_count += 1;
+            visited.insert(parent);
+            parent = parent->parent;
+        }
+    }
+    return node_count;
+}
+
+template<typename v_t, typename e_t>
+size_t UFOTree<v_t, e_t>::get_height() {
+    size_t max_height = 0;
+    for (vertex_t v = 0; v < leaves.size(); ++v) {
+        size_t height = 0;
+        Cluster* curr = &leaves[v];
+        while (curr) {
+            height++;
+            curr = curr->parent;
+        }
+        max_height = std::max(max_height, height);
+    }
+    return max_height;
 }
