@@ -34,22 +34,26 @@ public:
     the remaining neighbors of the cluster. */
     Cluster* neighbors[UFO_ARRAY_MAX];
     int degree = 0;
+    /* We store up to two children of the cluster. If the fanout is 3 or greater, we ensure that one
+    of the stored children is the center cluster of the contraction. This cluster will never be removed
+    from the children unless the cluster has become low fanout and low degree. */
+    Cluster* children[2];
     int fanout = 0;
-    bool mark = false;
     // Constructors
-    UFOCluster() : neighbors() {};
-    UFOCluster(v_t val) : neighbors(), value(val) {};
+    UFOCluster() : neighbors(), children() {};
+    UFOCluster(v_t val) : neighbors(), children(), value(val) {};
     // Helper functions
     Cluster* get_root();
     bool contracts();
     int get_degree();
     bool has_neighbor_set();
     NeighborSet* get_neighbor_set();
-    bool parent_high_fanout();
     bool contains_neighbor(Cluster* c);
     void insert_neighbor(Cluster* c);
     void insert_neighbor_with_value(Cluster* c, e_t value);
     void remove_neighbor(Cluster* c);
+    void insert_child(Cluster* c);
+    void remove_child(Cluster* c);
     void set_edge_value(int index, e_t value);
     e_t get_edge_value(int index);
     size_t calculate_size();
@@ -89,20 +93,6 @@ bool UFOCluster<v_t,e_t>::has_neighbor_set() {
 template<typename v_t, typename e_t>
 absl::flat_hash_map<UFOCluster<v_t, e_t>*,e_t>* UFOCluster<v_t,e_t>::get_neighbor_set() {
     return (NeighborSet*) UNTAG(neighbors[UFO_ARRAY_MAX-1]);
-}
-
-template<typename v_t, typename e_t>
-bool UFOCluster<v_t,e_t>::parent_high_fanout() {
-    assert(parent);
-    int parent_degree = parent->get_degree();
-    if (get_degree() == 1) {
-        auto neighbor = neighbors[0];
-        if (neighbor->parent == parent)
-        if (neighbor->get_degree() - parent_degree > 2) return true;
-    } else {
-        if (get_degree() - parent_degree > 2) return true;
-    }
-    return false;
 }
 
 template<typename v_t, typename e_t>
@@ -204,6 +194,18 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
         if constexpr (!std::is_same<e_t,empty_t>::value)
             set_edge_value(UFO_ARRAY_MAX-1, temp.second);
     }
+}
+
+template<typename v_t, typename e_t>
+void UFOCluster<v_t,e_t>::insert_child(Cluster* c) {
+    if (children[0] == nullptr) children[0] = c;
+    else if (children[1] == nullptr) children[1] = c;
+}
+
+template<typename v_t, typename e_t>
+void UFOCluster<v_t,e_t>::remove_child(Cluster* c) {
+    if (children[0] == c) children[0] = nullptr;
+    else if (children[1] == c) children[1] = nullptr;
 }
 
 template<typename v_t, typename e_t>

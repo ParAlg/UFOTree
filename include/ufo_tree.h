@@ -132,9 +132,10 @@ void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
     if (c->has_neighbor_set()) [[unlikely]] delete c->get_neighbor_set();
     for (int i = 0; i < UFO_ARRAY_MAX; ++i)
         c->neighbors[i] = nullptr;
+    for (int i = 0; i < 2; ++i)
+        c->children[i] = nullptr;
     c->degree = 0;
     c->fanout = 0;
-    c->mark = false;
     free_clusters.push_back(c);
 }
 
@@ -211,6 +212,7 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
                 free_cluster(prev);
             } else [[unlikely]] {
                 prev->parent = nullptr;
+                curr->remove_child(prev);
                 curr->fanout--;
                 root_clusters[level].push_back(prev);
             }
@@ -225,9 +227,11 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
                 auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
                 if (position != root_clusters[level].end()) root_clusters[level].erase(position);
                 free_cluster(prev);
+                curr->remove_child(prev);
                 curr->fanout--;
             } else [[unlikely]] if (prev->get_degree() <= 1) {
                 prev->parent = nullptr;
+                curr->remove_child(prev);
                 curr->fanout--;
                 root_clusters[level].push_back(prev);
             }
@@ -271,6 +275,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 if constexpr (!std::is_same<e_t, empty_t>::value) {
                     parent->value = identity_v;
                 }
+                parent->insert_child(cluster);
                 parent->fanout = 1;
                 cluster->parent = parent;
                 root_clusters[level+1].push_back(parent);
@@ -290,6 +295,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                                 lev++;
                             }
                             neighbor->parent = cluster->parent;
+                            parent->insert_child(cluster);
                             parent->fanout++;
                         } else if (neighbor->parent) { // Populate new parent's neighbors
                             if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -316,6 +322,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                                 lev++;
                             }
                             neighbor->parent = cluster->parent;
+                            parent->insert_child(cluster);
                             parent->fanout++;
                         } else if (neighbor->parent) { // Populate new parent's neighbors
                             if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -341,6 +348,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                                 lev++;
                             }
                             neighbor->parent = cluster->parent;
+                            parent->insert_child(cluster);
                             parent->fanout++;
                         } else if (neighbor->parent) { // Populate new parent's neighbors
                             if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -366,6 +374,8 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         auto parent = allocate_cluster();
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        parent->insert_child(cluster);
+                        parent->insert_child(neighbor);
                         parent->fanout = 2;
                         if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
                             parent->value = f_e(cluster->value, f_e(neighbor->value, cluster->get_edge_value(i)));
@@ -402,6 +412,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                         if (neighbor->parent && (neighbor->get_degree() == 1 || neighbor->get_degree() == 2)) [[unlikely]] {
                             if (neighbor->contracts()) continue;
                             cluster->parent = neighbor->parent;
+                            neighbor->parent->insert_child(cluster);
                             neighbor->parent->fanout++;
                             if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
                                 cluster->parent->value = f_e(cluster->value, f_e(neighbor->value, cluster->get_edge_value(i)));
@@ -426,12 +437,15 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                 if (neighbor->parent) {
                     if (neighbor->get_degree() == 2 && neighbor->contracts()) continue;
                     cluster->parent = neighbor->parent;
+                    neighbor->parent->insert_child(cluster);
                     neighbor->parent->fanout++;
                     remove_ancestors(cluster->parent, level+1);
                 } else {
                     auto parent = allocate_cluster();
                     cluster->parent = parent;
                     neighbor->parent = parent;
+                    parent->insert_child(cluster);
+                    parent->insert_child(neighbor);
                     parent->fanout = 2;
                     if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
                         parent->value = identity_v;
@@ -456,6 +470,7 @@ void UFOTree<v_t, e_t>::recluster_tree() {
             if (!cluster->parent && cluster->get_degree() > 0) [[unlikely]] {
                 auto parent = allocate_cluster();
                 cluster->parent = parent;
+                parent->insert_child(cluster);
                 parent->fanout = 1;
                 if constexpr (!std::is_same<v_t, empty_t>::value) { // Path query
                     parent->value = cluster->value;

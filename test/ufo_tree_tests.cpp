@@ -28,7 +28,9 @@ bool UFOTree<v_t, e_t>::is_valid() {
     while (!clusters.empty()) {
         for (auto entry : clusters) {
             auto cluster = entry.first;
-            if (cluster->fanout != entry.second) return false;
+            if (cluster->fanout != entry.second) return false; // Ensure the fanout field is correct
+            for (auto child : cluster->children) // Ensure all children point back
+                if (child && child->parent != cluster) return false;
             if (!cluster->has_neighbor_set()) {
                 for (auto neighborp : cluster->neighbors) { // Ensure all neighbors also point back
                     auto neighbor = UNTAG(neighborp);
