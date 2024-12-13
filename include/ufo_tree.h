@@ -511,20 +511,26 @@ and add it as a root cluster to be processed. */
 template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
     Cluster* parent = c->parent;
-    int max_degree = 0;
-    for (auto child : parent->children) {
-        if (!child) continue;
-        child->parent = nullptr;
-        root_clusters[level].push_back(child);
-        max_degree = std::max(max_degree, child->get_degree());
-    }
-    if (parent->fanout > 2 || max_degree > 2) [[unlikely]] {
-        for (auto center : parent->children) {
-            if (!center) continue;
+    int deg0 = parent->children[0] ? parent->children[0]->get_degree() : 0;
+    int deg1 = parent->children[1] ? parent->children[1]->get_degree() : 0;
+    if (parent->fanout <= 2 && std::max(deg0,deg1) <= 2) [[likely]] {
+        if (parent->children[0]) {
+            parent->children[0]->parent = nullptr;
+            root_clusters[level].push_back(parent->children[0]);
+        }
+        if (parent->children[1]) {
+            parent->children[1]->parent = nullptr;
+            root_clusters[level].push_back(parent->children[1]);
+        }
+    } else [[unlikely]] {
+        if (c->get_degree() == 1) {
+            auto center = c->neighbors[0];
+            if (center->parent && c->parent != center->parent) return;
+            assert(center->get_degree() <= 5);
             if (!center->has_neighbor_set()) [[likely]] {
                 for (auto neighborp : center->neighbors) {
                     Cluster* neighbor = UNTAG(neighborp);
-                    if (neighbor && neighbor->parent == parent && neighbor != parent->children[0] && neighbor != parent->children[1]) {
+                    if (neighbor && neighbor->parent == c->parent && neighbor != c) {
                         neighbor->parent = nullptr; // Set sibling parent pointer to null
                         root_clusters[level].push_back(neighbor); // Keep track of root clusters
                     }
@@ -532,14 +538,42 @@ void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
             } else [[unlikely]] {
                 for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) {
                     Cluster* neighbor = center->neighbors[i];
-                    if (neighbor->parent == parent && neighbor != parent->children[0] && neighbor != parent->children[1]) {
+                    if (neighbor->parent == c->parent && neighbor != c) {
                         neighbor->parent = nullptr; // Set sibling parent pointer to null
                         root_clusters[level].push_back(neighbor); // Keep track of root clusters
                     }
                 }
                 for (auto neighbor_pair : *center->get_neighbor_set()) {
                     Cluster* neighbor = neighbor_pair.first;
-                    if (neighbor && neighbor->parent == parent && neighbor != parent->children[0] && neighbor != parent->children[1]) {
+                    if (neighbor && neighbor->parent == c->parent && neighbor != c) {
+                        neighbor->parent = nullptr; // Set sibling parent pointer to null
+                        root_clusters[level].push_back(neighbor); // Keep track of root clusters
+                    }
+                }
+            }
+            center->parent = nullptr;
+            root_clusters[level].push_back(center);
+        } else {
+            assert(c->get_degree() <= 5);
+            if (!c->has_neighbor_set()) [[likely]] {
+                for (auto neighborp : c->neighbors) {
+                    Cluster* neighbor = UNTAG(neighborp);
+                    if (neighbor && neighbor->parent == c->parent) {
+                        neighbor->parent = nullptr; // Set sibling parent pointer to null
+                        root_clusters[level].push_back(neighbor); // Keep track of root clusters
+                    }
+                }
+            } else [[unlikely]] {
+                for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) {
+                    Cluster* neighbor = c->neighbors[i];
+                    if (neighbor->parent == c->parent) {
+                        neighbor->parent = nullptr; // Set sibling parent pointer to null
+                        root_clusters[level].push_back(neighbor); // Keep track of root clusters
+                    }
+                }
+                for (auto neighbor_pair : *c->get_neighbor_set()) {
+                    Cluster* neighbor = neighbor_pair.first;
+                    if (neighbor && neighbor->parent == c->parent) {
                         neighbor->parent = nullptr; // Set sibling parent pointer to null
                         root_clusters[level].push_back(neighbor); // Keep track of root clusters
                     }
