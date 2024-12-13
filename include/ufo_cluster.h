@@ -37,7 +37,8 @@ public:
     /* We store up to two children of the cluster. If the fanout is 3 or greater, we ensure that one
     of the stored children is the center cluster of the contraction. This cluster will never be removed
     from the children unless the cluster has become low fanout and low degree. */
-    Cluster* children[2];
+    // Cluster* children[UFO_ARRAY_MAX];
+    Cluster * children[2];
     int fanout = 0;
     // Constructors
     UFOCluster() : neighbors(), children() {};
@@ -194,6 +195,24 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
         if constexpr (!std::is_same<e_t,empty_t>::value)
             set_edge_value(UFO_ARRAY_MAX-1, temp.second);
     }
+}
+
+#define FOR_ALL_NEIGHBORS(C,F) {                            \
+    if (!C->has_neighbor_set()) [[likely]] {                \
+        for (int i = 0; i < UFO_ARRAY_MAX; ++i) {           \
+            Cluster* neighbor = UNTAG(C->neighbors[i]);     \
+            F(neighbor,C->get_edge_value(i));               \
+        }                                                   \
+    } else [[unlikely]] {                                   \
+        for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) {         \
+            Cluster* neighbor = C->neighbors[i];            \
+            F(neighbor,C->get_edge_value(i));               \
+        }                                                   \
+        for (auto neighbor_pair : *C->get_neighbor_set()) { \
+            Cluster* neighbor = neighbor_pair.first;        \
+            F(neighbor,neighbor_pair.second);               \
+        }                                                   \
+    }                                                       \
 }
 
 template<typename v_t, typename e_t>
