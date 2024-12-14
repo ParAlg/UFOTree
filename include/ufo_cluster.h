@@ -60,7 +60,6 @@ public:
     // Additional helper functions
     Cluster* get_root();
     bool contracts();
-    int get_degree();
     void set_edge_value(int index, e_t value);
     e_t get_edge_value(int index);
     size_t calculate_size();
@@ -88,7 +87,7 @@ bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
 template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
     assert(!contains_neighbor(c));
-    // degree++;
+    degree++;
     for (int i = 0; i < UFO_NEIGHBOR_MAX; ++i) {
         if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
             int tag = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
@@ -113,7 +112,7 @@ template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
     if constexpr (!std::is_same<e_t, empty_t>::value) {
         assert(!contains_neighbor(c));
-        // degree++;
+        degree++;
         for (int i = 0; i < UFO_NEIGHBOR_MAX; ++i) {
             if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
                 int tag = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
@@ -135,7 +134,7 @@ void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
 template<typename v_t, typename e_t>
 void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
     assert(contains_neighbor(c));
-    // degree--;
+    degree--;
     for (int i = 0; i < UFO_NEIGHBOR_MAX; ++i) {
         if (UNTAG(neighbors[i]) == c) {
             neighbors[i] = TAG(nullptr, GET_TAG(neighbors[i]));
@@ -290,19 +289,12 @@ UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_root() {
 
 template<typename v_t, typename e_t>
 bool UFOCluster<v_t,e_t>::contracts() {
-    assert(get_degree() <= UFO_NEIGHBOR_MAX);
+    assert(degree <= UFO_NEIGHBOR_MAX);
     for (auto neighborp : neighbors) {
         auto neighbor = UNTAG(neighborp);
         if (neighbor && neighbor->parent == parent) return true;
     }
     return false;
-}
-
-template<typename v_t, typename e_t>
-int UFOCluster<v_t,e_t>::get_degree() {
-    int tag = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
-    if (tag <= 3) [[likely]] return tag;
-    return 2 + get_neighbor_set()->size();
 }
 
 template<typename v_t, typename e_t>

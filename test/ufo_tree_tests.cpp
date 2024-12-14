@@ -30,19 +30,19 @@ bool UFOTree<v_t, e_t>::is_valid() {
                 if (!neighbor->contains_neighbor(cluster)) neighbors_good = false;
             });
             if (!neighbors_good) return false;
-            if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
-                if (cluster->get_degree() == 1) {
-                    if (cluster->neighbors[0]->get_degree() > 2) return false;
+            if (cluster->degree <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
+                if (cluster->degree == 1) {
+                    if (cluster->neighbors[0]->degree > 2) return false;
                     else if (!cluster->neighbors[0]->contracts()) return false;
-                } else if (cluster->get_degree() == 2) {
+                } else if (cluster->degree == 2) {
                     for (auto neighborp : cluster->neighbors) {
                         auto neighbor = UNTAG(neighborp);
-                        if (neighbor && neighbor->get_degree() < 3 && !neighbor->contracts()) return false;
+                        if (neighbor && neighbor->degree < 3 && !neighbor->contracts()) return false;
                     }
-                } else if (cluster->get_degree() >= 3) {
+                } else if (cluster->degree >= 3) {
                     bool neighbors_deg_1 = false;
                     FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t _) {
-                        if (neighbor->get_degree() == 1) neighbors_deg_1 = true;
+                        if (neighbor->degree == 1) neighbors_deg_1 = true;
                     });
                     if (neighbors_deg_1) return false;
                 }
