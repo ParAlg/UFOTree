@@ -9,7 +9,7 @@ children for each UFOCluster. Any additional neighbors or children will
 be stored in the hash set for efficiency. Minimum value is 3 for queries
 function correctly. */
 #define UFO_NEIGHBOR_MAX 3
-#define UFO_CHILD_MAX 2
+#define UFO_CHILD_MAX 3
 
 // #define COLLECT_ROOT_CLUSTER_STATS
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -69,7 +69,7 @@ public:
 template<typename v_t, typename e_t>
 bool UFOCluster<v_t,e_t>::has_neighbor_set() {
     int tag = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
-    if (tag <= 3) [[likely]] return false;
+    if (tag <= UFO_NEIGHBOR_MAX) [[likely]] return false;
     return true;
 }
 
@@ -91,9 +91,9 @@ void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
     // degree++;
     for (int i = 0; i < UFO_NEIGHBOR_MAX; ++i) {
         if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
-            int deg = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
+            int tag = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
             neighbors[i] = c;
-            neighbors[UFO_NEIGHBOR_MAX-1] = TAG(UNTAG(neighbors[UFO_NEIGHBOR_MAX-1]), deg+1);
+            neighbors[UFO_NEIGHBOR_MAX-1] = TAG(UNTAG(neighbors[UFO_NEIGHBOR_MAX-1]), tag+1);
             return;
         }
     }
@@ -102,7 +102,7 @@ void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
         std::pair<Cluster*,e_t> insert_pair;
         insert_pair.first = UNTAG(neighbors[UFO_NEIGHBOR_MAX-1]);
         neighbor_set->insert(insert_pair);
-        neighbors[UFO_NEIGHBOR_MAX-1] = TAG(neighbor_set, 4);
+        neighbors[UFO_NEIGHBOR_MAX-1] = TAG(neighbor_set, UFO_NEIGHBOR_MAX+1);
     }
     std::pair<Cluster*,e_t> insert_pair;
     insert_pair.first = c;
@@ -116,17 +116,17 @@ void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
         // degree++;
         for (int i = 0; i < UFO_NEIGHBOR_MAX; ++i) {
             if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
-                int deg = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
+                int tag = GET_TAG(neighbors[UFO_NEIGHBOR_MAX-1]);
                 neighbors[i] = c;
                 set_edge_value(i, value);
-                neighbors[UFO_NEIGHBOR_MAX-1] = TAG(UNTAG(neighbors[UFO_NEIGHBOR_MAX-1]), deg+1);
+                neighbors[UFO_NEIGHBOR_MAX-1] = TAG(UNTAG(neighbors[UFO_NEIGHBOR_MAX-1]), tag+1);
                 return;
             }
         }
         if (!has_neighbor_set()) {
             auto neighbor_set = new NeighborSet();
             neighbor_set->insert({UNTAG(neighbors[UFO_NEIGHBOR_MAX-1]), get_edge_value(UFO_NEIGHBOR_MAX-1)});
-            neighbors[UFO_NEIGHBOR_MAX-1] = TAG(neighbor_set, 4);
+            neighbors[UFO_NEIGHBOR_MAX-1] = TAG(neighbor_set, UFO_NEIGHBOR_MAX+1);
         }
         get_neighbor_set()->insert({c,value});
     }
@@ -147,11 +147,11 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
                     set_edge_value(i, replacement.second);
                 neighbor_set->erase(replacement.first);
                 if (neighbor_set->size() == 1) {
-                    auto temp = *neighbor_set->begin();
-                    delete neighbor_set;
-                    neighbors[UFO_NEIGHBOR_MAX-1] = TAG(temp.first, 3);
+                    auto replacement = *neighbor_set->begin();
+                    neighbors[UFO_NEIGHBOR_MAX-1] = TAG(replacement.first, UFO_NEIGHBOR_MAX);
                     if constexpr (!std::is_same<e_t,empty_t>::value)
-                        set_edge_value(UFO_NEIGHBOR_MAX-1, temp.second);
+                        set_edge_value(UFO_NEIGHBOR_MAX-1, replacement.second);
+                    delete neighbor_set;
                 }
             } else [[likely]] {
                 for (int j = UFO_NEIGHBOR_MAX-1; j > i; --j) {
@@ -171,11 +171,11 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
     auto neighbor_set = get_neighbor_set();
     neighbor_set->erase(c);
     if (neighbor_set->size() == 1) {
-        auto temp = *neighbor_set->begin();
-        delete neighbor_set;
-        neighbors[UFO_NEIGHBOR_MAX-1] = TAG(temp.first, 3);
+        auto replacement = *neighbor_set->begin();
+        neighbors[UFO_NEIGHBOR_MAX-1] = TAG(replacement.first, UFO_NEIGHBOR_MAX);
         if constexpr (!std::is_same<e_t,empty_t>::value)
-            set_edge_value(UFO_NEIGHBOR_MAX-1, temp.second);
+            set_edge_value(UFO_NEIGHBOR_MAX-1, replacement.second);
+        delete neighbor_set;
     }
 }
 
@@ -200,7 +200,7 @@ void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
 template<typename v_t, typename e_t>
 bool UFOCluster<v_t,e_t>::has_child_set() {
     int tag = GET_TAG(children[UFO_CHILD_MAX-1]);
-    if (tag < 3) [[likely]] return false;
+    if (tag <= UFO_CHILD_MAX) [[likely]] return false;
     return true;
 }
 
@@ -223,7 +223,7 @@ void UFOCluster<v_t,e_t>::insert_child(Cluster* c) {
     if (!has_child_set()) {
         auto child_set = new ChildSet();
         child_set->insert(UNTAG(children[UFO_CHILD_MAX-1]));
-        children[UFO_CHILD_MAX-1] = TAG(child_set, 3);
+        children[UFO_CHILD_MAX-1] = TAG(child_set, UFO_CHILD_MAX+1);
     }
     get_child_set()->insert(c);
 }
@@ -240,7 +240,7 @@ void UFOCluster<v_t,e_t>::remove_child(Cluster* c) {
                 children[i] = replacement;
                 child_set->erase(replacement);
                 if (child_set->size() == 1) {
-                    children[UFO_CHILD_MAX-1] = TAG(*child_set->begin(), 2);
+                    children[UFO_CHILD_MAX-1] = TAG(*child_set->begin(), UFO_CHILD_MAX);
                     delete child_set;
                 }
             } else [[likely]] {
@@ -259,7 +259,7 @@ void UFOCluster<v_t,e_t>::remove_child(Cluster* c) {
     auto child_set = get_child_set();
     child_set->erase(c);
     if (child_set->size() == 1) {
-        children[UFO_CHILD_MAX-1] = TAG(*child_set->begin(), 2);
+        children[UFO_CHILD_MAX-1] = TAG(*child_set->begin(), UFO_CHILD_MAX);
         delete child_set;
     }
 }
