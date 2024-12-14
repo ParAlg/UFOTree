@@ -7,45 +7,29 @@ template<typename v_t, typename e_t>
 bool UFOTree<v_t, e_t>::is_valid() {
     std::unordered_map<Cluster*,int> clusters;
     std::unordered_map<Cluster*,int> next_clusters;
-    for (auto leaf : leaves) { // Ensure that every pair of incident vertices are in the same component
-        if (!leaf.has_neighbor_set()) {
-            for (auto neighborp : leaf.neighbors) { // This ensures all connectivity is correct by transitivity
-                auto neighbor = UNTAG(neighborp);
-                if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
-            }
-        } else {
-            for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) {
-                auto neighbor = leaf.neighbors[i];
-                if (neighbor && leaf.get_root() != neighbor->get_root()) return false;
-            }
-            for (auto neighbor_pair : *leaf.get_neighbor_set()) {
-                auto neighbor = neighbor_pair.first;
-                if (leaf.get_root() != neighbor->get_root()) return false;
-            }
-        }
-    }
     for (int i = 0; i < this->leaves.size(); i++) clusters.insert({&this->leaves[i], 0});
+    for (auto entry : clusters) { // Ensure that every pair of incident vertices are in the same component
+        bool neighbors_connected = true;
+        auto leaf = entry.first;
+        FOR_ALL_NEIGHBORS(leaf, [&](Cluster* neighbor, e_t _) {
+            if (leaf->get_root() != neighbor->get_root()) neighbors_connected = false;
+        });
+        if (!neighbors_connected) return false;
+    }
     while (!clusters.empty()) {
         for (auto entry : clusters) {
             auto cluster = entry.first;
             if (cluster->fanout != entry.second) return false; // Ensure the fanout field is correct
-            for (auto child : cluster->children) // Ensure all children point back
-                if (child && child->parent != cluster) return false;
-            if (!cluster->has_neighbor_set()) {
-                for (auto neighborp : cluster->neighbors) { // Ensure all neighbors also point back
-                    auto neighbor = UNTAG(neighborp);
-                    if (neighbor && !neighbor->contains_neighbor(cluster)) return false;
-                }
-            } else {
-                for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) {
-                    auto neighbor = cluster->neighbors[i];
-                    if (!neighbor->contains_neighbor(cluster)) return false;
-                }
-                for (auto neighbor_pair : *cluster->get_neighbor_set()) {
-                    auto neighbor = neighbor_pair.first;
-                    if (!neighbor->contains_neighbor(cluster)) return false;
-                }
-            }
+            bool children_good = true;
+            FOR_ALL_CHILDREN(cluster, [&](Cluster* child) { // Ensure all children point back
+                if (child->parent != cluster) children_good = false;
+            });
+            if (!children_good) return false;
+            bool neighbors_good = true;
+            FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t _) { // Ensure all neighbors point back
+                if (!neighbor->contains_neighbor(cluster)) neighbors_good = false;
+            });
+            if (!neighbors_good) return false;
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
                     if (cluster->neighbors[0]->get_degree() > 2) return false;
@@ -56,19 +40,11 @@ bool UFOTree<v_t, e_t>::is_valid() {
                         if (neighbor && neighbor->get_degree() < 3 && !neighbor->contracts()) return false;
                     }
                 } else if (cluster->get_degree() >= 3) {
-                    if (!cluster->has_neighbor_set()) {
-                        for (auto neighborp : cluster->neighbors) {
-                            auto neighbor = UNTAG(neighborp);
-                            if (neighbor && neighbor->get_degree() < 2) return false;
-                        }
-                    } else {
-                        for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) {
-                            auto neighbor = cluster->neighbors[i];
-                            if (neighbor && neighbor->get_degree() < 2) return false;
-                        }
-                        for (auto neighbor_pair : *cluster->get_neighbor_set())
-                            if (neighbor_pair.first->get_degree() < 2) return false;
-                    }
+                    bool neighbors_deg_1 = false;
+                    FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t _) {
+                        if (neighbor->get_degree() == 1) neighbors_deg_1 = true;
+                    });
+                    if (neighbors_deg_1) return false;
                 }
             }
             if (cluster->parent) { // Get next level
@@ -96,12 +72,9 @@ void UFOTree<v_t, e_t>::print_tree() {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        if (!leaf->has_neighbor_set()) {
-            for (auto neighbor : leaf->neighbors) if (UNTAG(neighbor)) std::cout << vertex_map[UNTAG(neighbor)] << " ";
-        } else {
-            for (int i = 0; i < UFO_ARRAY_MAX-1; ++i) std::cout << vertex_map[leaf->neighbors[i]] << " ";
-            for (auto neighbor_pair : *leaf->get_neighbor_set()) std::cout << vertex_map[neighbor_pair.first] << " ";
-        }
+        FOR_ALL_NEIGHBORS(leaf, [&](Cluster* neighbor, e_t _) {
+            std::cout << vertex_map[UNTAG(neighbor)] << " ";
+        });
         std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
