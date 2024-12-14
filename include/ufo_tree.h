@@ -445,27 +445,11 @@ should find every cluster that shares a parent with c, disconnect it from their 
 and add it as a root cluster to be processed. */
 template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
-    if (c->get_degree() == 1) {
-        auto center = c->neighbors[0];
-        if (center->parent && c->parent != center->parent) return;
-        center->parent = nullptr;
-        root_clusters[level].push_back(center);
-        assert(center->get_degree() <= 5);
-        FOR_ALL_NEIGHBORS(center, [&](Cluster* neighbor, e_t edge_value) {
-            if (neighbor->parent == c->parent && neighbor != c) {
-                neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].push_back(neighbor); // Keep track of root clusters
-            }
-        });
-    } else {
-        assert(c->get_degree() <= 5);
-        FOR_ALL_NEIGHBORS(c, [&](Cluster* neighbor, e_t edge_value) {
-            if (neighbor->parent == c->parent) {
-                neighbor->parent = nullptr; // Set sibling parent pointer to null
-                root_clusters[level].push_back(neighbor); // Keep track of root clusters
-            }
-        });
-    }
+    Cluster* parent = c->parent;
+    FOR_ALL_CHILDREN(parent, [&](Cluster* child) {
+        child->parent = nullptr;
+        if (child != c) root_clusters[level].push_back(child);
+    });
 }
 
 template<typename v_t, typename e_t>

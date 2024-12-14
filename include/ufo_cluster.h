@@ -35,12 +35,12 @@ public:
     or higher and the last neighbor pointer is actually a pointer to the NeighborSet object containing
     the remaining neighbors of the cluster. */
     Cluster* neighbors[UFO_NEIGHBOR_MAX];
-    int degree = 0;
     /* We tag the last child pointer in the array with information about the fanout of the cluster. If
     it is 1 or 2, that is the fanout of the cluster. If it is 3, then the cluster has fanout 3 or higher
     and the last child pointer is actually a pointer to the ChildSet object containing the remaining
     children of the cluster. */
     Cluster* children[UFO_CHILD_MAX];
+    int degree = 0;
     int fanout = 0;
     // Constructors
     UFOCluster() : neighbors(), children() {};
