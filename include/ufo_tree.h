@@ -388,13 +388,12 @@ void UFOTree<v_t, e_t>::recluster_tree() {
 }
 
 template<typename v_t, typename e_t>
-bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
-    if (cluster->degree > 2 || cluster->fanout > 2) [[unlikely]] return false;
-    return true;
+inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
+    return (cluster->degree <= 2 && cluster->fanout <= 2);
 }
 
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
+inline void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
     FOR_ALL_CHILDREN(c, [&](Cluster* child) {
         child->parent = nullptr;
         root_clusters[level].push_back(child);
@@ -402,7 +401,7 @@ void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
 }
 
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
+inline void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
     auto curr_u = u;
     auto curr_v = v;
     while (curr_u && curr_v && curr_u != curr_v) {
@@ -414,7 +413,7 @@ void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
 }
 
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
+inline void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
     auto curr_u = u;
     auto curr_v = v;
     while (curr_u && curr_v && curr_u != curr_v) {
@@ -426,7 +425,7 @@ void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
 }
 
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::remove_adjacency(Cluster* u, Cluster* v) {
+inline void UFOTree<v_t, e_t>::remove_adjacency(Cluster* u, Cluster* v) {
     auto curr_u = u;
     auto curr_v = v;
     while (curr_u && curr_v && curr_u != curr_v) {
