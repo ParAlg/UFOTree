@@ -51,8 +51,8 @@ private:
     // Helper functions
     void remove_ancestors(Cluster* c, int start_level = 0);
     void recluster_tree();
-    bool is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level);
-    void disconnect_siblings(Cluster* c, int level);
+    bool should_delete(Cluster* cluster, int level);
+    void disconnect_children(Cluster* c, int level);
     void insert_adjacency(Cluster* u, Cluster* v);
     void insert_adjacency(Cluster* u, Cluster* v, e_t value);
     void remove_adjacency(Cluster* u, Cluster* v);
@@ -179,63 +179,35 @@ void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
 high fan-out and add them to root_clusters. */
 template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
-    int level = start_level; // level is always the level of cluster prev, 0 being the leaves
+    int level = start_level; // level is always the level of cluster of the children of curr, 0 being the leaves
     auto prev = c;
     auto curr = c->parent;
-    bool del = false;
+    if (!curr) root_clusters[level].push_back(c);
     while (curr) {
-        // Different cases for if curr will or will not be deleted later
-        if (!is_high_degree_or_high_fanout(curr, prev, level)) [[likely]] { // We will delete curr next round
-            disconnect_siblings(prev, level);
-            if (del) [[likely]] { // Possibly delete prev
-                assert(prev->degree <= UFO_NEIGHBOR_MAX);
-                for (auto neighborp : prev->neighbors) {
-                    auto neighbor = UNTAG(neighborp);
-                    if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
-                }
-                auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
-                if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                free_cluster(prev);
-            } else [[unlikely]] {
-                prev->parent = nullptr;
+        auto next = curr->parent;
+        if (should_delete(curr, level)) [[likely]] { // We will delete curr
+            disconnect_children(curr, level);
+            for (auto neighborp : curr->neighbors) {
+                auto neighbor = UNTAG(neighborp);
+                if (neighbor) neighbor->remove_neighbor(curr); // Remove curr from adjacency
+            }
+            if (curr->parent) curr->parent->remove_child(curr);
+            auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), curr);
+            if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
+            free_cluster(curr);
+            prev = nullptr;
+        } else [[unlikely]] {
+            if (prev && prev->degree <= 1) {
                 curr->remove_child(prev);
+                prev->parent = nullptr;
                 root_clusters[level].push_back(prev);
             }
-            del = true;
-        } else [[unlikely]] { // We will not delete curr next round
-            if (del) [[likely]] { // Possibly delete prev
-                assert(prev->degree <= UFO_NEIGHBOR_MAX);
-                for (auto neighborp : prev->neighbors) {
-                    auto neighbor = UNTAG(neighborp);
-                    if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
-                }
-                auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
-                if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-                free_cluster(prev);
-                curr->remove_child(prev);
-            } else [[unlikely]] if (prev->degree <= 1) {
-                prev->parent = nullptr;
-                curr->remove_child(prev);
-                root_clusters[level].push_back(prev);
-            }
-            del = false;
+            prev = curr;
         }
-        // Update pointers
-        prev = curr;
-        curr = prev->parent;
+        curr = next;
         level++;
     }
-    // DO LAST DELETIONS
-    if (del) [[likely]] { // Possibly delete prev
-        assert(prev->degree <= UFO_NEIGHBOR_MAX);
-        for (auto neighborp : prev->neighbors) {
-            auto neighbor = UNTAG(neighborp);
-            if (neighbor) neighbor->remove_neighbor(prev); // Remove prev from adjacency
-        }
-        auto position = std::find(root_clusters[level].begin(), root_clusters[level].end(), prev);
-        if (position != root_clusters[level].end()) root_clusters[level].erase(position);
-        free_cluster(prev);
-    } else [[unlikely]] root_clusters[level].push_back(prev);
+    if (prev) root_clusters[level].push_back(prev);
     if (level > max_level) max_level = level;
 }
 
@@ -416,22 +388,16 @@ void UFOTree<v_t, e_t>::recluster_tree() {
 }
 
 template<typename v_t, typename e_t>
-bool UFOTree<v_t, e_t>::is_high_degree_or_high_fanout(Cluster* cluster, Cluster* child, int level) {
-    if (cluster->degree > 2) [[unlikely]] return true;
-    if (!child->neighbors[1] && cluster->fanout > 2) [[unlikely]] return true;
-    if (child->degree - cluster->degree > 2) [[unlikely]] return true;
-    return false;
+bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
+    if (cluster->degree > 2 || cluster->fanout > 2) [[unlikely]] return false;
+    return true;
 }
 
-/* Helper function which takes a cluster c and the level of that cluster. The function
-should find every cluster that shares a parent with c, disconnect it from their parent
-and add it as a root cluster to be processed. */
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::disconnect_siblings(Cluster* c, int level) {
-    Cluster* parent = c->parent;
-    FOR_ALL_CHILDREN(parent, [&](Cluster* child) {
+void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
+    FOR_ALL_CHILDREN(c, [&](Cluster* child) {
         child->parent = nullptr;
-        if (child != c) root_clusters[level].push_back(child);
+        root_clusters[level].push_back(child);
     });
 }
 
