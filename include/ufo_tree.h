@@ -212,6 +212,33 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
 }
 
 template<typename v_t, typename e_t>
+inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
+    if (cluster->degree > 2 || cluster->fanout > 2) return false;
+    // if (cluster->fanout == 2) {
+    //     auto child1 = cluster->children[0];
+    //     auto child2 = cluster->children[1];
+    //     if (child1->degree + child2->degree <= 4) return false;
+    // }
+    // if (cluster->fanout == 1) {
+    //     auto child = cluster->children[0];
+    //     bool can_contract = false;
+    //     FOR_ALL_NEIGHBORS(child, [&](Cluster* neighbor, e_t _) {
+    //         if (child->degree + neighbor->degree <= 4) can_contract = true;
+    //     });
+    //     if (can_contract) return true;
+    // }
+    return true;
+}
+
+template<typename v_t, typename e_t>
+inline void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
+    FOR_ALL_CHILDREN(c, [&](Cluster* child) {
+        child->parent = nullptr;
+        root_clusters[level].push_back(child);
+    });
+}
+
+template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::recluster_tree() {
     for (int level = 0; level <= max_level; level++) {
         if (root_clusters[level].empty()) [[unlikely]] continue;
@@ -385,19 +412,6 @@ void UFOTree<v_t, e_t>::recluster_tree() {
         root_clusters[level].clear();
         if (level == max_level && !root_clusters[max_level+1].empty()) max_level++;
     }
-}
-
-template<typename v_t, typename e_t>
-inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
-    return (cluster->degree <= 2 && cluster->fanout <= 2);
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
-    FOR_ALL_CHILDREN(c, [&](Cluster* child) {
-        child->parent = nullptr;
-        root_clusters[level].push_back(child);
-    });
 }
 
 template<typename v_t, typename e_t>
