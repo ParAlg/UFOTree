@@ -42,6 +42,7 @@ public:
     Cluster* children[UFO_CHILD_MAX];
     int degree = 0;
     int fanout = 0;
+    bool mark = false;
     // Constructors
     UFOCluster() : neighbors(), children() {};
     UFOCluster(v_t val) : neighbors(), children(), value(val) {};

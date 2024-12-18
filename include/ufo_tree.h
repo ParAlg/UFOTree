@@ -35,8 +35,14 @@ public:
 private:
     // Class data and parameters
     std::vector<Cluster> leaves;
-    std::vector<std::vector<Cluster*>> root_clusters;
-    int max_level;
+    std::vector<Cluster*> del_clusters;
+    std::vector<Cluster*> root_clusters;
+    std::vector<Cluster*> next_del_clusters;
+    std::vector<Cluster*> next_root_clusters;
+    UpdateType update_type;
+    e_t link_value;
+    Cluster *update_u, *update_v;
+    // Query functions and parameters
     QueryType query_type;
     std::function<v_t(v_t, v_t)> f_v;
     v_t identity_v;
@@ -49,13 +55,12 @@ private:
     Cluster* allocate_cluster();
     void free_cluster(Cluster* c);
     // Helper functions
-    void remove_ancestors(Cluster* c, int start_level = 0);
-    void recluster_tree();
-    bool should_delete(Cluster* cluster, int level);
-    void disconnect_children(Cluster* c, int level);
-    void insert_adjacency(Cluster* u, Cluster* v);
-    void insert_adjacency(Cluster* u, Cluster* v, e_t value);
-    void remove_adjacency(Cluster* u, Cluster* v);
+    void add_del(Cluster * c);
+    void add_next_del(Cluster * c);
+    bool should_delete(Cluster* cluster);
+    void disconnect_children(Cluster* c);
+    void update_tree();
+    void recluster_roots();
 };
 
 template<typename v_t, typename e_t>
@@ -63,7 +68,6 @@ UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
         std::function<v_t(v_t, v_t)> f_v, std::function<e_t(e_t, e_t)> f_e)
     : query_type(q), f_v(f_v), f_e(f_e) {
     leaves.resize(n);
-    root_clusters.resize(max_tree_height(n));
     for (int i = 0; i < n; ++i)
         free_clusters.push_back(new Cluster());
 }
@@ -75,7 +79,6 @@ UFOTree<v_t, e_t>::UFOTree(vertex_t n, QueryType q,
     : query_type(q), f_v(f_v), f_e(f_e), identity_v(id_v), identity_e(id_e),
      default_v(dval_v), default_e(dval_e) {
     leaves.resize(n, default_v);
-    root_clusters.resize(max_tree_height(n));
     for (int i = 0; i < n; ++i)
         free_clusters.push_back(new Cluster());
 }
@@ -90,7 +93,6 @@ UFOTree<v_t, e_t>::UFOTree(int n, QueryType q,
         default_e = d_val;
     }
     leaves.resize(n, default_v);
-    root_clusters.resize(max_tree_height(n));
     for (int i = 0; i < n; ++i)
         free_clusters.push_back(new Cluster());
 }
@@ -108,11 +110,6 @@ UFOTree<v_t, e_t>::~UFOTree() {
     }
     for (auto cluster : clusters) delete cluster;
     for (auto cluster : free_clusters) delete cluster;
-    #ifdef COLLECT_ROOT_CLUSTER_STATS
-    std::cout << "Number of root clusters: Frequency" << std::endl;
-        for (auto entry : root_clusters_histogram)
-            std::cout << entry.first << "\t" << entry.second << std::endl;
-    #endif
 }
 
 template<typename v_t, typename e_t>
@@ -136,6 +133,7 @@ void UFOTree<v_t, e_t>::free_cluster(UFOCluster<v_t, e_t>* c) {
     for (int i = 0; i < UFO_CHILD_MAX; ++i)
         c->children[i] = nullptr;
     c->fanout = 0;
+    c->mark = false;
     free_clusters.push_back(c);
 }
 
@@ -146,21 +144,24 @@ template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    max_level = 0;
-    remove_ancestors(&leaves[u]);
-    remove_ancestors(&leaves[v]);
-    insert_adjacency(&leaves[u], &leaves[v]);
-    recluster_tree();
+    update_type = INSERT;
+    update_u = &leaves[u];
+    update_v = &leaves[v];
+    add_del(leaves[u].parent);
+    add_del(leaves[v].parent);
+    update_tree();
 }
 template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(u != v && !connected(u,v));
-    max_level = 0;
-    remove_ancestors(&leaves[u]);
-    remove_ancestors(&leaves[v]);
-    insert_adjacency(&leaves[u], &leaves[v], value);
-    recluster_tree();
+    update_type = INSERT;
+    link_value = value;
+    update_u = &leaves[u];
+    update_v = &leaves[v];
+    add_del(leaves[u].parent);
+    add_del(leaves[v].parent);
+    update_tree();
 }
 
 /* Cut vertex u and vertex v in the tree. */
@@ -168,51 +169,32 @@ template<typename v_t, typename e_t>
 void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     assert(u >= 0 && u < leaves.size() && v >= 0 && v < leaves.size());
     assert(leaves[u].contains_neighbor(&leaves[v]));
-    max_level = 0;
-    remove_adjacency(&leaves[u], &leaves[v]);
-    remove_ancestors(&leaves[u]);
-    remove_ancestors(&leaves[v]);
-    recluster_tree();
+    update_type = DELETE;
+    update_u = &leaves[u];
+    update_v = &leaves[v];
+    add_del(leaves[u].parent);
+    add_del(leaves[v].parent);
+    update_tree();
 }
 
-/* Removes the ancestors of cluster c that are not high degree nor
-high fan-out and add them to root_clusters. */
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
-    int level = start_level; // level is always the level of cluster of the children of curr, 0 being the leaves
-    auto prev = c;
-    auto curr = c->parent;
-    if (!curr) root_clusters[level].push_back(c);
-    while (curr) {
-        auto next = curr->parent;
-        if (should_delete(curr, level)) [[likely]] { // We will delete curr
-            disconnect_children(curr, level);
-            for (auto neighborp : curr->neighbors) {
-                auto neighbor = UNTAG(neighborp);
-                if (neighbor) neighbor->remove_neighbor(curr); // Remove curr from adjacency
-            }
-            if (curr->parent) curr->parent->remove_child(curr);
-            auto position = std::find(root_clusters[level+1].begin(), root_clusters[level+1].end(), curr);
-            if (position != root_clusters[level+1].end()) root_clusters[level+1].erase(position);
-            free_cluster(curr);
-            prev = nullptr;
-        } else [[unlikely]] {
-            if (prev && prev->degree <= 1) {
-                curr->remove_child(prev);
-                prev->parent = nullptr;
-                root_clusters[level].push_back(prev);
-            }
-            prev = curr;
-        }
-        curr = next;
-        level++;
+void UFOTree<v_t, e_t>::add_del(Cluster * c) {
+    if (c && !c->mark) {
+        c->mark = true;
+        del_clusters.push_back(c);
     }
-    if (prev) root_clusters[level].push_back(prev);
-    if (level > max_level) max_level = level;
 }
 
 template<typename v_t, typename e_t>
-inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
+void UFOTree<v_t, e_t>::add_next_del(Cluster * c) {
+    if (c && !c->mark) {
+        c->mark = true;
+        next_del_clusters.push_back(c);
+    }
+}
+
+template<typename v_t, typename e_t>
+inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster) {
     if (cluster->degree > 2 || cluster->fanout > 2) return false;
     // if (cluster->fanout == 2) {
     //     auto child1 = cluster->children[0];
@@ -231,147 +213,124 @@ inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
 }
 
 template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::disconnect_children(Cluster* c, int level) {
+inline void UFOTree<v_t, e_t>::disconnect_children(Cluster* c) {
     FOR_ALL_CHILDREN(c, [&](Cluster* child) {
         child->parent = nullptr;
-        root_clusters[level].push_back(child);
+        root_clusters.push_back(child);
     });
 }
 
 template<typename v_t, typename e_t>
-void UFOTree<v_t, e_t>::recluster_tree() {
-    for (int level = 0; level <= max_level; level++) {
-        if (root_clusters[level].empty()) [[unlikely]] continue;
-        // Update root cluster stats if we are collecting them
-        #ifdef COLLECT_ROOT_CLUSTER_STATS
-            if (root_clusters_histogram.find(root_clusters[level].size()) == root_clusters_histogram.end())
-                root_clusters_histogram[root_clusters[level].size()] = 1;
-            else
-                root_clusters_histogram[root_clusters[level].size()] += 1;
-        #endif
-        // Merge deg 3-5 root clusters with all of its deg 1 neighbors
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->degree > 2) [[unlikely]] {
-                assert(cluster->degree <= 5);
-                auto parent = allocate_cluster();
-                if constexpr (!std::is_same<e_t, empty_t>::value) {
-                    parent->value = identity_v;
-                }
-                parent->insert_child(cluster);
-                cluster->parent = parent;
-                root_clusters[level+1].push_back(parent);
-                assert(UFO_NEIGHBOR_MAX >= 3);
-                FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t edge_value) {
-                    if (neighbor->degree == 1) [[unlikely]] {
-                        auto curr = neighbor->parent;
-                        int lev = level+1;
-                        while (curr) {
-                            auto temp = curr;
-                            curr = curr->parent;
-                            auto position = std::find(root_clusters[lev].begin(), root_clusters[lev].end(), temp);
-                            if (position != root_clusters[lev].end()) root_clusters[lev].erase(position);
-                            free_cluster(temp);
-                            lev++;
-                        }
-                        neighbor->parent = parent;
-                        parent->insert_child(neighbor);
-                    } else if (neighbor->parent) { // Populate new parent's neighbors
-                        if constexpr (std::is_same<e_t, empty_t>::value) {
-                            parent->insert_neighbor(neighbor->parent);
-                            neighbor->parent->insert_neighbor(parent);
-                        } else {
-                            parent->insert_neighbor_with_value(neighbor->parent, edge_value);
-                            neighbor->parent->insert_neighbor_with_value(parent, edge_value);
-                        }
-                    }
-                });
+void UFOTree<v_t, e_t>::update_tree() {
+    while (!root_clusters.empty() || !del_clusters.empty()) {
+        // For deletions delete the edge in level i
+        if (update_type == DELETE && update_u && update_v) {
+            update_u->remove_neighbor(update_v);
+            update_v->remove_neighbor(update_u);
+            if (update_u->parent == update_v->parent) {
+                if (update_u->degree > update_v->degree)
+                    std::swap(update_u, update_v);
+                update_u->parent->remove_child(update_u);
+                update_u->parent = nullptr;
+                root_clusters.push_back(update_u);
             }
         }
-        // This loop handles all deg 2 and 1 root clusters
-        for (auto cluster : root_clusters[level]) {
-            // Combine deg 2 root clusters with deg 2 root clusters
-            if (!cluster->parent && cluster->degree == 2) [[unlikely]] {
-                assert(UFO_NEIGHBOR_MAX >= 2);
-                for (int i = 0; i < 2; ++i) {
-                    auto neighbor = cluster->neighbors[i];
-                    if (!neighbor->parent && (neighbor->degree == 2)) [[unlikely]] {
-                        auto parent = allocate_cluster();
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        parent->insert_child(cluster);
-                        parent->insert_child(neighbor);
-                        if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
-                            parent->value = f_e(cluster->value, f_e(neighbor->value, cluster->get_edge_value(i)));
-                        }
-                        root_clusters[level+1].push_back(parent);
-                        for (int i = 0; i < 2; ++i) { // Populate new parent's neighbors
-                            if (cluster->neighbors[i]->parent && cluster->neighbors[i]->parent != parent) {
-                                if constexpr (std::is_same<e_t, empty_t>::value) {
-                                    parent->insert_neighbor(cluster->neighbors[i]->parent);
-                                    cluster->neighbors[i]->parent->insert_neighbor(parent);
-                                } else {
-                                    parent->insert_neighbor_with_value(cluster->neighbors[i]->parent, cluster->get_edge_value(i));
-                                    cluster->neighbors[i]->parent->insert_neighbor_with_value(parent, cluster->get_edge_value(i));
-                                }
-                            }
-                            if (neighbor->neighbors[i]->parent && neighbor->neighbors[i]->parent != parent) {
-                                if constexpr (std::is_same<e_t, empty_t>::value) {
-                                    parent->insert_neighbor(neighbor->neighbors[i]->parent);
-                                    neighbor->neighbors[i]->parent->insert_neighbor(parent);
-                                } else {
-                                    parent->insert_neighbor_with_value(neighbor->neighbors[i]->parent, neighbor->get_edge_value(i));
-                                    neighbor->neighbors[i]->parent->insert_neighbor_with_value(parent, neighbor->get_edge_value(i));
-                                }
-                            }
-                        }
-                        break;
+        // For insertions add the new edge in level i
+        if (update_type == INSERT && update_u && update_v) {
+            if constexpr (std::is_same<e_t, empty_t>::value) {
+                update_u->insert_neighbor(update_v);
+                update_v->insert_neighbor(update_u);
+            } else {
+                update_u->insert_neighbor_with_value(update_v, link_value);
+                update_v->insert_neighbor_with_value(update_u, link_value);
+            }
+        }
+        // Delete the level i+1 del clusters that should actually be deleted
+        for (auto cluster : del_clusters) {
+            add_del(cluster->parent);
+            if (should_delete(cluster)) {
+                disconnect_children(cluster);
+                free_cluster(cluster);
+            } else {
+                cluster->mark = false;
+            }
+        }
+        // Recluster the level i root clusters
+        recluster_roots();
+        // Prepare the next level
+        if (update_u) update_u = update_u->parent;
+        if (update_v) update_v = update_v->parent;
+        std::swap(root_clusters, next_root_clusters);
+        next_root_clusters.clear();
+        std::swap(del_clusters, next_del_clusters);
+        next_del_clusters.clear();
+    }
+}
+
+template<typename v_t, typename e_t>
+void UFOTree<v_t, e_t>::recluster_roots() {
+    // Merge deg 3-5 root clusters with all of its deg 1 neighbors
+    for (auto cluster : root_clusters) {
+        if (!cluster->parent && cluster->degree > 2) [[unlikely]] {
+            assert(cluster->degree <= 5);
+            auto parent = allocate_cluster();
+            if constexpr (!std::is_same<e_t, empty_t>::value) {
+                parent->value = identity_v;
+            }
+            parent->insert_child(cluster);
+            cluster->parent = parent;
+            next_root_clusters.push_back(parent);
+            assert(UFO_NEIGHBOR_MAX >= 3);
+            FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t edge_value) {
+                if (neighbor->degree == 1) [[unlikely]] {
+                    auto curr = neighbor->parent;
+                    while (curr && curr->fanout == 1) {
+                        auto next = curr->parent;
+                        free_cluster(curr);
+                        curr = next;
+                    }
+                    neighbor->parent = parent;
+                    parent->insert_child(neighbor);
+                } else if (neighbor->parent) { // Populate new parent's neighbors
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        parent->insert_neighbor(neighbor->parent);
+                        neighbor->parent->insert_neighbor(parent);
+                    } else {
+                        parent->insert_neighbor_with_value(neighbor->parent, edge_value);
+                        neighbor->parent->insert_neighbor_with_value(parent, edge_value);
                     }
                 }
-                // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
-                if (!cluster->parent) [[unlikely]] {
-                    assert(UFO_NEIGHBOR_MAX >= 2);
-                    for (int i = 0; i < 2; ++i) {
-                        auto neighbor = cluster->neighbors[i];
-                        if (neighbor->parent && (neighbor->degree == 1 || neighbor->degree == 2)) [[unlikely]] {
-                            if (neighbor->contracts()) continue;
-                            cluster->parent = neighbor->parent;
-                            neighbor->parent->insert_child(cluster);
-                            if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
-                                cluster->parent->value = f_e(cluster->value, f_e(neighbor->value, cluster->get_edge_value(i)));
-                            }
-                            remove_ancestors(cluster->parent, level+1); // Recursive remove ancestor call
-                            auto other_neighbor = cluster->neighbors[!i]; // Popoulate neighbors
-                            // if (other_neighbor->parent && (long) other_neighbor->parent->parent != 1) {
-                            if (other_neighbor->parent) {
-                                if constexpr (std::is_same<e_t, empty_t>::value) {
-                                    insert_adjacency(cluster->parent, other_neighbor->parent);
-                                } else {
-                                    insert_adjacency(cluster->parent, other_neighbor->parent, cluster->get_edge_value(!i));
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-            // Always combine deg 1 root clusters with its neighboring cluster
-            } else if (!cluster->parent && cluster->degree == 1) [[unlikely]] {
-                auto neighbor = cluster->neighbors[0];
-                if (neighbor->parent) {
-                    if (neighbor->degree == 2 && neighbor->contracts()) continue;
-                    cluster->parent = neighbor->parent;
-                    neighbor->parent->insert_child(cluster);
-                    remove_ancestors(cluster->parent, level+1);
-                } else {
+            });
+        }
+    }
+    // This loop handles all deg 2 and 1 root clusters
+    for (auto cluster : root_clusters) {
+        // Combine deg 2 root clusters with deg 2 root clusters
+        if (!cluster->parent && cluster->degree == 2) [[unlikely]] {
+            assert(UFO_NEIGHBOR_MAX >= 2);
+            for (int i = 0; i < 2; ++i) {
+                auto neighbor = cluster->neighbors[i];
+                if (!neighbor->parent && (neighbor->degree == 2)) [[unlikely]] {
                     auto parent = allocate_cluster();
                     cluster->parent = parent;
                     neighbor->parent = parent;
                     parent->insert_child(cluster);
                     parent->insert_child(neighbor);
                     if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
-                        parent->value = identity_v;
+                        parent->value = f_e(cluster->value, f_e(neighbor->value, cluster->get_edge_value(i)));
                     }
+                    next_root_clusters.push_back(parent);
                     for (int i = 0; i < 2; ++i) { // Populate new parent's neighbors
-                        if (neighbor->neighbors[i] && neighbor->neighbors[i] != cluster && neighbor->neighbors[i]->parent) {
+                        if (cluster->neighbors[i]->parent && cluster->neighbors[i]->parent != parent) {
+                            if constexpr (std::is_same<e_t, empty_t>::value) {
+                                parent->insert_neighbor(cluster->neighbors[i]->parent);
+                                cluster->neighbors[i]->parent->insert_neighbor(parent);
+                            } else {
+                                parent->insert_neighbor_with_value(cluster->neighbors[i]->parent, cluster->get_edge_value(i));
+                                cluster->neighbors[i]->parent->insert_neighbor_with_value(parent, cluster->get_edge_value(i));
+                            }
+                        }
+                        if (neighbor->neighbors[i]->parent && neighbor->neighbors[i]->parent != parent) {
                             if constexpr (std::is_same<e_t, empty_t>::value) {
                                 parent->insert_neighbor(neighbor->neighbors[i]->parent);
                                 neighbor->neighbors[i]->parent->insert_neighbor(parent);
@@ -381,72 +340,88 @@ void UFOTree<v_t, e_t>::recluster_tree() {
                             }
                         }
                     }
-                    root_clusters[level+1].push_back(parent);
+                    break;
                 }
             }
-        }
-        // Add remaining uncombined clusters to the next level
-        for (auto cluster : root_clusters[level]) {
-            if (!cluster->parent && cluster->degree > 0) [[unlikely]] {
+            // Combine deg 2 root clusters with deg 1 or 2 non-root clusters
+            if (!cluster->parent) [[unlikely]] {
+                assert(UFO_NEIGHBOR_MAX >= 2);
+                for (int i = 0; i < 2; ++i) {
+                    auto neighbor = cluster->neighbors[i];
+                    if (neighbor->parent && (neighbor->degree == 1 || neighbor->degree == 2)) [[unlikely]] {
+                        if (neighbor->contracts()) continue;
+                        cluster->parent = neighbor->parent;
+                        neighbor->parent->insert_child(cluster);
+                        if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
+                            cluster->parent->value = f_e(cluster->value, f_e(neighbor->value, cluster->get_edge_value(i)));
+                        }
+                        add_next_del(cluster->parent->parent);
+                        auto other_neighbor = cluster->neighbors[!i]; // Popoulate neighbors
+                        if (other_neighbor->parent) {
+                            if constexpr (std::is_same<e_t, empty_t>::value) {
+                                insert_adjacency(cluster->parent, other_neighbor->parent);
+                            } else {
+                                insert_adjacency(cluster->parent, other_neighbor->parent, cluster->get_edge_value(!i));
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        // Always combine deg 1 root clusters with its neighboring cluster
+        } else if (!cluster->parent && cluster->degree == 1) [[unlikely]] {
+            auto neighbor = cluster->neighbors[0];
+            if (neighbor->parent) {
+                if (neighbor->degree == 2 && neighbor->contracts()) continue;
+                cluster->parent = neighbor->parent;
+                neighbor->parent->insert_child(cluster);
+                add_next_del(cluster->parent->parent);
+            } else {
                 auto parent = allocate_cluster();
                 cluster->parent = parent;
+                neighbor->parent = parent;
                 parent->insert_child(cluster);
-                if constexpr (!std::is_same<v_t, empty_t>::value) { // Path query
-                    parent->value = cluster->value;
+                parent->insert_child(neighbor);
+                if constexpr (!std::is_same<e_t, empty_t>::value) { // Path query
+                    parent->value = identity_v;
                 }
                 for (int i = 0; i < 2; ++i) { // Populate new parent's neighbors
-                    if (cluster->neighbors[i] && cluster->neighbors[i]->parent) {
+                    if (neighbor->neighbors[i] && neighbor->neighbors[i] != cluster && neighbor->neighbors[i]->parent) {
                         if constexpr (std::is_same<e_t, empty_t>::value) {
-                            parent->insert_neighbor(cluster->neighbors[i]->parent);
-                            cluster->neighbors[i]->parent->insert_neighbor(parent);
+                            parent->insert_neighbor(neighbor->neighbors[i]->parent);
+                            neighbor->neighbors[i]->parent->insert_neighbor(parent);
                         } else {
-                            parent->insert_neighbor_with_value(cluster->neighbors[i]->parent, cluster->get_edge_value(i));
-                            cluster->neighbors[i]->parent->insert_neighbor_with_value(parent, cluster->get_edge_value(i));
+                            parent->insert_neighbor_with_value(neighbor->neighbors[i]->parent, neighbor->get_edge_value(i));
+                            neighbor->neighbors[i]->parent->insert_neighbor_with_value(parent, neighbor->get_edge_value(i));
                         }
                     }
                 }
-                root_clusters[level+1].push_back(parent);
+                next_root_clusters.push_back(parent);
             }
         }
-        // Clear the contents of this level
-        root_clusters[level].clear();
-        if (level == max_level && !root_clusters[max_level+1].empty()) max_level++;
     }
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v) {
-    auto curr_u = u;
-    auto curr_v = v;
-    while (curr_u && curr_v && curr_u != curr_v) {
-        curr_u->insert_neighbor(curr_v);
-        curr_v->insert_neighbor(curr_u);
-        curr_u = curr_u->parent;
-        curr_v = curr_v->parent;
-    }
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::insert_adjacency(Cluster* u, Cluster* v, e_t value) {
-    auto curr_u = u;
-    auto curr_v = v;
-    while (curr_u && curr_v && curr_u != curr_v) {
-        curr_u->insert_neighbor_with_value(curr_v, value);
-        curr_v->insert_neighbor_with_value(curr_u, value);
-        curr_u = curr_u->parent;
-        curr_v = curr_v->parent;
-    }
-}
-
-template<typename v_t, typename e_t>
-inline void UFOTree<v_t, e_t>::remove_adjacency(Cluster* u, Cluster* v) {
-    auto curr_u = u;
-    auto curr_v = v;
-    while (curr_u && curr_v && curr_u != curr_v) {
-        curr_u->remove_neighbor(curr_v);
-        curr_v->remove_neighbor(curr_u);
-        curr_u = curr_u->parent;
-        curr_v = curr_v->parent;
+    // Add remaining uncombined clusters to the next level
+    for (auto cluster : root_clusters) {
+        if (!cluster->parent && cluster->degree > 0) [[unlikely]] {
+            auto parent = allocate_cluster();
+            cluster->parent = parent;
+            parent->insert_child(cluster);
+            if constexpr (!std::is_same<v_t, empty_t>::value) { // Path query
+                parent->value = cluster->value;
+            }
+            for (int i = 0; i < 2; ++i) { // Populate new parent's neighbors
+                if (cluster->neighbors[i] && cluster->neighbors[i]->parent) {
+                    if constexpr (std::is_same<e_t, empty_t>::value) {
+                        parent->insert_neighbor(cluster->neighbors[i]->parent);
+                        cluster->neighbors[i]->parent->insert_neighbor(parent);
+                    } else {
+                        parent->insert_neighbor_with_value(cluster->neighbors[i]->parent, cluster->get_edge_value(i));
+                        cluster->neighbors[i]->parent->insert_neighbor_with_value(parent, cluster->get_edge_value(i));
+                    }
+                }
+            }
+            next_root_clusters.push_back(parent);
+        }
     }
 }
 
