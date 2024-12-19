@@ -147,8 +147,10 @@ void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v) {
     update_type = INSERT;
     update_u = &leaves[u];
     update_v = &leaves[v];
-    add_del(leaves[u].parent);
-    add_del(leaves[v].parent);
+    if (!leaves[u].parent) root_clusters.push_back(&leaves[u]);
+    else add_del(leaves[u].parent);
+    if (!leaves[v].parent) root_clusters.push_back(&leaves[v]);
+    else add_del(leaves[v].parent);
     update_tree();
 }
 template<typename v_t, typename e_t>
@@ -159,8 +161,10 @@ void UFOTree<v_t, e_t>::link(vertex_t u, vertex_t v, e_t value) {
     link_value = value;
     update_u = &leaves[u];
     update_v = &leaves[v];
-    add_del(leaves[u].parent);
-    add_del(leaves[v].parent);
+    if (!leaves[u].parent) root_clusters.push_back(&leaves[u]);
+    else add_del(leaves[u].parent);
+    if (!leaves[v].parent) root_clusters.push_back(&leaves[v]);
+    else add_del(leaves[v].parent);
     update_tree();
 }
 
@@ -172,8 +176,10 @@ void UFOTree<v_t, e_t>::cut(vertex_t u, vertex_t v) {
     update_type = DELETE;
     update_u = &leaves[u];
     update_v = &leaves[v];
-    add_del(leaves[u].parent);
-    add_del(leaves[v].parent);
+    if (!leaves[u].parent) root_clusters.push_back(&leaves[u]);
+    else add_del(leaves[u].parent);
+    if (!leaves[v].parent) root_clusters.push_back(&leaves[v]);
+    else add_del(leaves[v].parent);
     update_tree();
 }
 
@@ -235,6 +241,20 @@ void UFOTree<v_t, e_t>::update_tree() {
                 root_clusters.push_back(update_u);
             }
         }
+        // Delete the level i+1 del clusters that should actually be deleted
+        for (auto cluster : del_clusters) {
+            add_next_del(cluster->parent);
+            if (should_delete(cluster)) {
+                disconnect_children(cluster);
+                FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t _) {
+                    neighbor->remove_neighbor(cluster);
+                });
+                if (cluster->parent) cluster->parent->remove_child(cluster);
+                free_cluster(cluster);
+            } else {
+                cluster->mark = false;
+            }
+        }
         // For insertions add the new edge in level i
         if (update_type == INSERT && update_u && update_v) {
             if constexpr (std::is_same<e_t, empty_t>::value) {
@@ -244,22 +264,12 @@ void UFOTree<v_t, e_t>::update_tree() {
                 update_u->insert_neighbor_with_value(update_v, link_value);
                 update_v->insert_neighbor_with_value(update_u, link_value);
             }
-        }
-        // Delete the level i+1 del clusters that should actually be deleted
-        for (auto cluster : del_clusters) {
-            add_del(cluster->parent);
-            if (should_delete(cluster)) {
-                disconnect_children(cluster);
-                free_cluster(cluster);
-            } else {
-                cluster->mark = false;
-            }
+            update_u = update_u->parent;
+            update_v = update_v->parent;
         }
         // Recluster the level i root clusters
         recluster_roots();
         // Prepare the next level
-        if (update_u) update_u = update_u->parent;
-        if (update_v) update_v = update_v->parent;
         std::swap(root_clusters, next_root_clusters);
         next_root_clusters.clear();
         std::swap(del_clusters, next_del_clusters);
@@ -359,9 +369,13 @@ void UFOTree<v_t, e_t>::recluster_roots() {
                         auto other_neighbor = cluster->neighbors[!i]; // Popoulate neighbors
                         if (other_neighbor->parent) {
                             if constexpr (std::is_same<e_t, empty_t>::value) {
-                                insert_adjacency(cluster->parent, other_neighbor->parent);
+                                cluster->parent->insert_neighbor(other_neighbor->parent);
+                                other_neighbor->parent->insert_neighbor(cluster->parent);
+                                // insert_adjacency(cluster->parent, other_neighbor->parent);
                             } else {
-                                insert_adjacency(cluster->parent, other_neighbor->parent, cluster->get_edge_value(!i));
+                                cluster->parent->insert_neighbor_with_value(other_neighbor->parent, cluster->get_edge_value(!i));
+                                other_neighbor->parent->insert_neighbor_with_value(cluster->parent, cluster->get_edge_value(!i));
+                                // insert_adjacency(cluster->parent, other_neighbor->parent, cluster->get_edge_value(!i));
                             }
                         }
                         break;
