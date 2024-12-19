@@ -30,6 +30,25 @@ bool UFOTree<v_t, e_t>::is_valid() {
                 if (!neighbor->contains_neighbor(cluster)) neighbors_good = false;
             });
             if (!neighbors_good) return false;
+            if (cluster->degree == 2) { // Ensure valid contractions
+                int contracting_neighbors = 0;
+                bool valid_contraction = true;
+                FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t _) {
+                    if (neighbor->parent == cluster->parent) {
+                        contracting_neighbors++;
+                        if (neighbor->degree > 2) valid_contraction = false;
+                    }
+                });
+                if (contracting_neighbors > 1) return false;
+                if (!valid_contraction) return false;
+            } else if (cluster->degree >= 3) {
+                bool valid_contraction = true;
+                FOR_ALL_NEIGHBORS(cluster, [&](Cluster* neighbor, e_t _) {
+                    if (neighbor->parent == cluster->parent)
+                        if (neighbor->degree != 1) valid_contraction = false;
+                });
+                if (!valid_contraction) return false;
+            }
             if (cluster->degree <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->degree == 1) {
                     if (cluster->neighbors[0]->degree > 2) return false;
