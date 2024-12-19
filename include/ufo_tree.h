@@ -213,7 +213,14 @@ void UFOTree<v_t, e_t>::remove_ancestors(Cluster* c, int start_level) {
 
 template<typename v_t, typename e_t>
 inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
-    if (cluster->degree > 2 || cluster->fanout > 2) return false;
+    // return (cluster->degree <= 2 && cluster->fanout <= 2);
+    // This line condenses the logic of the two if statements below
+    return (cluster->degree + cluster->fanout <= 4);
+    // /* If a 1-2-1 merge is found we always delete it, this is normally degree = 0, fanout = 3,
+    // but if its a 3-1-1-1 merge with one edge cut, it can appear as a degree = 0, fanout = 4. */
+    // if (cluster->degree == 0 && cluster->fanout <= 4) return true;
+    // // Keep high degree or high fanout clusters
+    // if (cluster->degree > 2 || cluster->fanout > 2) return false;
     // if (cluster->fanout == 2) {
     //     auto child1 = cluster->children[0];
     //     auto child2 = cluster->children[1];
@@ -227,7 +234,7 @@ inline bool UFOTree<v_t, e_t>::should_delete(Cluster* cluster, int level) {
     //     });
     //     if (can_contract) return true;
     // }
-    return true;
+    // return true;
 }
 
 template<typename v_t, typename e_t>
