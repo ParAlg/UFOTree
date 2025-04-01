@@ -1,5 +1,5 @@
-#include <dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp>
-#include <utilities/include/random.h>
+#include <parett/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp>
+#include <parett/utilities/include/random.h>
 
 namespace skip_list_ett {
 

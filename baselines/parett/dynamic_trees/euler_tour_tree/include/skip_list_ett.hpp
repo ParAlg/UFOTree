@@ -4,8 +4,8 @@
 #include <unordered_map>
 #include <vector>
 #include <absl/container/flat_hash_map.h>
-#include <sequence/skip_list/include/skip_list.hpp>
-#include <utilities/include/hash_pair.hpp>
+#include <parett/sequence/skip_list/include/skip_list.hpp>
+#include <parett/utilities/include/hash_pair.hpp>
 
 namespace skip_list_ett {
 

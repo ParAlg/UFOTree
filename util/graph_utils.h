@@ -7,7 +7,7 @@
 #include <string>
 #include <algorithm>
 #include "types.h"
-#include "../baselines/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
+#include "../baselines/parett/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
 
 
 using namespace parlay;

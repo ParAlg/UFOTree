@@ -65,40 +65,40 @@ target_include_directories(dynamic_tree_tests PRIVATE include util baselines)
 
 add_executable(benchmark_update_speed
   benchmark/benchmark_update_speed.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/parett/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/parett/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_update_speed PRIVATE include util baselines)
 
 add_executable(benchmark_query_speed
   benchmark/benchmark_query_speed.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/parett/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/parett/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_query_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_query_speed PRIVATE include util baselines)
 
 add_executable(benchmark_peak_space
   benchmark/benchmark_peak_space.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/parett/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/parett/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_peak_space PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_peak_space PRIVATE include util baselines)
 
 add_executable(benchmark_graph_statistics
   benchmark/benchmark_graph_statistics.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/parett/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/parett/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_graph_statistics PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_statistics PRIVATE include util baselines)
 
 add_executable(benchmark_graph_update_speed
   benchmark/benchmark_graph_update_speed.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/parett/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/parett/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_graph_update_speed PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_update_speed PRIVATE include util baselines)
@@ -106,8 +106,8 @@ target_include_directories(benchmark_graph_update_speed PRIVATE include util bas
 
 add_executable(benchmark_graph_algorithms
   benchmark/benchmark_graph_algorithms.cpp
-  baselines/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
-  baselines/sequence/skip_list/src/augmented_skip_list.cpp
+  baselines/parett/dynamic_trees/euler_tour_tree/src/skip_list_ett.cpp
+  baselines/parett/sequence/skip_list/src/augmented_skip_list.cpp
 )
 target_link_libraries(benchmark_graph_algorithms PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_algorithms PRIVATE include util baselines)
@@ -127,3 +127,10 @@ add_executable(incremental_MST
 )
 target_link_libraries(incremental_MST PRIVATE parlay absl::flat_hash_map)
 target_include_directories(incremental_MST PRIVATE include util)
+
+add_executable(benchmark_sequences
+  benchmark/benchmark_sequences.cpp
+  # baselines/sequence/parallel_treap/src/treap.cpp
+)
+target_link_libraries(benchmark_sequences PRIVATE parlay)
+target_include_directories(benchmark_sequences PRIVATE include util baselines baselines/pam)
