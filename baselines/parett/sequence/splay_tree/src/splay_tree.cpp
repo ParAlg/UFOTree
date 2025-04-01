@@ -1,4 +1,4 @@
-#include <sequence/splay_tree/include/splay_tree.hpp>
+#include <parett/sequence/splay_tree/include/splay_tree.hpp>
 
 using std::pair;
 

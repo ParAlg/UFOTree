@@ -30,31 +30,29 @@ std::vector<Update> stream_file_RIS_benchmark(parlay::sequence<parlay::sequence<
 }
 
 template<typename DynamicTree>
-double incremental_MSF_benchmark(parlay::sequence<std::pair<int, Edge>>& edges, int n){
+double incremental_MSF_benchmark(parlay::sequence<std::pair<int, Edge>>& edges, int n) {
   Edge garbage; garbage.src = MAX_VERTEX_T; garbage.dst = MAX_VERTEX_T;
   std::pair<int, Edge> id(std::numeric_limits<int>::min(), garbage);
   DynamicTree tree(n, PATH, [] (std::pair<int, Edge> a, std::pair<int, Edge> b){return a.first > b.first ? a : b;}, id, id);
-  
   parlay::internal::timer my_timer("");
   
   my_timer.start();
-  for(auto edge_pair : edges){
-    int weight = edge_pair.first;
-    Edge e = edge_pair.second;
-
-    if(!tree.connected(e.src, e.dst)){
-      tree.link(e.src, e.dst, std::pair<int, Edge>(weight, e));
+  for (auto edge : edges) {
+    vertex_t u = edge.second.src;
+    vertex_t v = edge.second.dst;
+    if (!tree.connected(u, v)) {
+      tree.link(u, v, edge);
       continue;
     }
-
-    std::pair<int, Edge> max_weight_edge = tree.path_query(e.src, e.dst);
-    if(max_weight_edge.first > weight){
-      Edge to_del = max_weight_edge.second; tree.cut(to_del.src, to_del.dst);
-      tree.link(e.src, e.dst, std::pair<int, Edge>(weight, e));
+    std::pair<int, Edge> max_weight_edge = tree.path_query(u, v);
+    if (max_weight_edge.first > edge.first) {
+      tree.cut(max_weight_edge.second.src, max_weight_edge.second.dst);
+      tree.link(u, v, edge);
     }
   }
+
   my_timer.stop();
-  return my_timer.total_time()/edges.size();
+  return my_timer.total_time();
 }
 
 double incremental_conn_benchmark(parlay::sequence<parlay::sequence<vertex_t>>& G, long seed = -1){

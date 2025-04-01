@@ -6,19 +6,24 @@
 #include "topology_tree.h"
 #include "rc_tree.h"
 #include "../baselines/parett/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
+#include "../baselines/parett/dynamic_trees/link_cut_tree/include/link_cut_tree.hpp"
 #include <fstream>
 
+
+using namespace link_cut_tree;
 using namespace skip_list_ett;
 
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
 
   srand(time(NULL));
   std::tuple<std::string, int> test_cases[] = {
-    {"/ssd1/zhongqi/graphdata/sym/com-youtube_sym.bin", 1},
-    {"/ssd1/zhongqi/graphdata/sym/com-orkut_sym.bin", 1},
-    {"/ssd1/zhongqi/graphdata/sym/soc-LiveJournal1_sym.bin", 1},
-    {"/ssd1/zhongqi/graphdata/sym/twitter_sym.bin", 1},
-    {"/ssd1/zhongqi/graphdata/sym/friendster_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/enwiki_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
+    {"/ssd1/quinten/graphdata/twitter_sym.bin", 1},
   };
 
   std::string filename = "../results/update_speed_graph.csv";
@@ -35,13 +40,13 @@ int main(int argc, char** argv){
     auto n = G.size();
     parlay::sequence<std::pair<int, Edge>> updates;
     for (int i = 0; i < num_trials; i++) {
-      auto non_weighted_seq =  graph_utils::BFS_forest(G, 1);
-      updates = graph_utils::gen_random_weight_edges(non_weighted_seq, 1);
+      auto unweighted_edges =  graph_utils::to_edges(G);
+      updates = graph_utils::generate_random_weight_edges(unweighted_edges, 1);
     }
     double time;
     std::string graph_name = file_name.substr(file_name.find_last_of('/')+1);
     graph_name = graph_name.substr(0, graph_name.length()-8);
-    std::cout << "[ RUNNING " << graph_name << " MIS TREE BENCHMARK ]" << std::endl;
+    std::cout << "[ RUNNING " << graph_name << " INCREMENTAL MSF BENCHMARK ]" << std::endl;
     output_csv << graph_name << "_mis" << ",";
 
     // RC Tree
@@ -55,6 +60,10 @@ int main(int argc, char** argv){
     // UFO Tree
     time = graph_benchmark::incremental_MSF_benchmark<UFOTree<std::pair<int,Edge>, std::pair<int,Edge>>>(updates, n);
     std::cout << "UFOTree       : " << time << std::endl;
+    output_csv << time << ",";
+    // Link Cut Tree
+    time = graph_benchmark::incremental_MSF_benchmark<LinkCutTreeInt>(updates, n);
+    std::cout << "LinkCut Tree  : " << time << std::endl;
     output_csv << time << ",";
 
     std::cout << std::endl;

@@ -31,29 +31,45 @@ double get_update_speed(vertex_t n, std::vector<std::vector<Update>> update_sequ
     return my_timer.total_time()/update_sequences.size();
 }
 
-// Returns the average time in seconds to perform the sequences of queries given trees formed from the sequences of updates
+// Returns the average time in seconds to perform the sequences of connectivity queries given trees formed from the sequences of updates
 template <typename DynamicTree>
-double get_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences, std::vector<std::vector<Query>> query_sequences) {
+double get_conn_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences, std::vector<std::vector<Query>> query_sequences) {
     parlay::internal::timer my_timer("");
     for (int i = 0; i < update_sequences.size(); ++i) {
         auto updates = update_sequences[i];
         auto queries = query_sequences[i];
         DynamicTree tree(n);
-        bool first_delete = true;
         for (Update update : updates) {
             if (update.type == INSERT) {
                 tree.link(update.edge.src, update.edge.dst);
-            } else if (update.type == DELETE) {
-                if (first_delete) {
-                    my_timer.start();
-                    for (auto query : queries) tree.path_query(query.u, query.v);
-                    my_timer.stop();
-                    first_delete = false;
-                }
-                tree.cut(update.edge.src, update.edge.dst);
             } else {
-                std::cerr << "Invalid update type: " << update.type << std::endl;
-                std::abort();
+                my_timer.start();
+                bool connected;
+                for (auto query : queries) connected = tree.connected(query.u, query.v);
+                my_timer.stop();
+                if (connected) break;
+            }
+        }
+    }
+    return my_timer.total_time()/query_sequences.size();
+}
+
+// Returns the average time in seconds to perform the sequences of path queries given trees formed from the sequences of updates
+template <typename DynamicTree>
+double get_path_query_speed(vertex_t n, std::vector<std::vector<Update>> update_sequences, std::vector<std::vector<Query>> query_sequences) {
+    parlay::internal::timer my_timer("");
+    for (int i = 0; i < update_sequences.size(); ++i) {
+        auto updates = update_sequences[i];
+        auto queries = query_sequences[i];
+        DynamicTree tree(n);
+        for (Update update : updates) {
+            if (update.type == INSERT) {
+                tree.link(update.edge.src, update.edge.dst);
+            } else {
+                my_timer.start();
+                for (auto query : queries) tree.path_query(query.u, query.v);
+                my_timer.stop();
+                break;
             }
         }
     }
@@ -158,6 +174,25 @@ std::vector<Update> star_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
+std::vector<Update> dandelion_benchmark(vertex_t n, long seed) {
+    std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(seed);
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
+
+    for (vertex_t i = 0; i < n/2; i++)
+        edges.push_back({ids[i],ids[i+1]});
+    for (vertex_t i = n/2+2; i < n; i++)
+        edges.push_back({ids[0],ids[i]});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
+
+    return updates;
+}
+
 std::vector<Update> random_degree3_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
@@ -228,6 +263,25 @@ std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
     for (auto edge : edges) updates.push_back({DELETE,edge});
 
     return updates;
+}
+
+std::vector<Update> dense_tree_update_generator(std::vector<Update> updates) {
+    std::vector<Update> new_updates;
+    std::vector<Edge> edges;
+    bool first_deletion = true;
+    for (auto update : updates) {
+        if (update.type == INSERT) edges.push_back(update.edge);
+        if (update.type == DELETE && first_deletion) {
+            first_deletion = false;
+            for (int i = 0; i < updates.size()*2; ++i) {
+                Edge edge = edges[rand() % edges.size()];
+                new_updates.push_back({DELETE, edge});
+                new_updates.push_back({INSERT, edge});
+            }
+        }
+        new_updates.push_back(update);
+    }
+    return new_updates;
 }
 
 std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {

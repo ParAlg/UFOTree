@@ -1,6 +1,7 @@
 #pragma once
-
 #include <algorithm>
+#include "types.h"
+
 
 namespace link_cut_tree {
 
@@ -11,6 +12,10 @@ class LinkCutTree {
   LinkCutTree(int _num_verts);
   ~LinkCutTree();
   
+  void link(vertex_t u, vertex_t v);
+  void cut(vertex_t u, vertex_t v);
+  bool connected(vertex_t u, vertex_t v);
+
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.
   void BatchLink(std::pair<int, int>* links, int len);
@@ -19,6 +24,30 @@ class LinkCutTree {
 
  private:
   Node* verts;
+  int num_verts;
+};
+
+
+// ============= Link Cut Tree With Integer Path Queries Below This Point ===============
+
+class NodeInt;
+
+class LinkCutTreeInt {
+ public:
+  LinkCutTreeInt(int _num_verts);
+  LinkCutTreeInt(vertex_t n, QueryType q,
+    std::function<std::pair<int, Edge>(std::pair<int, Edge>, std::pair<int, Edge>)> f,
+    std::pair<int, Edge> id_v, std::pair<int, Edge> id_e) : LinkCutTreeInt(n) {}
+  ~LinkCutTreeInt();
+  
+  void link(vertex_t u, vertex_t v, int weight = 0);
+  void link(vertex_t u, vertex_t v, std::pair<int,Edge> weight) { link(u,v, weight.first); }
+  void cut(vertex_t u, vertex_t v);
+  bool connected(vertex_t u, vertex_t v);
+  std::pair<int,Edge> path_query(vertex_t u, vertex_t v);
+
+ private:
+  NodeInt* verts;
   int num_verts;
 };
 

@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <unordered_map>
 
-#include <sequence/splay_tree/include/splay_tree.hpp>
-#include <utilities/include/hash_pair.hpp>
+#include <parett/sequence/splay_tree/include/splay_tree.hpp>
+#include <parett/utilities/include/hash_pair.hpp>
 
 namespace splay_tree_ett {
 
@@ -18,6 +18,10 @@ class EulerTourTree {
   bool IsConnected(int u, int v);
   void Link(int u, int v);
   void Cut(int u, int v);
+
+  bool connected(int u, int v){return IsConnected(u,v);}
+  void link(int u, int v){Link(u,v);}
+  void cut(int u, int v){ Cut(u,v);}
 
   bool* BatchConnected(std::pair<int, int>* queries, int len);
   // Inserting all links in [links] must keep the graph acylic.

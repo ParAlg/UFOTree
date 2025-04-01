@@ -1,4 +1,4 @@
-#include <dynamic_trees/euler_tour_tree/include/splay_tree_ett.hpp>
+#include <parett/dynamic_trees/euler_tour_tree/include/splay_tree_ett.hpp>
 
 namespace splay_tree_ett {
 

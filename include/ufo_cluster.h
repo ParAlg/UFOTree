@@ -33,9 +33,11 @@ public:
     or higher and the last neighbor pointer is actually a pointer to the NeighborsSet object containing
     the remaining neighbors of the cluster. */
     Cluster* neighbors[UFO_ARRAY_MAX];
+    int degree = 0;
+    int fanout = 0;
     // Constructors
-    UFOCluster() : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value() {};
-    UFOCluster(v_t val) : parent(), neighbors(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
+    UFOCluster() : parent(), neighbors(), degree(), fanout(), edge_value1(), edge_value2(), edge_value3(), value() {};
+    UFOCluster(v_t val) : parent(), neighbors(), degree(), fanout(), edge_value1(), edge_value2(), edge_value3(), value(val) {};
     // Helper functions
     Cluster* get_root();
     bool contracts();
@@ -53,14 +55,14 @@ public:
 };
 
 template<typename v_t, typename e_t>
-inline UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_root() {
+UFOCluster<v_t,e_t>* UFOCluster<v_t,e_t>::get_root() {
     Cluster* curr = this;
     while (curr->parent) curr = curr->parent;
     return curr;
 }
 
 template<typename v_t, typename e_t>
-inline bool UFOCluster<v_t,e_t>::contracts() {
+bool UFOCluster<v_t,e_t>::contracts() {
     assert(get_degree() <= UFO_ARRAY_MAX);
     for (auto neighborp : neighbors) {
         auto neighbor = UNTAG(neighborp);
@@ -70,26 +72,26 @@ inline bool UFOCluster<v_t,e_t>::contracts() {
 }
 
 template<typename v_t, typename e_t>
-inline int UFOCluster<v_t,e_t>::get_degree() {
+int UFOCluster<v_t,e_t>::get_degree() {
     int tag = GET_TAG(neighbors[UFO_ARRAY_MAX-1]);
     if (tag <= 3) [[likely]] return tag;
     return 2 + get_neighbor_set()->size();
 }
 
 template<typename v_t, typename e_t>
-inline bool UFOCluster<v_t,e_t>::has_neighbor_set() {
+bool UFOCluster<v_t,e_t>::has_neighbor_set() {
     int tag = GET_TAG(neighbors[UFO_ARRAY_MAX-1]);
     if (tag <= 3) [[likely]] return false;
     return true;
 }
 
 template<typename v_t, typename e_t>
-inline absl::flat_hash_map<UFOCluster<v_t, e_t>*,e_t>* UFOCluster<v_t,e_t>::get_neighbor_set() {
+absl::flat_hash_map<UFOCluster<v_t, e_t>*,e_t>* UFOCluster<v_t,e_t>::get_neighbor_set() {
     return (NeighborSet*) UNTAG(neighbors[UFO_ARRAY_MAX-1]);
 }
 
 template<typename v_t, typename e_t>
-inline bool UFOCluster<v_t,e_t>::parent_high_fanout() {
+bool UFOCluster<v_t,e_t>::parent_high_fanout() {
     assert(parent);
     int parent_degree = parent->get_degree();
     if (get_degree() == 1) {
@@ -103,15 +105,16 @@ inline bool UFOCluster<v_t,e_t>::parent_high_fanout() {
 }
 
 template<typename v_t, typename e_t>
-inline bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
+bool UFOCluster<v_t,e_t>::contains_neighbor(Cluster* c) {
     for (auto neighbor : neighbors) if (UNTAG(neighbor) == c) return true;
     if (has_neighbor_set() && get_neighbor_set()->find(c) != get_neighbor_set()->end()) return true;
     return false;
 }
 
 template<typename v_t, typename e_t>
-inline void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
+void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
     assert(!contains_neighbor(c));
+    // degree++;
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
         if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
             int deg = GET_TAG(neighbors[UFO_ARRAY_MAX-1]);
@@ -133,9 +136,10 @@ inline void UFOCluster<v_t,e_t>::insert_neighbor(Cluster* c) {
 }
 
 template<typename v_t, typename e_t>
-inline void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
+void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t value) {
     if constexpr (!std::is_same<e_t, empty_t>::value) {
         assert(!contains_neighbor(c));
+        // degree++;
         for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
             if (UNTAG(neighbors[i]) == nullptr) [[likely]] {
                 int deg = GET_TAG(neighbors[UFO_ARRAY_MAX-1]);
@@ -155,8 +159,9 @@ inline void UFOCluster<v_t,e_t>::insert_neighbor_with_value(Cluster* c, e_t valu
 }
 
 template<typename v_t, typename e_t>
-inline void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
+void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
     assert(contains_neighbor(c));
+    // degree--;
     for (int i = 0; i < UFO_ARRAY_MAX; ++i) {
         if (UNTAG(neighbors[i]) == c) {
             neighbors[i] = TAG(nullptr, GET_TAG(neighbors[i]));
@@ -201,19 +206,19 @@ inline void UFOCluster<v_t,e_t>::remove_neighbor(Cluster* c) {
 }
 
 template<typename v_t, typename e_t>
-inline void UFOCluster<v_t,e_t>::set_edge_value(int index, e_t value) {
+void UFOCluster<v_t,e_t>::set_edge_value(int index, e_t value) {
     e_t* address = &edge_value1 + index;
     *address = value;
 }
 
 template<typename v_t, typename e_t>
-inline e_t UFOCluster<v_t,e_t>::get_edge_value(int index) {
+e_t UFOCluster<v_t,e_t>::get_edge_value(int index) {
     e_t* address = &edge_value1 + index;
     return *address;
 }
 
 template<typename v_t, typename e_t>
-inline size_t UFOCluster<v_t,e_t>::calculate_size() {
+size_t UFOCluster<v_t,e_t>::calculate_size() {
     size_t memory = sizeof(UFOCluster<v_t, e_t>);
     if (has_neighbor_set()) memory += get_neighbor_set()->bucket_count() * sizeof(std::pair<Cluster*, e_t>);
     return memory;

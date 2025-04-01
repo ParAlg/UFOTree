@@ -5,8 +5,8 @@
 
 template<typename v_t, typename e_t>
 bool UFOTree<v_t, e_t>::is_valid() {
-    std::unordered_set<Cluster*> clusters;
-    std::unordered_set<Cluster*> next_clusters;
+    std::unordered_map<Cluster*,int> clusters;
+    std::unordered_map<Cluster*,int> next_clusters;
     for (auto leaf : leaves) { // Ensure that every pair of incident vertices are in the same component
         if (!leaf.has_neighbor_set()) {
             for (auto neighborp : leaf.neighbors) { // This ensures all connectivity is correct by transitivity
@@ -24,9 +24,11 @@ bool UFOTree<v_t, e_t>::is_valid() {
             }
         }
     }
-    for (int i = 0; i < this->leaves.size(); i++) clusters.insert(&this->leaves[i]);
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({&this->leaves[i], 0});
     while (!clusters.empty()) {
-        for (auto cluster : clusters) {
+        for (auto entry : clusters) {
+            auto cluster = entry.first;
+            if (cluster->fanout != entry.second) return false;
             if (!cluster->has_neighbor_set()) {
                 for (auto neighborp : cluster->neighbors) { // Ensure all neighbors also point back
                     auto neighbor = UNTAG(neighborp);
@@ -67,7 +69,12 @@ bool UFOTree<v_t, e_t>::is_valid() {
                     }
                 }
             }
-            if (cluster->parent) next_clusters.insert(cluster->parent); // Get next level
+            if (cluster->parent) { // Get next level
+                if (next_clusters.find(cluster->parent) != next_clusters.end())
+                    next_clusters[cluster->parent]++;
+                else
+                    next_clusters.insert({cluster->parent, 1});
+            }
         }
         clusters.swap(next_clusters);
         next_clusters.clear();
@@ -173,7 +180,7 @@ TEST(UFOTreeSuite, incremental_random_correctness_test) {
 }
 
 TEST(UFOTreeSuite, decremental_linkedlist_correctness_test) {
-    vertex_t n = 128;
+    vertex_t n = 256;
     UFOTree<int, int> tree(n);
 
     for (vertex_t i = 0; i < n-1; i++) {
