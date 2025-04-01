@@ -1,4 +1,4 @@
-#include "benchmark.h"
+#include "../dynamic_trees/benchmark.h"
 #include "graph_benchmark.h"
 #include "util.h"
 #include "ternarized_tree.h"
