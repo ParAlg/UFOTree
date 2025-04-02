@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include <parett/utilities/include/utils.h>
+#include <parett/utilities/utils.h>
 
 inline unsigned hashIntPair(const std::pair<unsigned, unsigned>& p) {
   unsigned h{hashInt(p.first)};

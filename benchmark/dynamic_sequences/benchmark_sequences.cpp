@@ -1,6 +1,6 @@
 #include <parlay/parallel.h>
 #include "pam.h"
-// #include "baselines/sequence/parallel_treap/include/treap.hpp"
+#include "parett/sequence/treap/treap.hpp"
 
 
 using key_type = uint32_t;
@@ -17,18 +17,28 @@ using treap_map_ops = treap_sequence::Tree;
 
 
 int main(int argc, char** argv) {
-    size_t n = 1000000;
+    int n = 10000000;
     parlay::sequence<key_type> v = parlay::tabulate(n, [&] (key_type i) { return i; });
+    parlay::internal::timer t;
 
     treap_sequence s1(v);
     treap_sequence::node* root = s1.root;
-    parlay::internal::timer t;
     t.start();
-    for (size_t i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         auto split_result = treap_map_ops::split(root, v[i]);
         root = split_result.second;
     }
     t.next("PAM Treap Total Split Time");
 
-
+    std::vector<treap::Node> treap;
+    for (int i = 0; i < n; i++)
+        treap.emplace_back();
+    t.start();
+    for (int i = 0; i < n-1; i++)
+        treap::Node::Join(&treap[i], &treap[i+1]);
+    t.next("ParETT Treap Total Join Time");
+    t.start();
+    for (int i = 0; i < n-1; i++)
+        treap[i].Split();
+    t.next("ParETT Treap Total Split Time");
 }

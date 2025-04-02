@@ -4,7 +4,9 @@
 #include "ufo_tree.h"
 #include "topology_tree.h"
 #include "rc_tree.h"
-#include "../baselines/parett/dynamic_trees/euler_tour_tree/include/skip_list_ett.hpp"
+#include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
+#include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
+#include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
 #include <fstream>
 
 

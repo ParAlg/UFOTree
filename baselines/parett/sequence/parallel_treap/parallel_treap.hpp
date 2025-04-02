@@ -1,13 +1,50 @@
-#include <sequence/parallel_treap/include/treap.hpp>
+#pragma once
 
+#include <utility>
 #include <tuple>
+#include <parett/utilities/blockRadixSort.h>
+#include <parett/utilities/random.h>
 
-#include <utilities/include/blockRadixSort.h>
-#include <utilities/include/random.h>
-
-namespace treap {
 
 using std::pair;
+
+namespace parallel_treap {
+
+class Node {
+ public:
+  // Running this concurrently may lead to poor randomness.
+  Node();
+  explicit Node(unsigned random_int);
+
+  Node* GetRoot() const;
+
+  // Splits right after this node
+  std::pair<Node*, Node*> Split();
+  // Join tree containing lesser to tree containing greater and return root of
+  // resulting tree.
+  static Node* Join(Node* lesser, Node* greater);
+
+  static void BatchSplit(Node** splits, int len);
+  static void BatchJoin(std::pair<Node*, Node*>* joins, int len);
+
+ private:
+  void AssignChild(int i, Node* v);
+  static Node* JoinRoots(Node* lesser, Node* greater);
+  static void BatchJoinRecurse(
+      std::pair<Node*, Node*>* joins,
+      int len,
+      bool* ignored,
+      Node** left_roots);
+
+  Node* parent_;
+  Node* child_[2];
+  unsigned priority_;
+
+  // For batch join
+  Node* right_joiner_;
+  bool has_left_joiner_;
+};
+
 
 namespace {
 
@@ -116,23 +153,25 @@ void BatchSplitOneTree(Node** splits, int len, pbbs::random randomness) {
   std::tie(left_parent, right_parent) = pivot_node->Split();
 
   bool* flags = pbbs::new_array_no_init<bool>(len);
-  parallel_for (int i = 0; i < len; i++) {
+  parallel_for (0, len, [&] (int i) {
     flags[i] = splits[i]->GetRoot() == right_parent;
-  }
+  });
   Node** splits_right = pbbs::new_array_no_init<Node*>(len);
   const int len_right = utils::sequence::pack(splits, splits_right, flags, len);
-  cilk_spawn BatchSplitOneTree(splits_right, len_right, randomness.fork(1));
 
-  parallel_for (int i = 0; i < len; i++) {
-    flags[i] = !flags[i];
-  }
-  flags[pivot_index] = 0;
-  Node** splits_left = pbbs::new_array_no_init<Node*>(len);
-  const int len_left = utils::sequence::pack(splits, splits_left, flags, len);
-  BatchSplitOneTree(splits_left, len_left, randomness.fork(2));
-
-  pbbs::delete_array(splits_left, len_left);
-  cilk_sync;
+  parlay::parallel_do(
+    [&] { BatchSplitOneTree(splits_right, len_right, randomness.fork(1)); },
+    [&] {
+      parallel_for (0, len, [&] (int i) {
+        flags[i] = !flags[i];
+      });
+      flags[pivot_index] = 0;
+      Node** splits_left = pbbs::new_array_no_init<Node*>(len);
+      const int len_left = utils::sequence::pack(splits, splits_left, flags, len);
+      BatchSplitOneTree(splits_left, len_left, randomness.fork(2));
+      pbbs::delete_array(splits_left, len_left);
+    }
+  );
   pbbs::delete_array(splits_right, len_right);
 }
 
@@ -152,10 +191,10 @@ void Node::BatchSplit(Node** splits, int len) {
   // Sort splits to find splits that all operate on same tree.
   pair<uintptr_t, Node*>* splits_by_tree =
     pbbs::new_array_no_init<pair<uintptr_t, Node*>>(len);
-  parallel_for (int i = 0; i < len; i++) {
+  parallel_for (0, len, [&] (int i) {
     splits_by_tree[i] = make_pair(
         reinterpret_cast<uintptr_t>(splits[i]->GetRoot()), splits[i]);
-  }
+  });
   intSort::iSort(splits_by_tree, len,
     utils::sequence::mapReduce<uintptr_t>(
       splits_by_tree,
@@ -164,7 +203,7 @@ void Node::BatchSplit(Node** splits, int len) {
       firstF<uintptr_t, Node*>()) + 1,
     firstF<uintptr_t, Node*>());
 
-  parallel_for (int i = 0; i < len; i++) {
+  parallel_for (0, len, [&] (int i) {
     // In parallel, split on each tree
     if (i == 0 || splits_by_tree[i].first != splits_by_tree[i - 1].first) {
       // Left endpoint of a contiguous batch of splits on a particular tree.
@@ -190,15 +229,15 @@ void Node::BatchSplit(Node** splits, int len) {
       } else {
         Node** splits_on_this_tree =
            pbbs::new_array_no_init<Node*>(len_this_tree);
-        parallel_for (int j = i; j < right_endpoint; j++) {
+        parallel_for (i, right_endpoint, [&] (int j) {
           splits_on_this_tree[j - i] = splits_by_tree[j].second;
-        }
+        });
         BatchSplitOneTree(
             splits_on_this_tree, len_this_tree, default_randomness.fork(i));
         pbbs::delete_array(splits_on_this_tree, len_this_tree);
       }
     }
-  }
+  });
   default_randomness = default_randomness.next();
 
   pbbs::delete_array(splits_by_tree, len);
@@ -220,13 +259,13 @@ void Node::BatchJoinRecurse(
   // a linked list on the trees where each list is not too long. In parallel on
   // each list, walk sequentially from left-to-right and perform joins.
 
-  parallel_for (int i = 0; i < len; i++) {
+  parallel_for (0, len, [&] (int i) {
     ignored[i] =
       default_randomness.ith_rand(i) % kBatchJoinRecursiveFactor == 0;
-  }
+  });
   default_randomness = default_randomness.next();
 
-  parallel_for (int i = 0; i < len; i++) {
+  parallel_for (0, len, [&] (int i) {
     if (!ignored[i]) {
       Node* left_root = joins[i].first->GetRoot();
       Node* right_root = joins[i].second->GetRoot();
@@ -234,9 +273,9 @@ void Node::BatchJoinRecurse(
       right_root->has_left_joiner_ = true;
       left_roots[i] = left_root;
     }
-  }
+  });
 
-  parallel_for (int i = 0; i < len; i++) {
+  parallel_for (0, len, [&] (int i) {
     if (!ignored[i] && !left_roots[i]->has_left_joiner_) {
       Node* current = left_roots[i];
       Node* next = current->right_joiner_;
@@ -249,7 +288,7 @@ void Node::BatchJoinRecurse(
         next = next_next;
       }
     }
-  }
+  });
 
   pair<Node*, Node*>* next_joins =
     pbbs::new_array_no_init<pair<Node*, Node*>>(len);
@@ -275,4 +314,4 @@ void Node::BatchJoin(pair<Node*, Node*>* joins, int len) {
   pbbs::delete_array(ignored, len);
 }
 
-}  // namespace treap
+}  // namespace parallel_treap

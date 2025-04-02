@@ -1,9 +1,44 @@
-#include <parett/dynamic_trees/euler_tour_tree/include/splay_tree_ett.hpp>
+#pragma once
 
-namespace splay_tree_ett {
+#include <algorithm>
+#include <unordered_map>
+
+#include <parett/sequence/splay_tree/splay_tree.hpp>
+#include <parett/utilities/hash_pair.hpp>
 
 using Node = splay_tree::Node;
 using std::pair;
+
+
+namespace splay_tree_ett {
+
+class EulerTourTree {
+ public:
+  EulerTourTree(int _num_verts);
+  ~EulerTourTree();
+  EulerTourTree(const EulerTourTree& other);
+  EulerTourTree& operator=(const EulerTourTree& other);
+
+  bool IsConnected(int u, int v);
+  void Link(int u, int v);
+  void Cut(int u, int v);
+
+  bool connected(int u, int v){return IsConnected(u,v);}
+  void link(int u, int v){Link(u,v);}
+  void cut(int u, int v){ Cut(u,v);}
+
+  bool* BatchConnected(std::pair<int, int>* queries, int len);
+  // Inserting all links in [links] must keep the graph acylic.
+  void BatchLink(std::pair<int, int>* links, int len);
+  // All edges in [cuts] must be in the graph, and no edges may be repeated.
+  void BatchCut(std::pair<int, int>* cuts, int len);
+
+ private:
+  int num_verts;
+  splay_tree::Node* verts;
+  std::unordered_map<std::pair<int, int>, splay_tree::Node*, HashIntPairStruct> edges;
+};
+
 
 EulerTourTree::EulerTourTree(int _num_verts) : num_verts(_num_verts) {
   verts = new Node[num_verts];
@@ -73,4 +108,4 @@ void EulerTourTree::BatchCut(pair<int, int>* cuts, int len) {
   }
 }
 
-} // namespace splay_tree_ett
+} //namespace splay_tree_ett

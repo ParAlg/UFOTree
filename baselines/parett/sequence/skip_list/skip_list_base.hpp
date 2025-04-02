@@ -1,6 +1,6 @@
 // This is copied over from parallel_skip_list/.
 #pragma once
-#include <parett/utilities/include/random.h>
+#include <parett/utilities/random.h>
 
 namespace skip_list {
 

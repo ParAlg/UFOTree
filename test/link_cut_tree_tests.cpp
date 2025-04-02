@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <unordered_set>
-#include "../baselines/parett/dynamic_trees/link_cut_tree/include/link_cut_tree.hpp"
+#include "../baselines/parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "ufo_tree.h"
 
 
