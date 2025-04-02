@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sequence/parallel_skip_list/include/skip_list_base.hpp>
+#include <parett/sequence/parallel_skip_list/skip_list_base.hpp>
 
 namespace parallel_skip_list {
 
