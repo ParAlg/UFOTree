@@ -32,18 +32,23 @@ class EulerTourTree {
   int num_verts;
   Node* verts;
   std::unordered_map<std::pair<int, int>, Node*, HashIntPairStruct> edges;
+  std::vector<Node*> node_pool;
 };
 
 
 EulerTourTree::EulerTourTree(int _num_verts) : num_verts(_num_verts) {
   verts = new Node[num_verts];
   edges.reserve(2 * (num_verts - 1));
+  for (int i = 0; i < 2 * (num_verts - 1); i++)
+    node_pool.push_back(new Node());
 }
 
 EulerTourTree::~EulerTourTree() {
   delete[] verts;
   for (auto it : edges)
     delete it.second;
+  for (Node* node : node_pool)
+    delete node;
 }
 
 bool EulerTourTree::IsConnected(int u, int v) {
@@ -52,12 +57,14 @@ bool EulerTourTree::IsConnected(int u, int v) {
 
 void EulerTourTree::Link(int u, int v) {
   Node* u_left, * u_right, * v_left, * v_right;
-  Node* uv = new Node();
-  Node* vu = new Node();
+  Node* uv = node_pool.back();
+  node_pool.pop_back();
+  Node* vu = node_pool.back();
+  node_pool.pop_back();
   edges[std::make_pair(u, v)] = uv;
   edges[std::make_pair(v, u)] = vu;
-  std::tie(u_left, u_right) = verts[u].Split();
-  std::tie(v_left, v_right) = verts[v].Split();
+  std::tie(u_left, u_right) = verts[u].SplitRight();
+  std::tie(v_left, v_right) = verts[v].SplitRight();
   Node* root_left = Node::Join(u_left, uv);
   root_left = Node::Join(root_left, v_right);
   Node* root_right = Node::Join(v_left, vu);
@@ -69,8 +76,10 @@ void EulerTourTree::Cut(int u, int v) {
   Node* uv_left, * uv_right, * vu_left, * vu_right;
   auto uv_it = edges.find(std::make_pair(u, v));
   auto vu_it = edges.find(std::make_pair(v, u));
-  std::tie(uv_left, uv_right) = uv_it->second->Split();
-  std::tie(vu_left, vu_right) = vu_it->second->Split();
+  std::tie(uv_left, uv_right) = uv_it->second->SplitAround();
+  std::tie(vu_left, vu_right) = vu_it->second->SplitAround();
+  node_pool.push_back(uv_it->second);
+  node_pool.push_back(vu_it->second);
   edges.erase(uv_it);
   edges.erase(vu_it);
   if (uv_left)  uv_left  = uv_left->GetRoot();

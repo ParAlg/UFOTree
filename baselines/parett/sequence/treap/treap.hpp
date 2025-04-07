@@ -17,8 +17,11 @@ class Node {
 
   Node* GetRoot() const;
 
-  // Splits right after this node
-  std::pair<Node*, Node*> Split();
+  // SplitRights right after this node
+  std::pair<Node*, Node*> SplitRight();
+  std::pair<Node*, Node*> SplitLeft();
+  std::pair<Node*, Node*> Split() { return SplitRight(); };
+  std::pair<Node*, Node*> SplitAround();
   // Join tree containing lesser to tree containing greater and return root of
   // resulting tree.
   static Node* Join(Node* lesser, Node* greater);
@@ -61,7 +64,7 @@ Node* Node::GetRoot() const {
   return const_cast<Node*>(current);
 }
 
-pair<Node*, Node*> Node::Split() {
+pair<Node*, Node*> Node::SplitRight() {
   Node* lesser = nullptr;
   Node* greater = child_[1];
   if (child_[1] != nullptr) {
@@ -80,6 +83,70 @@ pair<Node*, Node*> Node::Split() {
       current->parent_ = nullptr;
     }
     if (traversed_up_from_right) {
+      lesser = Join(current, lesser);
+    } else {
+      greater = Join(greater, current);
+    }
+
+    traversed_up_from_right = next_direction;
+    current = p;
+  }
+  return {lesser, greater};
+}
+
+pair<Node*, Node*> Node::SplitLeft() {
+  Node* lesser = child_[0];
+  Node* greater = nullptr;
+  if (child_[0] != nullptr) {
+    child_[0]->parent_ = nullptr;
+    AssignChild(0, nullptr);
+  }
+
+  Node* current = this;
+  bool traversed_up_from_right = 1;
+  bool next_direction;
+  while (current != nullptr) {
+    Node* p = current->parent_;
+    if (p != nullptr) {
+      next_direction = p->child_[1] == current;
+      p->AssignChild(next_direction, nullptr);
+      current->parent_ = nullptr;
+    }
+    if (traversed_up_from_right) {
+      lesser = Join(current, lesser);
+    } else {
+      greater = Join(greater, current);
+    }
+
+    traversed_up_from_right = next_direction;
+    current = p;
+  }
+  return {lesser, greater};
+}
+
+pair<Node*, Node*> Node::SplitAround() {
+  Node* lesser = child_[0];
+  Node* greater = child_[1];
+  if (child_[0] != nullptr) {
+    child_[0]->parent_ = nullptr;
+    AssignChild(0, nullptr);
+  }
+  if (child_[1] != nullptr) {
+    child_[1]->parent_ = nullptr;
+    AssignChild(1, nullptr);
+  }
+
+  Node* current = this;
+  bool traversed_up_from_right;
+  bool next_direction;
+  while (current != nullptr) {
+    Node* p = current->parent_;
+    if (p != nullptr) {
+      next_direction = p->child_[1] == current;
+      p->AssignChild(next_direction, nullptr);
+      current->parent_ = nullptr;
+    }
+    if (current != this && traversed_up_from_right) {
       lesser = Join(current, lesser);
     } else {
       greater = Join(greater, current);
