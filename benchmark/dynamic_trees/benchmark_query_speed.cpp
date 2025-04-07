@@ -8,6 +8,7 @@
 #include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
+#include "parett/dynamic_trees/euler_tour_tree/treap_ett.hpp"
 #include <fstream>
 
 
@@ -43,7 +44,7 @@ int main(int argc, char** argv) {
     output_csv.open(filename);
 
     // Connectivity query speed benchmark
-    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Euler Tour Tree (Skip List),Euler Tour Tree (Splay Tree),Topology Tree,RC Tree";
+    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,ETT (Skip List),ETT (Splay Tree),ETT (Treap),Topology Tree,RC Tree";
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);
       auto update_generator = std::get<1>(test_case);
@@ -61,18 +62,18 @@ int main(int argc, char** argv) {
       std::cout << "[ RUNNING " << test_case_name << " CONNECTIVITY QUERY SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << "\n" << test_case_name << "_conn";
 
-      // UFO Tree
-      time = dynamic_tree_benchmark::get_conn_query_speed<UFOTree<empty_t, empty_t>>(n, update_sequences, query_sequences);
-      std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << "," << time;
-      // Link Cut Tree
-      time = dynamic_tree_benchmark::get_conn_query_speed<link_cut_tree::LinkCutTree>(n, update_sequences, query_sequences);
-      std::cout << "LinkCutTree   : " << time << std::endl;
-      output_csv << "," << time;
-      // Top Tree
-      time = dynamic_tree_benchmark::get_conn_query_speed<TopTree<empty_t>>(n, update_sequences, query_sequences);
-      std::cout << "SplayTopTree  : " << time << std::endl;
-      output_csv << "," << time;
+      // // UFO Tree
+      // time = dynamic_tree_benchmark::get_conn_query_speed<UFOTree<empty_t, empty_t>>(n, update_sequences, query_sequences);
+      // std::cout << "UFOTree       : " << time << std::endl;
+      // output_csv << "," << time;
+      // // Link Cut Tree
+      // time = dynamic_tree_benchmark::get_conn_query_speed<link_cut_tree::LinkCutTree>(n, update_sequences, query_sequences);
+      // std::cout << "LinkCutTree   : " << time << std::endl;
+      // output_csv << "," << time;
+      // // Top Tree
+      // time = dynamic_tree_benchmark::get_conn_query_speed<TopTree<empty_t>>(n, update_sequences, query_sequences);
+      // std::cout << "SplayTopTree  : " << time << std::endl;
+      // output_csv << "," << time;
       // Euler Tour Tree (Skip List)
       time = dynamic_tree_benchmark::get_conn_query_speed<skip_list_ett::EulerTourTree>(n, update_sequences, query_sequences);
       std::cout << "SkipListETT   : " << time << std::endl;
@@ -81,16 +82,20 @@ int main(int argc, char** argv) {
       time = dynamic_tree_benchmark::get_conn_query_speed<splay_tree_ett::EulerTourTree>(n, update_sequences, query_sequences);
       std::cout << "SplayTreeETT  : " << time << std::endl;
       output_csv << "," << time;
-      // Topology Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_conn_query_speed<TopologyTree<int, empty_t>>(n, update_sequences, query_sequences);
-      else time = dynamic_tree_benchmark::get_conn_query_speed<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences, query_sequences);
-      std::cout << "TopologyTree  : " << time << std::endl;
+      // Euler Tour Tree (Treap)
+      time = dynamic_tree_benchmark::get_conn_query_speed<treap_ett::EulerTourTree>(n, update_sequences, query_sequences);
+      std::cout << "TreapETT      : " << time << std::endl;
       output_csv << "," << time;
-      // RC Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_conn_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
-      else time = dynamic_tree_benchmark::get_conn_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
-      std::cout << "RCTree        : " << time << std::endl;
-      output_csv << "," << time;
+      // // Topology Tree
+      // if (!ternarize) time = dynamic_tree_benchmark::get_conn_query_speed<TopologyTree<int, empty_t>>(n, update_sequences, query_sequences);
+      // else time = dynamic_tree_benchmark::get_conn_query_speed<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences, query_sequences);
+      // std::cout << "TopologyTree  : " << time << std::endl;
+      // output_csv << "," << time;
+      // // RC Tree
+      // if (!ternarize) time = dynamic_tree_benchmark::get_conn_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
+      // else time = dynamic_tree_benchmark::get_conn_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
+      // std::cout << "RCTree        : " << time << std::endl;
+      // output_csv << "," << time;
 
       std::cout << std::endl;
     }
@@ -115,30 +120,30 @@ int main(int argc, char** argv) {
       std::cout << "[ RUNNING " << test_case_name << " PATH QUERY SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << "\n" << test_case_name << "_path";
 
-      // UFO Tree
-      time = dynamic_tree_benchmark::get_path_query_speed<UFOTree<int, int>>(n, update_sequences, query_sequences);
-      std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << "," << time;
-      // Link Cut Tree
-      time = dynamic_tree_benchmark::get_path_query_speed<link_cut_tree::LinkCutTreeInt>(n, update_sequences, query_sequences);
-      std::cout << "LinkCutTree   : " << time << std::endl;
-      output_csv << "," << time;
-      //Top Tree
-      time = dynamic_tree_benchmark::get_path_query_speed<TopTree<int>>(n, update_sequences, query_sequences);
-      std::cout << "SplayTopTree  : " << time << std::endl;
-      output_csv << "," << time;
-      // Topology Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<TopologyTree<int, int>>(n, update_sequences, query_sequences);
-      else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences, query_sequences);
-      std::cout << "TopologyTree  : " << time << std::endl;
-      output_csv << "," << time;
-      // RC Tree
-      if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
-      else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
-      std::cout << "RCTree        : " << time << std::endl;
-      output_csv << "," << time;
+      // // UFO Tree
+      // time = dynamic_tree_benchmark::get_path_query_speed<UFOTree<int, int>>(n, update_sequences, query_sequences);
+      // std::cout << "UFOTree       : " << time << std::endl;
+      // output_csv << "," << time;
+      // // Link Cut Tree
+      // time = dynamic_tree_benchmark::get_path_query_speed<link_cut_tree::LinkCutTreeInt>(n, update_sequences, query_sequences);
+      // std::cout << "LinkCutTree   : " << time << std::endl;
+      // output_csv << "," << time;
+      // //Top Tree
+      // time = dynamic_tree_benchmark::get_path_query_speed<TopTree<int>>(n, update_sequences, query_sequences);
+      // std::cout << "SplayTopTree  : " << time << std::endl;
+      // output_csv << "," << time;
+      // // Topology Tree
+      // if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<TopologyTree<int, int>>(n, update_sequences, query_sequences);
+      // else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences, query_sequences);
+      // std::cout << "TopologyTree  : " << time << std::endl;
+      // output_csv << "," << time;
+      // // RC Tree
+      // if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
+      // else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
+      // std::cout << "RCTree        : " << time << std::endl;
+      // output_csv << "," << time;
 
-      std::cout << std::endl;
+      // std::cout << std::endl;
     }
 
     output_csv.close();
