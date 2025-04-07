@@ -37,13 +37,13 @@ int main(int argc, char** argv) {
     t.next("PAM Treap Total Split Time");
     std::cout << std::endl;
 
-    std::vector<treap::Node> treap;
-    std::vector<treap::Node*> roots(n);
+    std::vector<treap::Node<empty_t>> treap;
+    std::vector<treap::Node<empty_t>*> roots(n);
     for (int i = 0; i < n; i++)
         treap.emplace_back();
     t.start();
     for (int i = 0; i < links.size(); i++)
-        treap::Node::Join(&treap[links[i].first], &treap[links[i].second]);
+        treap::Node<empty_t>::Join(&treap[links[i].first], &treap[links[i].second]);
     t.next("ParETT Treap Total Join Time");
     t.start();
     for (int i = 0; i < n; i++)

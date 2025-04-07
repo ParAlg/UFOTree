@@ -4,12 +4,14 @@
 #include <tuple>
 #include <parett/utilities/blockRadixSort.h>
 #include <parett/utilities/random.h>
+#include "types.h"
 
 
 using std::pair;
 
 namespace treap {
 
+template<typename T>
 class Node {
  public:
   Node();
@@ -26,13 +28,19 @@ class Node {
   // resulting tree.
   static Node* Join(Node* lesser, Node* greater);
 
- private:
-  void AssignChild(int i, Node* v);
-  static Node* JoinRoots(Node* lesser, Node* greater);
+  static std::function<T(T, T)> aggregate_function;
 
+ private:
+ static Node* JoinRoots(Node* lesser, Node* greater);
+  void AssignChild(int i, Node* v);
+  void RemoveChild(int i);
+  void RecomputeAggregate();
+
+  [[no_unique_address]] T value;
+  [[no_unique_address]] T aggregate;
   Node* parent_;
   Node* child_[2];
-  unsigned priority_;
+  uint32_t priority_;
 };
 
 
@@ -40,23 +48,49 @@ namespace {
   pbbs::random default_randomness;
 }  // namespace
 
-Node::Node(unsigned random_int)
+template<typename T>
+Node<T>::Node(unsigned random_int)
   : parent_(nullptr)
   , child_{nullptr, nullptr}
   , priority_(random_int) {}
 
-Node::Node() : Node(default_randomness.rand()) {
+template<typename T>
+Node<T>::Node() : Node(default_randomness.rand()) {
   default_randomness = default_randomness.next();
 }
 
-void Node::AssignChild(int i, Node* v) {
-  if (v != nullptr) {
+template<typename T>
+std::function<T(T,T)> Node<T>::aggregate_function = [] (T x, T y) { return x; };
+
+template<typename T>
+inline void Node<T>::AssignChild(int i, Node* v) {
+  if (v != nullptr)
     v->parent_ = this;
-  }
   child_[i] = v;
+  if constexpr (!std::is_same<T, empty_t>::value)
+    RecomputeAggregate();
 }
 
-Node* Node::GetRoot() const {
+template<typename T>
+inline void Node<T>::RemoveChild(int i) {
+  if (child_[i])
+    child_[i]->parent_ = nullptr;
+  child_[i] = nullptr;
+  if constexpr (!std::is_same<T, empty_t>::value)
+    RecomputeAggregate();
+}
+
+template<typename T>
+inline void Node<T>::RecomputeAggregate() {
+  aggregate = value;
+  if (child_[0])
+    aggregate = aggregate_function(aggregate, child_[0]->aggregate);
+  if (child_[1])
+    aggregate = aggregate_function(aggregate, child_[1]->aggregate);
+}
+
+template<typename T>
+Node<T>* Node<T>::GetRoot() const {
   const Node* current = this;
   while (current->parent_ != nullptr) {
     current = current->parent_;
@@ -64,13 +98,11 @@ Node* Node::GetRoot() const {
   return const_cast<Node*>(current);
 }
 
-pair<Node*, Node*> Node::SplitRight() {
+template<typename T>
+pair<Node<T>*, Node<T>*> Node<T>::SplitRight() {
   Node* lesser = nullptr;
   Node* greater = child_[1];
-  if (child_[1] != nullptr) {
-    child_[1]->parent_ = nullptr;
-    AssignChild(1, nullptr);
-  }
+  RemoveChild(1);
 
   Node* current = this;
   bool traversed_up_from_right = 1;
@@ -79,8 +111,7 @@ pair<Node*, Node*> Node::SplitRight() {
     Node* p = current->parent_;
     if (p != nullptr) {
       next_direction = p->child_[1] == current;
-      p->AssignChild(next_direction, nullptr);
-      current->parent_ = nullptr;
+      p->RemoveChild(next_direction);
     }
     if (traversed_up_from_right) {
       lesser = Join(current, lesser);
@@ -94,13 +125,11 @@ pair<Node*, Node*> Node::SplitRight() {
   return {lesser, greater};
 }
 
-pair<Node*, Node*> Node::SplitLeft() {
+template<typename T>
+pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
   Node* lesser = child_[0];
   Node* greater = nullptr;
-  if (child_[0] != nullptr) {
-    child_[0]->parent_ = nullptr;
-    AssignChild(0, nullptr);
-  }
+  RemoveChild(0);
 
   Node* current = this;
   bool traversed_up_from_right = 1;
@@ -109,8 +138,7 @@ pair<Node*, Node*> Node::SplitLeft() {
     Node* p = current->parent_;
     if (p != nullptr) {
       next_direction = p->child_[1] == current;
-      p->AssignChild(next_direction, nullptr);
-      current->parent_ = nullptr;
+      p->RemoveChild(next_direction);
     }
     if (traversed_up_from_right) {
       lesser = Join(current, lesser);
@@ -124,17 +152,12 @@ pair<Node*, Node*> Node::SplitLeft() {
   return {lesser, greater};
 }
 
-pair<Node*, Node*> Node::SplitAround() {
+template<typename T>
+pair<Node<T>*, Node<T>*> Node<T>::SplitAround() {
   Node* lesser = child_[0];
   Node* greater = child_[1];
-  if (child_[0] != nullptr) {
-    child_[0]->parent_ = nullptr;
-    AssignChild(0, nullptr);
-  }
-  if (child_[1] != nullptr) {
-    child_[1]->parent_ = nullptr;
-    AssignChild(1, nullptr);
-  }
+  RemoveChild(0);
+  RemoveChild(1);
 
   Node* current = this;
   bool traversed_up_from_right;
@@ -143,8 +166,7 @@ pair<Node*, Node*> Node::SplitAround() {
     Node* p = current->parent_;
     if (p != nullptr) {
       next_direction = p->child_[1] == current;
-      p->AssignChild(next_direction, nullptr);
-      current->parent_ = nullptr;
+      p->RemoveChild(next_direction);
     }
     if (current != this && traversed_up_from_right) {
       lesser = Join(current, lesser);
@@ -158,7 +180,8 @@ pair<Node*, Node*> Node::SplitAround() {
   return {lesser, greater};
 }
 
-Node* Node::JoinRoots(Node* lesser, Node* greater) {
+template<typename T>
+Node<T>* Node<T>::JoinRoots(Node* lesser, Node* greater) {
   if (lesser == nullptr) {
     return greater;
   } else if (greater == nullptr) {
@@ -174,7 +197,8 @@ Node* Node::JoinRoots(Node* lesser, Node* greater) {
   }
 }
 
-Node* Node::Join(Node* lesser, Node* greater) {
+template<typename T>
+Node<T>* Node<T>::Join(Node* lesser, Node* greater) {
   return JoinRoots(
       lesser == nullptr ? nullptr : lesser->GetRoot(),
       greater == nullptr ? nullptr : greater->GetRoot());

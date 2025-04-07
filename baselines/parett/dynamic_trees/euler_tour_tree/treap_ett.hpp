@@ -9,12 +9,14 @@
 
 
 namespace treap_ett {
-    
-using Node = treap::Node;
+
 using std::pair;
 
+template<typename T>
 class EulerTourTree {
- public:
+using Node = treap::Node<T>;
+
+public:
   EulerTourTree(int _num_verts);
   ~EulerTourTree();
   EulerTourTree(const EulerTourTree& other);
@@ -28,7 +30,7 @@ class EulerTourTree {
   void link(int u, int v){Link(u,v);}
   void cut(int u, int v){ Cut(u,v);}
 
- private:
+private:
   int num_verts;
   Node* verts;
   std::unordered_map<std::pair<int, int>, Node*, HashIntPairStruct> edges;
@@ -36,14 +38,16 @@ class EulerTourTree {
 };
 
 
-EulerTourTree::EulerTourTree(int _num_verts) : num_verts(_num_verts) {
+template<typename T>
+EulerTourTree<T>::EulerTourTree(int _num_verts) : num_verts(_num_verts) {
   verts = new Node[num_verts];
   edges.reserve(2 * (num_verts - 1));
   for (int i = 0; i < 2 * (num_verts - 1); i++)
     node_pool.push_back(new Node());
 }
 
-EulerTourTree::~EulerTourTree() {
+template<typename T>
+EulerTourTree<T>::~EulerTourTree() {
   delete[] verts;
   for (auto it : edges)
     delete it.second;
@@ -51,11 +55,13 @@ EulerTourTree::~EulerTourTree() {
     delete node;
 }
 
-bool EulerTourTree::IsConnected(int u, int v) {
+template<typename T>
+bool EulerTourTree<T>::IsConnected(int u, int v) {
   return verts[u].GetRoot() == verts[v].GetRoot();
 }
 
-void EulerTourTree::Link(int u, int v) {
+template<typename T>
+void EulerTourTree<T>::Link(int u, int v) {
   Node* u_left, * u_right, * v_left, * v_right;
   Node* uv = node_pool.back();
   node_pool.pop_back();
@@ -72,7 +78,8 @@ void EulerTourTree::Link(int u, int v) {
   Node::Join(root_left, root_right);
 }
 
-void EulerTourTree::Cut(int u, int v) {
+template<typename T>
+void EulerTourTree<T>::Cut(int u, int v) {
   Node* uv_left, * uv_right, * vu_left, * vu_right;
   auto uv_it = edges.find(std::make_pair(u, v));
   auto vu_it = edges.find(std::make_pair(v, u));
