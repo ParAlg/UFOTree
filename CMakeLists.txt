@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
+cmake_policy(SET CMP0135 NEW)
 project(PracticalDynamicTrees)
 include (FetchContent)
 
@@ -6,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
@@ -22,16 +24,16 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-FetchContent_Declare(CPAM
-  GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
-  GIT_TAG         cmake
-)
-FetchContent_GetProperties(CPAM)
-if(NOT CPAM_POPULATED)
-  FetchContent_Populate(CPAM)  
-  message(${cpam_SOURCE_DIR})
-  add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
-endif()
+# FetchContent_Declare(CPAM
+#   GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
+#   GIT_TAG         cmake
+# )
+# FetchContent_GetProperties(CPAM)
+# if(NOT CPAM_POPULATED)
+#   FetchContent_Populate(CPAM)  
+#   message(${cpam_SOURCE_DIR})
+#   add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
+# endif()
 
 FetchContent_Declare(googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
