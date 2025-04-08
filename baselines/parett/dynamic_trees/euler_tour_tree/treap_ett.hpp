@@ -25,13 +25,17 @@ public:
 
   bool IsConnected(vertex_t u, vertex_t v);
   void Link(vertex_t u, vertex_t v);
+  void Link2(vertex_t u, vertex_t v) { Link(u,v); };
+  void Link3(vertex_t u, vertex_t v) { Link(u,v); };
   void Cut(vertex_t u, vertex_t v);
 
-  bool connected(vertex_t u, vertex_t v){return IsConnected(u,v);}
-  void link(vertex_t u, vertex_t v){Link(u,v);}
-  void cut(vertex_t u, vertex_t v){ Cut(u,v);}
+  bool connected(vertex_t u, vertex_t v) { return IsConnected(u,v); }
+  void link(vertex_t u, vertex_t v) { Link(u,v); }
+  void cut(vertex_t u, vertex_t v) { Cut(u,v); }
 
   vertex_t GetRoot(vertex_t v);
+  T GetValue(vertex_t v);
+  T GetAggregate(vertex_t v);
   void Update(vertex_t v, T value);
   void UpdateWithFunction(vertex_t v, std::function<void(T&)> f);
 
@@ -108,6 +112,16 @@ void EulerTourTree<T>::Cut(vertex_t u, vertex_t v) {
 template<typename T>
 vertex_t EulerTourTree<T>::GetRoot(vertex_t v) {
   return &verts[0] - verts[v].GetRoot();
+}
+
+template<typename T>
+T EulerTourTree<T>::GetValue(vertex_t v) {
+  return verts[v].value;
+}
+
+template<typename T>
+T EulerTourTree<T>::GetAggregate(vertex_t v) {
+  return verts[v].aggregate;
 }
 
 template<typename T>
