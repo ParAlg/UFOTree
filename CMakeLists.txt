@@ -50,8 +50,8 @@ set(DGBS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(dgbs INTERFACE
   $<BUILD_INTERFACE:${DGBS_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  src
 )
+target_include_directories(dgbs INTERFACE include util baselines)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
