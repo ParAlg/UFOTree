@@ -44,6 +44,15 @@ FetchContent_Declare(abseil-cpp
 )
 FetchContent_MakeAvailable(abseil-cpp)
 
+add_library(dgbs INTERFACE)
+include(GNUInstallDirs)
+set(DGBS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(dgbs INTERFACE
+  $<BUILD_INTERFACE:${DGBS_INCLUDE_DIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  src
+)
+
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
   test/link_cut_tree_tests.cpp
