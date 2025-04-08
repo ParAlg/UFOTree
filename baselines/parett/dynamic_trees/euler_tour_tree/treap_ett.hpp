@@ -31,6 +31,7 @@ public:
   void link(vertex_t u, vertex_t v){Link(u,v);}
   void cut(vertex_t u, vertex_t v){ Cut(u,v);}
 
+  vertex_t GetRoot(vertex_t v);
   void Update(vertex_t v, T value);
   void UpdateWithFunction(vertex_t v, std::function<void(T&)> f);
 
@@ -102,6 +103,11 @@ void EulerTourTree<T>::Cut(vertex_t u, vertex_t v) {
   } else {
     Node::Join(vu_left, uv_right);
   }
+}
+
+template<typename T>
+vertex_t EulerTourTree<T>::GetRoot(vertex_t v) {
+  return &verts[0] - verts[v].GetRoot();
 }
 
 template<typename T>
