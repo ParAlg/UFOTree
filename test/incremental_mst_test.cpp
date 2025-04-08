@@ -60,8 +60,7 @@ double incremental_MSF_benchmark(std::vector<std::pair<int, Edge>>& edges, int n
   return 0;
 }
 
-int main(){
-  
+int main() {
     Edge e; e.src = 0; e.dst = 1; std::pair<int,Edge> p(1, e);
     Edge e2; e2.src = 1;e2.dst = 2; std::pair<int,Edge> p2(3, e2);
     Edge e3; e3.src = 0; e3.dst = 2; std::pair<int,Edge> p3(2, e3);

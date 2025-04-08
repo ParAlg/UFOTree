@@ -6,6 +6,8 @@
 #include "../include/rc_tree.h"
 #include "../include/topology_tree.h"
 
+using namespace dgbs;
+
 
 template<typename DynamicTree, typename aug_t>
 int TernarizedTree<DynamicTree, aug_t>::get_length_of_chain(vertex_t v){

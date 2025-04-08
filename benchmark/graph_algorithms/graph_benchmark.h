@@ -9,6 +9,8 @@
 #include "util.h"
 
 
+namespace dgbs {
+
 namespace graph_benchmark {
 
 std::vector<Update> stream_file_BFS_benchmark(parlay::sequence<parlay::sequence<vertex_t>>& G, long seed = -1) {
@@ -58,4 +60,7 @@ double incremental_MSF_benchmark(parlay::sequence<std::pair<int, Edge>>& edges, 
 double incremental_conn_benchmark(parlay::sequence<parlay::sequence<vertex_t>>& G, long seed = -1){
   return 0.0;
 }
-};
+
+}
+
+}

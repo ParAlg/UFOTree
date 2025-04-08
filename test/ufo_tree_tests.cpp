@@ -2,6 +2,8 @@
 #include <unordered_set>
 #include "../include/ufo_tree.h"
 
+using namespace dgbs;
+
 
 template<typename v_t, typename e_t>
 bool UFOTree<v_t, e_t>::is_valid() {

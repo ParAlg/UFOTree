@@ -1,5 +1,7 @@
 #include "graph_benchmark.h"
 
+using namespace dgbs;
+
 
 int main(int argc, char** argv) {
     std::string file_names[] = {

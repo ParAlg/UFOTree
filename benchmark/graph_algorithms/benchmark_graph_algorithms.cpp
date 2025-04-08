@@ -10,9 +10,8 @@
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
 #include <fstream>
 
+using namespace dgbs;
 
-using namespace link_cut_tree;
-using namespace skip_list_ett;
 
 int main(int argc, char** argv) {
 
@@ -63,7 +62,7 @@ int main(int argc, char** argv) {
     std::cout << "UFOTree       : " << time << std::endl;
     output_csv << time << ",";
     // Link Cut Tree
-    time = graph_benchmark::incremental_MSF_benchmark<LinkCutTreeInt>(updates, n);
+    time = graph_benchmark::incremental_MSF_benchmark<link_cut_tree::LinkCutTreeInt>(updates, n);
     std::cout << "LinkCut Tree  : " << time << std::endl;
     output_csv << time << ",";
 

@@ -6,11 +6,12 @@
 #include <parett/sequence/treap/treap.hpp>
 #include <parett/utilities/hash_pair.hpp>
 
-using std::pair;
-using namespace dgbs;
 
+namespace dgbs {
 
 namespace treap_ett {
+
+using std::pair;
 
 template<typename T>
 class EulerTourTree {
@@ -101,3 +102,5 @@ void EulerTourTree<T>::Cut(int u, int v) {
 }
 
 } //namespace treap_ett
+
+}

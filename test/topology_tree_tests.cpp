@@ -3,6 +3,8 @@
 #include <unordered_set>
 #include "../include/topology_tree.h"
 
+using namespace dgbs;
+
 
 template<typename v_t, typename e_t>
 bool TopologyTree<v_t, e_t>::is_valid() {

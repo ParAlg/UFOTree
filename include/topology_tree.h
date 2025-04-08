@@ -9,8 +9,8 @@
     static std::map<int, int> toplogy_root_clusters_histogram;
 #endif
 
-using namespace dgbs;
 
+namespace dgbs {
 
 struct TopologyClusterBase {
     // Pointers
@@ -700,3 +700,5 @@ e_t TopologyTree<v_t, e_t>::path_query(vertex_t u, vertex_t v) {
         return total;
     }
 }
+
+};

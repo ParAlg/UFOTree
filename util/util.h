@@ -2,8 +2,8 @@
 #include <math.h>
 #include "types.h"
 
-using namespace dgbs;
 
+namespace dgbs {
 
 #define MAX_VERTEX_T (std::numeric_limits<uint32_t>::max())
 
@@ -25,3 +25,5 @@ static int max_tree_height(vertex_t n) {
 #define START_TIMER(X) ;
 #define STOP_TIMER(X, T) ;
 #define PRINT_TIMER(S, T) ;
+
+}

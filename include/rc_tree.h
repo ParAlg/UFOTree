@@ -22,6 +22,9 @@
     static std::map<int, int> rc_root_clusters_histogram;
 #endif
 
+
+namespace dgbs {
+
 template<typename aug_t>
 struct RCCluster {
 public:
@@ -939,3 +942,5 @@ void RCCluster<aug_t>::add_boundary(vertex_t v){
   assert(boundary_vertexes[1] == MAX_VERTEX_T);
   if(boundary_vertexes[0] == MAX_VERTEX_T){boundary_vertexes[0] = v;} else{boundary_vertexes[1] = v;}
 };
+
+}

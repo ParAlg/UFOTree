@@ -7,6 +7,9 @@
 #include <cassert>
 #include "util.h"
 
+
+namespace dgbs {
+
 struct pair_hash{ 
   template<typename U, typename V>
   std::size_t operator()(const std::pair<U,V> x) const{
@@ -247,4 +250,6 @@ bool TernarizedTree<DynamicTree, aug_t>::connected(vertex_t u, vertex_t v) {
 template<typename DynamicTree, typename aug_t>
 aug_t TernarizedTree<DynamicTree, aug_t>::path_query(vertex_t u, vertex_t v){
   return tree.path_query(u,v);
+}
+
 }

@@ -11,6 +11,8 @@
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
 #include <fstream>
 
+using namespace dgbs;
+
 
 int main(int argc, char** argv) {
     srand(time(NULL));

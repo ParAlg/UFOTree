@@ -16,6 +16,8 @@ function correctly. */
 #endif
 
 
+namespace dgbs {
+
 template<typename v_t, typename e_t>
 class UFOCluster {
 using Cluster = UFOCluster<v_t, e_t>;
@@ -222,4 +224,6 @@ size_t UFOCluster<v_t,e_t>::calculate_size() {
     size_t memory = sizeof(UFOCluster<v_t, e_t>);
     if (has_neighbor_set()) memory += get_neighbor_set()->bucket_count() * sizeof(std::pair<Cluster*, e_t>);
     return memory;
+}
+
 }

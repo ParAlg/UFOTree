@@ -5,6 +5,9 @@
 #include "../util/util.h"
 #include "../util/types.h"
 
+
+namespace dgbs {
+
 template<typename aug_t>
 class TopTree {
     public:
@@ -132,3 +135,5 @@ class TopTree<empty_t> {
     }
 
 };
+
+}

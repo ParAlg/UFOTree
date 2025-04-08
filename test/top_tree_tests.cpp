@@ -5,6 +5,9 @@
 #include <unordered_set>
 #include "../include/top_tree.h"
 
+using namespace dgbs;
+
+
 TEST(TopTreeSuite, constructor_test) {
     TopTree<int> t(3, PATH, [] (int a, int b){return std::min(a,b);}, std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
     ASSERT_EQ(t.t.num_vertices, 3);

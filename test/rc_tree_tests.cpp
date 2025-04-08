@@ -4,6 +4,10 @@
 #include <stdexcept>
 #include <unordered_set>
 #include "../include/rc_tree.h"
+
+using namespace dgbs;
+
+
 void create_tree1();
 void print_tree(RCTree<int> *tree);
 //RCTree<int> *treeptr = nullptr;

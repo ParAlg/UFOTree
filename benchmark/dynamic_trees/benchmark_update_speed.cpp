@@ -11,6 +11,8 @@
 #include "parett/dynamic_trees/euler_tour_tree/treap_ett.hpp"
 #include <fstream>
 
+using namespace dgbs;
+
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases

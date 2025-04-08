@@ -3,8 +3,9 @@
 #include "../baselines/parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "ufo_tree.h"
 
-
+using namespace dgbs;
 using namespace link_cut_tree;
+
 
 TEST(LinkCutTreeIntSuite, incremental_linkedlist_correctness_test) {
     vertex_t n = 256;

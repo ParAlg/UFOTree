@@ -10,8 +10,9 @@
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 
 using namespace parlay;
-using namespace dgbs;
 
+
+namespace dgbs {
 
 struct graph_utils {
   using vertex = uint32_t;
@@ -189,7 +190,7 @@ struct graph_utils {
       }
     }
     return maxTreeDiameter;
-}
+  }
 
   static graph read_graph_from_file(const std::string &filename) {
     auto str = parlay::file_map(filename);
@@ -276,7 +277,6 @@ struct graph_utils {
     });
   }
 
-  
 };
 
-
+}

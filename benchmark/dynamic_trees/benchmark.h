@@ -6,8 +6,8 @@
 #include <parlay/internal/get_time.h>
 #include "types.h"
 
-using namespace dgbs;
 
+namespace dgbs {
 
 namespace dynamic_tree_benchmark {
 
@@ -295,6 +295,8 @@ std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {
         queries.push_back({upper, lower});
     }
     return queries;
+}
+
 }
 
 }

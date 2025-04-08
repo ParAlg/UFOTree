@@ -9,8 +9,8 @@
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
 #include <fstream>
 
+using namespace dgbs;
 
-using namespace skip_list_ett;
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
       std::cout << "UFOTree       : " << space << std::endl;
       output_csv << space << ",";
       // Euler Tour Tree
-      space = dynamic_tree_benchmark::get_peak_space<EulerTourTree>(n, update_sequences);
+      space = dynamic_tree_benchmark::get_peak_space<skip_list_ett::EulerTourTree>(n, update_sequences);
       std::cout << "EulerTourTree : " << space << std::endl;
       output_csv << space << ",";
       // RC Tree
