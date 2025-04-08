@@ -6,9 +6,8 @@
 #include <parett/utilities/random.h>
 #include "types.h"
 
-using std::pair;
-using namespace dgbs;
 
+namespace dgbs {
 
 namespace treap {
 
@@ -100,7 +99,7 @@ Node<T>* Node<T>::GetRoot() const {
 }
 
 template<typename T>
-pair<Node<T>*, Node<T>*> Node<T>::SplitRight() {
+std::pair<Node<T>*, Node<T>*> Node<T>::SplitRight() {
   Node* lesser = nullptr;
   Node* greater = child_[1];
   RemoveChild(1);
@@ -127,7 +126,7 @@ pair<Node<T>*, Node<T>*> Node<T>::SplitRight() {
 }
 
 template<typename T>
-pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
+std::pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
   Node* lesser = child_[0];
   Node* greater = nullptr;
   RemoveChild(0);
@@ -154,7 +153,7 @@ pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
 }
 
 template<typename T>
-pair<Node<T>*, Node<T>*> Node<T>::SplitAround() {
+std::pair<Node<T>*, Node<T>*> Node<T>::SplitAround() {
   Node* lesser = child_[0];
   Node* greater = child_[1];
   RemoveChild(0);
@@ -206,3 +205,5 @@ Node<T>* Node<T>::Join(Node* lesser, Node* greater) {
 }
 
 }  // namespace treap
+
+}

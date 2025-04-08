@@ -5,8 +5,9 @@
 #include "parett/sequence/parallel_skip_list/augmented_skip_list.hpp"
 #include "parett/sequence/splay_tree/splay_tree.hpp"
 
-
+using namespace dgbs;
 using key_type = uint32_t;
+
 
 struct entry {
     using key_t = key_type;

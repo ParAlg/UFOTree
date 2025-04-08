@@ -1,3 +1,9 @@
+// Dynamic Sequence Data Structures
+#include "parett/sequence/skip_list/skip_list.hpp"
+#include "parett/sequence/splay_tree/splay_tree.hpp"
+#include "parett/sequence/treap/treap.hpp"
+
+// Dynamic Tree Data Structures
 #include "ternarized_tree.h"
 #include "ufo_tree.h"
 #include "topology_tree.h"
