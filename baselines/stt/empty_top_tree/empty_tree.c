@@ -1,5 +1,8 @@
 #include "empty_tree.h"
 
+
+namespace dgbs {
+
 struct empty_tree create_empty_tree(size_t num_vertices) {
     struct empty_tree output;
     output.num_vertices = num_vertices;
@@ -93,4 +96,6 @@ bool has_at_most_one_incident_edge(struct empty_vertex *vertex) {
     } else {
         return true;
     }
+}
+
 }

@@ -4,10 +4,12 @@
 #include <stdbool.h>
 #include "tree.h"
 
+
+namespace dgbs {
+
 typedef struct tt_node_struct tt_node;
 typedef struct tt_int_node_struct tt_int_node;
 typedef struct tt_leaf_node_struct tt_leaf_node;
-
 
 struct tt_node_struct {
     tt_int_node *parent;
@@ -51,5 +53,7 @@ tt_node *find_root(tt_node *node);
 
 // Used for deallocating the top tree.
 void destroy_top_tree_containing_edge(struct edge *edge);
+
+}
 
 #endif

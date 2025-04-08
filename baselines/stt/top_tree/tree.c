@@ -1,5 +1,8 @@
 #include "tree.h"
 
+
+namespace dgbs {
+
 struct tree create_tree(size_t num_vertices) {
     struct tree output;
     output.num_vertices = num_vertices;
@@ -94,4 +97,6 @@ bool has_at_most_one_incident_edge(struct vertex *vertex) {
     } else {
         return true;
     }
+}
+
 }

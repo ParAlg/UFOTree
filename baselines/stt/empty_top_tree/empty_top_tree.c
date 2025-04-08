@@ -5,6 +5,9 @@
 #define is_point_e(n) (((tte_node *) n)->num_boundary < 2)
 #define is_path_e(n) (((tte_node *) n)->num_boundary == 2)
 
+
+namespace dgbs {
+
 // static inline int int_max(int a, int b) {
 //     if (a < b)
 //         return b;
@@ -463,4 +466,6 @@ void destroy_top_tree_containing_edge(struct empty_edge *edge) {
     if (!edge) return;
     if (!edge->user_data) return;
     free_top_tree(find_root((tte_node*) edge->user_data));
+}
+
 }

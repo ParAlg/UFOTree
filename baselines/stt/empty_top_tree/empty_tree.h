@@ -5,6 +5,9 @@
 #include <absl/container/flat_hash_map.h>
 #include "../../../util/util.h"
 
+
+namespace dgbs {
+
 static absl::flat_hash_map<std::pair<struct empty_vertex*, struct empty_vertex*>, struct empty_edge*> empty_edges;
 static long long tte_changes = 0;
 
@@ -31,5 +34,7 @@ void add_edge(struct empty_edge *allocation, struct empty_vertex *left, struct e
 void destroy_edge(struct empty_edge *edge);
 void destroy_tree(struct empty_tree *to_destroy);
 bool has_at_most_one_incident_edge(struct empty_vertex *vertex);
+
+}
 
 #endif
