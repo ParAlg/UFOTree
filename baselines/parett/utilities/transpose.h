@@ -123,8 +123,8 @@ namespace pbbs {
       size_t block_bits = log2_up(num_blocks);
       size_t block_mask = num_blocks-1;
       if ((size_t) 1 << block_bits != num_blocks) {
-        cout << "in transpose_buckets: num_blocks must be a power or 2"
-             << endl;
+        std::cout << "in transpose_buckets: num_blocks must be a power or 2"
+             << std::endl;
         abort();
       }
 

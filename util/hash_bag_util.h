@@ -5,7 +5,6 @@
 #include <climits>
 #include <cstring>
 #include <iostream>
-using namespace std;
 using namespace parlay;
 
 namespace hb {

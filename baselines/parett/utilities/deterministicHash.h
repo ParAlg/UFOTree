@@ -24,7 +24,6 @@
 
 #include "utils.h"
 //#include "gettime.h"
-using namespace std;
 using utils::_seq;
 
 // A "history independent" hash table that supports insertion, and searching

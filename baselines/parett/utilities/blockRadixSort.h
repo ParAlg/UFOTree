@@ -27,7 +27,6 @@
 #include <math.h>
 #include "utils.h"
 #include "transpose.h"
-using namespace std;
 
 template <class E1, class E2>
   struct firstF {E1 operator() (std::pair<E1,E2> a) {return a.first;} };
@@ -88,7 +87,7 @@ namespace intSort {
 
     // need 3 bucket sets per block
     long expand = (sizeof(E)<=4) ? 64 : 32;
-    long blocks = min(numBK/3,(1+n/(BUCKETS*expand)));
+    long blocks = std::min(numBK/3,(1+n/(BUCKETS*expand)));
 
     if (blocks < 2) {
       radixStepSerial(A, B, Tmp, BK[0], n, m, extract);
@@ -101,7 +100,7 @@ namespace intSort {
 
     parallel_for (0, blocks, [&] (long i) {
       bint od = i*nn;
-      long nni = min(max<long>(n-od,0),nn);
+      long nni = std::min(std::max<long>(n-od,0),nn);
       radixBlock(A+od, B, Tmp+od, cnts + m*i, oB + m*i, od, nni, m, extract);
     });
 
@@ -283,14 +282,14 @@ static void integerSort(uintT *A, long n, char* s) {
 }
 
 template <class T>
-void integerSort(pair<uintT,T> *A, long n) {
+void integerSort(std::pair<uintT,T> *A, long n) {
   long maxV = utils::sequence::mapReduce<uintT>(A,n,maxF<uintT>(),
 	              	 			firstF<uintT,T>());
   intSort::iSort(A, n, maxV+1, firstF<uintT,T>());
 }
 
 template <class T>
-void integerSort(pair<uintT,T> *A, long n, char* s) {
+void integerSort(std::pair<uintT,T> *A, long n, char* s) {
   long maxV = utils::sequence::mapReduce<uintT>(A,n,maxF<uintT>(),
                                                 firstF<uintT,T>());
   intSort::iSort(A, n, maxV+1, s, firstF<uintT,T>());

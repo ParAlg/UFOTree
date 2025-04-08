@@ -26,7 +26,6 @@
 #include <fstream>
 #include <string>
 #include <cstring>
-using namespace std;
 
 struct commandLine {
   int argc;

@@ -30,7 +30,6 @@
 #include <parlay/parallel.h>
 #include <parlay/primitives.h>
 #include <parlay/sequence.h>
-using namespace std;
 using namespace parlay;
 
 // Needed to make frequent large allocations efficient with standard

@@ -5,7 +5,6 @@
 #include <parlay/sequence.h>
 
 
-using namespace std;
 using namespace parlay;
 
 enum ClusterStatus {

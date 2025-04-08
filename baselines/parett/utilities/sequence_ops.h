@@ -27,8 +27,7 @@
 #include "seq.h"
 
 namespace pbbs {
-  using namespace std;
-  using seq::sequence;
+    using seq::sequence;
   using seq::make_sequence;
 
   constexpr const size_t _log_block_size = 12;
@@ -42,7 +41,7 @@ namespace pbbs {
     size_t l = num_blocks(n, block_size);
     parallel_for (0, l, [&] (size_t i) {
       size_t s = i * block_size; 		
-      size_t e = min(s + block_size, n);
+      size_t e = std::min(s + block_size, n);
       f(i, s, e);
     });
   }

@@ -119,7 +119,7 @@ int GenerateHeight(size_t random_int) {
     random_int >>= 1;
     h++;
   }
-  return min(h, kMaxHeight);
+  return std::min(h, kMaxHeight);
 }
 
 }  // namespace _internal

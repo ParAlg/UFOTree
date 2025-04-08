@@ -7,7 +7,6 @@
 #include "hash_bag_util.h"
 
 
-using namespace std;
 using namespace parlay;
 
 constexpr size_t MIN_BAG_SIZE = 1 << 10;

@@ -1,6 +1,5 @@
 #pragma once
 
-using namespace std;
 
 // *******************************************
 //   AUG MAPS
@@ -91,7 +90,7 @@ public:
     return to_aug(Map::multi_insert_combine(std::move(m), S, f));
   }
   template<class Val, class Reduce>
-  static M multi_insert_reduce(M m, parlay::sequence<pair<K,Val>> S, Reduce g) {  // ?? should it be &
+  static M multi_insert_reduce(M m, parlay::sequence<std::pair<K,Val>> S, Reduce g) {  // ?? should it be &
     return to_aug(Map::multi_insert_reduce(std::move(m), S, g)); }
   template<class M1, class M2, class F>
   static M map_intersect(M1 a, M2 b, const F& op) {
@@ -152,7 +151,7 @@ public:
   using Map::check_balance;
 };
 
-// creates a key-value pair for the entry, and redefines from_entry
+// creates a key-value std::pair for the entry, and redefines from_entry
 template <class entry>
 struct aug_map_full_entry : entry {
   using val_t = typename entry::val_t;
@@ -173,7 +172,7 @@ using aug_map =
   balance<aug_node<typename Balance::data,
 		   aug_map_full_entry<_Entry>>>>;
 
-// creates a key-value pair for the entry, and redefines from_entry
+// creates a key-value std::pair for the entry, and redefines from_entry
 template <class entry>
 struct aug_set_full_entry : entry {
   using val_t = bool; // not used

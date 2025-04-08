@@ -3,7 +3,6 @@
 #include <tuple>
 #include "utils.h"
 
-using namespace std;
 using utils::_seq;
 
 namespace concurrent_map {

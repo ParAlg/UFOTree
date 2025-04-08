@@ -122,8 +122,8 @@ void EulerTourTree::Link(int u, int v) {
   node_pool.pop_back();
   Element* vu = node_pool.back();
   node_pool.pop_back();
-  edges[make_pair(u, v)] = uv;
-  edges[make_pair(v, u)] = vu;
+  edges[std::make_pair(u, v)] = uv;
+  edges[std::make_pair(v, u)] = vu;
   Element* u_left = &verts[u];
   Element* v_left = &verts[v];
   Element* u_right = u_left->Split();

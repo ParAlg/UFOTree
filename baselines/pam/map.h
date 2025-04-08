@@ -1,7 +1,5 @@
 #pragma once
 
-using namespace std;
-
 // *******************************************
 //   MAPS
 // *******************************************
@@ -320,7 +318,7 @@ public:
     };
 		
     using BD = build<e_type>;
-    parlay::sequence<pair<K, VV>> B = BD::sort_remove_duplicates(SS);
+    parlay::sequence<std::pair<K, VV>> B = BD::sort_remove_duplicates(SS);
     return M(Tree::multi_update_sorted(m.get_root(), B.data(), B.size(), f));
   }
 
@@ -372,7 +370,7 @@ public:
   }
   
   template<class Val, class Reduce>
-  static M multi_insert_reduce(M m, pair<K,Val>* A, size_t n, Reduce g) {
+  static M multi_insert_reduce(M m, std::pair<K,Val>* A, size_t n, Reduce g) {
     auto replace = [] (const V& a, const V& b) {return b;};
     auto B = Build::sort_reduce_duplicates(A, n, g);
     auto x =  M(Tree::multi_insert_sorted(m.get_root(),
@@ -381,7 +379,7 @@ public:
   }
   
   template<class Val, class Reduce, class Bin_Op>
-  static M multi_insert_reduce(M m, pair<K,Val>* A, size_t n,
+  static M multi_insert_reduce(M m, std::pair<K,Val>* A, size_t n,
 			       Reduce g,
 			       Bin_Op& f = [] (const V& a, const V& b) {
 				 return b;}) {
@@ -545,7 +543,7 @@ public:
 
 };
 
-// creates a key-value pair for the entry
+// creates a key-value std::pair for the entry
 template <class entry>
 struct map_full_entry : entry {
   using val_t = typename entry::val_t;
