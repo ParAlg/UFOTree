@@ -5,6 +5,8 @@
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 
+using namespace dgbs;
+
 
 template<typename v_t, typename e_t>
 class UFOTree {

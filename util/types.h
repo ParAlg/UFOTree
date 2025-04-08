@@ -2,6 +2,8 @@
 #include <stdint.h>
 
 
+namespace dgbs {
+
 typedef uint32_t vertex_t;
 static vertex_t NONE = -1;
 
@@ -40,4 +42,6 @@ enum QueryType {
 struct Query {
   vertex_t u;
   vertex_t v;
+};
+
 };

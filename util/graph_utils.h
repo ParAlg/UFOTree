@@ -9,8 +9,9 @@
 #include "types.h"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 
-
 using namespace parlay;
+using namespace dgbs;
+
 
 struct graph_utils {
   using vertex = uint32_t;

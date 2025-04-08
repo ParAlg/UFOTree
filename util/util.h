@@ -2,6 +2,8 @@
 #include <math.h>
 #include "types.h"
 
+using namespace dgbs;
+
 
 #define MAX_VERTEX_T (std::numeric_limits<uint32_t>::max())
 

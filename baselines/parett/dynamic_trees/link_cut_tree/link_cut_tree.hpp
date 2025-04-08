@@ -3,6 +3,8 @@
 #include <absl/container/flat_hash_map.h>
 #include "types.h"
 
+using namespace dgbs;
+
 
 namespace link_cut_tree {
 

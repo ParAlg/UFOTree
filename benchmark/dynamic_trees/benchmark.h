@@ -6,6 +6,8 @@
 #include <parlay/internal/get_time.h>
 #include "types.h"
 
+using namespace dgbs;
+
 
 namespace dynamic_tree_benchmark {
 

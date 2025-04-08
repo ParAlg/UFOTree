@@ -6,8 +6,9 @@
 #include <parett/utilities/random.h>
 #include "types.h"
 
-
 using std::pair;
+using namespace dgbs;
+
 
 namespace treap {
 

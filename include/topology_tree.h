@@ -9,6 +9,9 @@
     static std::map<int, int> toplogy_root_clusters_histogram;
 #endif
 
+using namespace dgbs;
+
+
 struct TopologyClusterBase {
     // Pointers
     TopologyClusterBase* parent;
