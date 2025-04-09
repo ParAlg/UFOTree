@@ -36,9 +36,12 @@ public:
   T GetValue(vertex_t v);
   T GetAggregate(vertex_t v);
   T GetSubtreeAggregate(vertex_t v, vertex_t p);
-
+  
   void UpdateValue(vertex_t v, T value);
   void UpdateWithFunction(vertex_t v, std::function<void(T&)> f);
+
+  Node* GetVertexNode(vertex_t v);
+  Node* GetEdgeNode(vertex_t u, vertex_t v);
 
 private:
   vertex_t num_verts;
@@ -174,6 +177,17 @@ void EulerTourTree<T>::UpdateWithFunction(vertex_t v, std::function<void(T&)> f)
     curr = curr->parent_;
   }
 }
+
+template<typename T>
+treap::Node<T>* EulerTourTree<T>::GetVertexNode(vertex_t v) {
+  return &verts[v];
+}
+
+template<typename T>
+treap::Node<T>* EulerTourTree<T>::GetEdgeNode(vertex_t u, vertex_t v) {
+  return edges.find(std::make_pair(u,v))->second;
+}
+
 
 
 } //namespace treap_ett
