@@ -19,19 +19,18 @@ class Node {
 
   Node* GetRoot() const;
 
-  // SplitRights right after this node
+  // Split right, left, or both around this node and return two new roots
   std::pair<Node*, Node*> SplitRight();
   std::pair<Node*, Node*> SplitLeft();
   std::pair<Node*, Node*> Split() { return SplitRight(); };
   std::pair<Node*, Node*> SplitAround();
-  // Join tree containing lesser to tree containing greater and return root of
-  // resulting tree.
+  // Join tree containing lesser to tree containing greater and return new root
   static Node* Join(Node* lesser, Node* greater);
 
   static std::function<T(T, T)> aggregate_function;
 
  private:
- static Node* JoinRoots(Node* lesser, Node* greater);
+  static Node* JoinRoots(Node* lesser, Node* greater);
   void AssignChild(int i, Node* v);
   void RemoveChild(int i);
   void RecomputeAggregate();

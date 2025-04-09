@@ -25,18 +25,19 @@ public:
 
   bool IsConnected(vertex_t u, vertex_t v);
   void Link(vertex_t u, vertex_t v);
-  void Link2(vertex_t u, vertex_t v) { Link(u,v); };
-  void Link3(vertex_t u, vertex_t v) { Link(u,v); };
+  void LinkInner(vertex_t u, vertex_t v);
+  void LinkOuter(vertex_t u, vertex_t v);
   void Cut(vertex_t u, vertex_t v);
 
   bool connected(vertex_t u, vertex_t v) { return IsConnected(u,v); }
   void link(vertex_t u, vertex_t v) { Link(u,v); }
   void cut(vertex_t u, vertex_t v) { Cut(u,v); }
 
-  vertex_t GetRoot(vertex_t v);
   T GetValue(vertex_t v);
   T GetAggregate(vertex_t v);
-  void Update(vertex_t v, T value);
+  T GetSubtreeAggregate(vertex_t v, vertex_t p);
+
+  void UpdateValue(vertex_t v, T value);
   void UpdateWithFunction(vertex_t v, std::function<void(T&)> f);
 
 private:
@@ -88,6 +89,42 @@ void EulerTourTree<T>::Link(vertex_t u, vertex_t v) {
 }
 
 template<typename T>
+void EulerTourTree<T>::LinkInner(vertex_t u, vertex_t v) {
+  Node* u_left, * u_right, * v_left, * v_right;
+  Node* uv = node_pool.back();
+  node_pool.pop_back();
+  Node* vu = node_pool.back();
+  node_pool.pop_back();
+  edges[std::make_pair(u, v)] = uv;
+  edges[std::make_pair(v, u)] = vu;
+  std::tie(u_left, u_right) = verts[u].SplitRight();
+  std::tie(v_left, v_right) = verts[v].SplitLeft();
+  Node* root_left = Node::Join(u_left, uv);
+  root_left = Node::Join(root_left, v_right);
+  Node* root_right = Node::Join(v_left, vu);
+  root_right = Node::Join(root_right, u_right);
+  Node::Join(root_left, root_right);
+}
+
+template<typename T>
+void EulerTourTree<T>::LinkOuter(vertex_t u, vertex_t v) {
+  Node* u_left, * u_right, * v_left, * v_right;
+  Node* uv = node_pool.back();
+  node_pool.pop_back();
+  Node* vu = node_pool.back();
+  node_pool.pop_back();
+  edges[std::make_pair(u, v)] = uv;
+  edges[std::make_pair(v, u)] = vu;
+  std::tie(u_left, u_right) = verts[u].SplitLeft();
+  std::tie(v_left, v_right) = verts[v].SplitLeft();
+  Node* root_left = Node::Join(u_left, uv);
+  root_left = Node::Join(root_left, v_right);
+  Node* root_right = Node::Join(v_left, vu);
+  root_right = Node::Join(root_right, u_right);
+  Node::Join(root_left, root_right);
+}
+
+template<typename T>
 void EulerTourTree<T>::Cut(vertex_t u, vertex_t v) {
   Node* uv_left, * uv_right, * vu_left, * vu_right;
   auto uv_it = edges.find(std::make_pair(u, v));
@@ -110,11 +147,6 @@ void EulerTourTree<T>::Cut(vertex_t u, vertex_t v) {
 }
 
 template<typename T>
-vertex_t EulerTourTree<T>::GetRoot(vertex_t v) {
-  return &verts[0] - verts[v].GetRoot();
-}
-
-template<typename T>
 T EulerTourTree<T>::GetValue(vertex_t v) {
   return verts[v].value;
 }
@@ -125,7 +157,7 @@ T EulerTourTree<T>::GetAggregate(vertex_t v) {
 }
 
 template<typename T>
-void EulerTourTree<T>::Update(vertex_t v, T value) {
+void EulerTourTree<T>::UpdateValue(vertex_t v, T value) {
   verts[v].value = value;
   Node* curr = &verts[v];
   while (curr) {
