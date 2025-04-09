@@ -17,15 +17,21 @@ class Node {
   Node();
   explicit Node(unsigned random_int);
 
-  Node* GetRoot() const;
-
   // Split right, left, or both around this node and return two new roots
+  std::pair<Node*, Node*> Split() { return SplitRight(); };
   std::pair<Node*, Node*> SplitRight();
   std::pair<Node*, Node*> SplitLeft();
-  std::pair<Node*, Node*> Split() { return SplitRight(); };
   std::pair<Node*, Node*> SplitAround();
   // Join tree containing lesser to tree containing greater and return new root
   static Node* Join(Node* lesser, Node* greater);
+  
+  // Get root node, first node, or last node of tree containing this node
+  Node* GetRoot();
+  Node* GetFirst();
+  Node* GetLast();
+  // Get nearest node before or after this node with some property
+  Node* GetNearestBefore(std::function<bool(T)> f);
+  Node* GetNearestAfter(std::function<bool(T)> f);
 
   static std::function<T(T, T)> aggregate_function;
 
@@ -86,15 +92,6 @@ inline void Node<T>::RecomputeAggregate() {
     aggregate = aggregate_function(aggregate, child_[0]->aggregate);
   if (child_[1])
     aggregate = aggregate_function(aggregate, child_[1]->aggregate);
-}
-
-template<typename T>
-Node<T>* Node<T>::GetRoot() const {
-  const Node* current = this;
-  while (current->parent_ != nullptr) {
-    current = current->parent_;
-  }
-  return const_cast<Node*>(current);
 }
 
 template<typename T>
@@ -202,6 +199,92 @@ Node<T>* Node<T>::Join(Node* lesser, Node* greater) {
       lesser == nullptr ? nullptr : lesser->GetRoot(),
       greater == nullptr ? nullptr : greater->GetRoot());
 }
+
+template<typename T>
+Node<T>* Node<T>::GetRoot() {
+  Node* current = this;
+  while (current->parent_ != nullptr) {
+    current = current->parent_;
+  }
+  return current;
+}
+
+template<typename T>
+Node<T>* Node<T>::GetFirst() {
+  Node* curr = GetRoot();
+  while (curr->child_[0] != nullptr)
+    curr = curr->child_[0];
+  return curr;
+}
+
+template<typename T>
+Node<T>* Node<T>::GetLast() {
+  Node* curr = GetRoot();
+  while (curr->child_[1] != nullptr)
+    curr = curr->child_[1];
+  return curr;
+}
+
+template<typename T>
+Node<T>* Node<T>::GetNearestBefore(std::function<bool(T)> f) {
+  if (this->parent_ == nullptr) return nullptr;
+  Node* curr = this;
+  while (curr->parent_) {
+    Node* prev = curr;
+    Node* curr = prev->parent_;
+    bool from_right = curr->child_[1] == prev;
+    if (from_right) {
+      if (f(curr->value)) return curr;
+      if (curr->child_[0] && f(curr->child_[0]->aggregate)) {
+        curr = curr->child_[0];
+        break;
+      }
+    }
+  }
+  if (f(curr->aggregate)) {
+    while (true) {
+      if (curr->child_[1] && f(curr->child_[1]->aggregate)) {
+        curr = curr->child_[1];
+      } else if (f(curr->value)) {
+        return curr;
+      } else {
+        curr = curr->child_[0];
+      }
+    }
+  }
+  return nullptr;
+}
+
+template<typename T>
+Node<T>* Node<T>::GetNearestAfter(std::function<bool(T)> f) {
+  if (this->parent_ == nullptr) return nullptr;
+  Node* curr = this;
+  while (curr->parent_) {
+    Node* prev = curr;
+    Node* curr = prev->parent_;
+    bool from_left = curr->child_[0] == prev;
+    if (from_left) {
+      if (f(curr->value)) return curr;
+      if (curr->child_[1] && f(curr->child_[1]->aggregate)) {
+        curr = curr->child_[1];
+        break;
+      }
+    }
+  }
+  if (f(curr->aggregate)) {
+    while (true) {
+      if (curr->child_[0] && f(curr->child_[0]->aggregate)) {
+        curr = curr->child_[0];
+      } else if (f(curr->value)) {
+        return curr;
+      } else {
+        curr = curr->child_[1];
+      }
+    }
+  }
+  return nullptr;
+}
+
 
 }  // namespace treap
 
