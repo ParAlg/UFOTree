@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
       std::cout << "SplayTreeETT  : " << time << std::endl;
       output_csv << "," << time;
       // Euler Tour Tree (Treap)
-      time = dynamic_tree_benchmark::get_update_speed<treap_ett::EulerTourTree<int>>(n, update_sequences);
+      time = dynamic_tree_benchmark::get_update_speed<treap::EulerTourTree<int>>(n, update_sequences);
       std::cout << "TreapETT      : " << time << std::endl;
       output_csv << "," << time;
       // Topology Tree
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
       std::cout << "SplayTreeETT  : " << time << std::endl;
       output_csv << "," << time;
       // Euler Tour Tree (Treap)
-      time = dynamic_tree_benchmark::get_update_speed<treap_ett::EulerTourTree<empty_t>>(n, update_sequences);
+      time = dynamic_tree_benchmark::get_update_speed<treap::EulerTourTree<empty_t>>(n, update_sequences);
       std::cout << "TreapETT      : " << time << std::endl;
       output_csv << "," << time;
       // Topology Tree

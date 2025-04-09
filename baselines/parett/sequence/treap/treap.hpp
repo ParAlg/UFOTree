@@ -9,10 +9,16 @@
 
 namespace dgbs {
 
+  
 namespace treap {
+    
+template<typename T>
+class EulerTourTree;
 
 template<typename T>
 class Node {
+  friend class EulerTourTree<T>;
+
  public:
   Node();
   explicit Node(unsigned random_int);
@@ -164,10 +170,12 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitAround() {
       next_direction = p->child_[1] == current;
       p->RemoveChild(next_direction);
     }
-    if (current != this && traversed_up_from_right) {
-      lesser = Join(current, lesser);
-    } else {
-      greater = Join(greater, current);
+    if (current != this) {
+      if (traversed_up_from_right) {
+        lesser = Join(current, lesser);
+      } else {
+        greater = Join(greater, current);
+      }
     }
 
     traversed_up_from_right = next_direction;

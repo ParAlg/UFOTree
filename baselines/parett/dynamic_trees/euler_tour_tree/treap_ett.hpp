@@ -9,7 +9,7 @@
 
 namespace dgbs {
 
-namespace treap_ett {
+namespace treap {
 
 using std::pair;
 
@@ -35,6 +35,7 @@ public:
 
   T GetValue(vertex_t v);
   T GetAggregate(vertex_t v);
+  T GetComponentAggregate(vertex_t v);
   T GetSubtreeAggregate(vertex_t v, vertex_t p);
   
   void UpdateValue(vertex_t v, T value);
@@ -133,16 +134,13 @@ void EulerTourTree<T>::Cut(vertex_t u, vertex_t v) {
   auto uv_it = edges.find(std::make_pair(u, v));
   auto vu_it = edges.find(std::make_pair(v, u));
   std::tie(uv_left, uv_right) = uv_it->second->SplitAround();
+  bool uv_vu_in_order = uv_left->GetRoot() != vu_it->second->GetRoot();
   std::tie(vu_left, vu_right) = vu_it->second->SplitAround();
   node_pool.push_back(uv_it->second);
   node_pool.push_back(vu_it->second);
   edges.erase(uv_it);
   edges.erase(vu_it);
-  if (uv_left)  uv_left  = uv_left->GetRoot();
-  if (uv_right) uv_right = uv_right->GetRoot();
-  if (vu_left)  vu_left  = vu_left->GetRoot();
-  if (vu_right) vu_right = vu_right->GetRoot();
-  if (uv_left != vu_right) {
+  if (uv_vu_in_order) {
     Node::Join(uv_left, vu_right);
   } else {
     Node::Join(vu_left, uv_right);
@@ -158,6 +156,17 @@ template<typename T>
 T EulerTourTree<T>::GetAggregate(vertex_t v) {
   return verts[v].aggregate;
 }
+
+template<typename T>
+T EulerTourTree<T>::GetComponentAggregate(vertex_t v) {
+  return verts[v].GetRoot->aggregate;
+}
+
+template<typename T>
+T EulerTourTree<T>::GetSubtreeAggregate(vertex_t v, vertex_t p) {
+
+}
+
 
 template<typename T>
 void EulerTourTree<T>::UpdateValue(vertex_t v, T value) {
@@ -190,6 +199,6 @@ treap::Node<T>* EulerTourTree<T>::GetEdgeNode(vertex_t u, vertex_t v) {
 
 
 
-} //namespace treap_ett
+} //namespace treap
 
 }

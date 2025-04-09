@@ -57,6 +57,7 @@ target_include_directories(dgbs INTERFACE include util baselines)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp
+  test/euler_tour_tree_tests.cpp
   test/link_cut_tree_tests.cpp
   test/top_tree_tests.cpp
   test/rc_tree_tests.cpp
