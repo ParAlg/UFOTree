@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <absl/container/flat_hash_map.h>
+#include <unordered_map>
 
 #include <parett/sequence/treap/treap.hpp>
 #include <parett/utilities/hash_pair.hpp>
@@ -44,12 +44,12 @@ public:
   Node* GetVertexNode(vertex_t v);
   Node* GetEdgeNode(vertex_t u, vertex_t v);
   vertex_t NodeToVertex(Node* node);
-  absl::flat_hash_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct>& GetEdgeMap() { return edges; }
+  std::unordered_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct>& GetEdgeMap() { return edges; }
 
 private:
   vertex_t num_verts;
   Node* verts;
-  absl::flat_hash_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct> edges;
+  std::unordered_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct> edges;
   std::vector<Node*> node_pool;
 };
 
@@ -57,6 +57,7 @@ private:
 template<typename T>
 EulerTourTree<T>::EulerTourTree(vertex_t _num_verts) : num_verts(_num_verts) {
   verts = new Node[num_verts];
+  edges.reserve(2 * (num_verts - 1));
   for (vertex_t i = 0; i < 2 * (num_verts - 1); i++)
     node_pool.push_back(new Node());
 }
