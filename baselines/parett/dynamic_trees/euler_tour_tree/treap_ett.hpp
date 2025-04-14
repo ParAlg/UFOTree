@@ -182,6 +182,7 @@ void EulerTourTree<T>::UpdateValue(vertex_t v, T value) {
 
 template<typename T>
 void EulerTourTree<T>::UpdateWithFunction(vertex_t v, std::function<void(T&)> f) {
+  f(verts[v].value);
   Node* curr = &verts[v];
   while (curr) {
     f(curr->aggregate);

@@ -134,7 +134,7 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
   RemoveChild(0);
 
   Node* current = this;
-  bool traversed_up_from_right = 1;
+  bool traversed_up_from_right = 0;
   bool next_direction;
   while (current != nullptr) {
     Node* p = current->parent_;
@@ -235,21 +235,20 @@ Node<T>* Node<T>::GetLast() {
 
 template<typename T>
 Node<T>* Node<T>::GetNearestBefore(std::function<bool(T)> f) {
-  if (this->parent_ == nullptr) return nullptr;
   Node* curr = this;
-  while (curr->parent_) {
-    Node* prev = curr;
-    Node* curr = prev->parent_;
-    bool from_right = curr->child_[1] == prev;
+  bool from_right = true;
+  while (curr) {
     if (from_right) {
-      if (f(curr->value)) return curr;
+      if (curr != this && f(curr->value)) return curr;
       if (curr->child_[0] && f(curr->child_[0]->aggregate)) {
         curr = curr->child_[0];
         break;
       }
     }
+    from_right = curr->parent_ && curr->parent_->child_[1] == curr;
+    curr = curr->parent_;
   }
-  if (f(curr->aggregate)) {
+  if (curr && f(curr->aggregate)) {
     while (true) {
       if (curr->child_[1] && f(curr->child_[1]->aggregate)) {
         curr = curr->child_[1];
@@ -265,21 +264,20 @@ Node<T>* Node<T>::GetNearestBefore(std::function<bool(T)> f) {
 
 template<typename T>
 Node<T>* Node<T>::GetNearestAfter(std::function<bool(T)> f) {
-  if (this->parent_ == nullptr) return nullptr;
   Node* curr = this;
-  while (curr->parent_) {
-    Node* prev = curr;
-    Node* curr = prev->parent_;
-    bool from_left = curr->child_[0] == prev;
+  bool from_left = true;
+  while (curr) {
     if (from_left) {
-      if (f(curr->value)) return curr;
+      if (curr != this && f(curr->value)) return curr;
       if (curr->child_[1] && f(curr->child_[1]->aggregate)) {
         curr = curr->child_[1];
         break;
       }
     }
+    from_left = curr->parent_ && curr->parent_->child_[0] == curr;
+    curr = curr->parent_;
   }
-  if (f(curr->aggregate)) {
+  if (curr && f(curr->aggregate)) {
     while (true) {
       if (curr->child_[0] && f(curr->child_[0]->aggregate)) {
         curr = curr->child_[0];
@@ -292,7 +290,6 @@ Node<T>* Node<T>::GetNearestAfter(std::function<bool(T)> f) {
   }
   return nullptr;
 }
-
 
 }  // namespace treap
 
