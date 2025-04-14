@@ -64,6 +64,7 @@ TEST(EulerTourTreeSuite, subtree_query_test) {
     vertex_t n = 256;
     treap::EulerTourTree<int> tree(n);
     treap::Node<int>::aggregate_function = [] (int x, int y) { return x+y; };
+    treap::Node<int>::empty_augment = 0;
 
     for (int i = 0; i < n-1; i++)
         tree.Link(i,i+1);

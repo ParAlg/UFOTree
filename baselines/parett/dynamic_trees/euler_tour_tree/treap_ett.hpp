@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 
 #include <parett/sequence/treap/treap.hpp>
 #include <parett/utilities/hash_pair.hpp>
@@ -44,12 +44,12 @@ public:
   Node* GetVertexNode(vertex_t v);
   Node* GetEdgeNode(vertex_t u, vertex_t v);
   vertex_t NodeToVertex(Node* node);
-  std::unordered_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct>& GetEdgeMap() { return edges; }
+  absl::flat_hash_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct>& GetEdgeMap() { return edges; }
 
 private:
   vertex_t num_verts;
   Node* verts;
-  std::unordered_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct> edges;
+  absl::flat_hash_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct> edges;
   std::vector<Node*> node_pool;
 };
 
@@ -136,7 +136,7 @@ void EulerTourTree<T>::Cut(vertex_t u, vertex_t v) {
   auto uv_it = edges.find(std::make_pair(u, v));
   auto vu_it = edges.find(std::make_pair(v, u));
   std::tie(uv_left, uv_right) = uv_it->second->SplitAround();
-  bool uv_vu_in_order = uv_left->GetRoot() != vu_it->second->GetRoot();
+  bool uv_vu_in_order = !uv_left || (uv_left->GetRoot() != vu_it->second->GetRoot());
   std::tie(vu_left, vu_right) = vu_it->second->SplitAround();
   node_pool.push_back(uv_it->second);
   node_pool.push_back(vu_it->second);
@@ -166,7 +166,7 @@ T EulerTourTree<T>::GetComponentAggregate(vertex_t v) {
 
 template<typename T>
 T EulerTourTree<T>::GetSubtreeAggregate(vertex_t v, vertex_t p) {
-
+  return Node::empty_augment;
 }
 
 
