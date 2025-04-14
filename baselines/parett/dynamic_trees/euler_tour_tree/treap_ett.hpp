@@ -195,7 +195,9 @@ treap::Node<T>* EulerTourTree<T>::GetVertexNode(vertex_t v) {
 
 template<typename T>
 treap::Node<T>* EulerTourTree<T>::GetEdgeNode(vertex_t u, vertex_t v) {
-  return edges.find(std::make_pair(u,v))->second;
+  auto it = edges.find(std::make_pair(u,v));
+  if (it == edges.end()) return nullptr;
+  return it->second;
 }
 
 template<typename T>
