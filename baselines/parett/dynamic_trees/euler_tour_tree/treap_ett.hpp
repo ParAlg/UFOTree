@@ -34,7 +34,7 @@ public:
   void cut(vertex_t u, vertex_t v) { Cut(u,v); }
 
   T GetValue(vertex_t v);
-  T GetAggregate(vertex_t v);
+  T GetNodeAggregate(Node* node);
   T GetComponentAggregate(vertex_t v);
   T GetSubtreeAggregate(vertex_t v, vertex_t p);
   
@@ -155,8 +155,8 @@ T EulerTourTree<T>::GetValue(vertex_t v) {
 }
 
 template<typename T>
-T EulerTourTree<T>::GetAggregate(vertex_t v) {
-  return verts[v].aggregate;
+T EulerTourTree<T>::GetNodeAggregate(Node* node) {
+  return node->aggregate;
 }
 
 template<typename T>
