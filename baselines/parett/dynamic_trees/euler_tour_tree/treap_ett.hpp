@@ -44,6 +44,7 @@ public:
   Node* GetVertexNode(vertex_t v);
   Node* GetEdgeNode(vertex_t u, vertex_t v);
   vertex_t NodeToVertex(Node* node);
+  std::unordered_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct>& GetEdgeMap() { return edges; }
 
 private:
   vertex_t num_verts;
