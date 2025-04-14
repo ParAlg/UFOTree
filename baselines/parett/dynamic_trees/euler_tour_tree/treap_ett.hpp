@@ -39,7 +39,7 @@ public:
   T GetSubtreeAggregate(vertex_t v, vertex_t p);
   
   void UpdateValue(vertex_t v, T value);
-  void UpdateWithFunction(vertex_t v, std::function<void(T&)> f);
+  void UpdateWithFunction(vertex_t v, std::function<bool(T&)> f);
 
   Node* GetVertexNode(vertex_t v);
   Node* GetEdgeNode(vertex_t u, vertex_t v);
@@ -181,11 +181,10 @@ void EulerTourTree<T>::UpdateValue(vertex_t v, T value) {
 }
 
 template<typename T>
-void EulerTourTree<T>::UpdateWithFunction(vertex_t v, std::function<void(T&)> f) {
+void EulerTourTree<T>::UpdateWithFunction(vertex_t v, std::function<bool(T&)> f) {
   f(verts[v].value);
   Node* curr = &verts[v];
-  while (curr) {
-    f(curr->aggregate);
+  while (curr && f(curr->aggregate)) {
     curr = curr->parent_;
   }
 }
