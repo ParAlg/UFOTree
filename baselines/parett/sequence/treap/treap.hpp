@@ -40,6 +40,7 @@ class Node {
   Node* GetNearestAfter(std::function<bool(T)> f);
 
   static std::function<T(T, T)> aggregate_function;
+  static T empty_augment;
 
  private:
   static Node* JoinRoots(Node* lesser, Node* greater);
@@ -63,7 +64,9 @@ template<typename T>
 Node<T>::Node(unsigned random_int)
   : parent_(nullptr)
   , child_{nullptr, nullptr}
-  , priority_(random_int) {}
+  , priority_(random_int)
+  , value(empty_augment)
+  , aggregate(empty_augment) {}
 
 template<typename T>
 Node<T>::Node() : Node(default_randomness.rand()) {
@@ -72,6 +75,9 @@ Node<T>::Node() : Node(default_randomness.rand()) {
 
 template<typename T>
 std::function<T(T,T)> Node<T>::aggregate_function = [] (T x, T y) { return x; };
+
+template<typename T>
+T Node<T>::empty_augment;
 
 template<typename T>
 inline void Node<T>::AssignChild(int i, Node* v) {
