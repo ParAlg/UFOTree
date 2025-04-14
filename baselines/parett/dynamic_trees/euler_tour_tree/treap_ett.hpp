@@ -43,6 +43,7 @@ public:
 
   Node* GetVertexNode(vertex_t v);
   Node* GetEdgeNode(vertex_t u, vertex_t v);
+  vertex_t NodeToVertex(Node* node);
 
 private:
   vertex_t num_verts;
@@ -197,7 +198,10 @@ treap::Node<T>* EulerTourTree<T>::GetEdgeNode(vertex_t u, vertex_t v) {
   return edges.find(std::make_pair(u,v))->second;
 }
 
-
+template<typename T>
+vertex_t EulerTourTree<T>::NodeToVertex(Node* node) {
+  return node - &verts[0];
+}
 
 } //namespace treap
 
