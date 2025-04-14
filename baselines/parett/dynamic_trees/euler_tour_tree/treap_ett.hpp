@@ -160,7 +160,7 @@ T EulerTourTree<T>::GetAggregate(vertex_t v) {
 
 template<typename T>
 T EulerTourTree<T>::GetComponentAggregate(vertex_t v) {
-  return verts[v].GetRoot->aggregate;
+  return verts[v].GetRoot()->aggregate;
 }
 
 template<typename T>
