@@ -57,7 +57,6 @@ private:
 template<typename T>
 EulerTourTree<T>::EulerTourTree(vertex_t _num_verts) : num_verts(_num_verts) {
   verts = new Node[num_verts];
-  edges.reserve(2 * (num_verts - 1));
   for (vertex_t i = 0; i < 2 * (num_verts - 1); i++)
     node_pool.push_back(new Node());
 }
