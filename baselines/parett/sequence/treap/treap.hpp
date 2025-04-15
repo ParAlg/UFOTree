@@ -84,8 +84,6 @@ inline void Node<T>::AssignChild(int i, Node* v) {
   if (v != nullptr)
     v->parent_ = this;
   child_[i] = v;
-  if constexpr (!std::is_same<T, empty_t>::value)
-    RecomputeAggregate();
 }
 
 template<typename T>
@@ -93,8 +91,6 @@ inline void Node<T>::RemoveChild(int i) {
   if (child_[i])
     child_[i]->parent_ = nullptr;
   child_[i] = nullptr;
-  if constexpr (!std::is_same<T, empty_t>::value)
-    RecomputeAggregate();
 }
 
 template<typename T>
@@ -128,6 +124,7 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitRight() {
     }
 
     traversed_up_from_right = next_direction;
+    current->RecomputeAggregate();
     current = p;
   }
   return {lesser, greater};
@@ -155,6 +152,7 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
     }
 
     traversed_up_from_right = next_direction;
+    current->RecomputeAggregate();
     current = p;
   }
   return {lesser, greater};
@@ -185,6 +183,7 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitAround() {
     }
 
     traversed_up_from_right = next_direction;
+    current->RecomputeAggregate();
     current = p;
   }
   return {lesser, greater};
@@ -200,9 +199,13 @@ Node<T>* Node<T>::JoinRoots(Node* lesser, Node* greater) {
 
   if (lesser->priority_ > greater->priority_) {
     lesser->AssignChild(1, JoinRoots(lesser->child_[1], greater));
+    if constexpr (!std::is_same<T, empty_t>::value)
+      lesser->RecomputeAggregate();
     return lesser;
   } else {
     greater->AssignChild(0, JoinRoots(lesser, greater->child_[0]));
+    if constexpr (!std::is_same<T, empty_t>::value)
+      greater->RecomputeAggregate();
     return greater;
   }
 }
