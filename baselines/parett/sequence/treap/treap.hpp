@@ -2,7 +2,6 @@
 
 #include <utility>
 #include <tuple>
-#include <parett/utilities/blockRadixSort.h>
 #include <parett/utilities/random.h>
 #include "types.h"
 
@@ -124,7 +123,8 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitRight() {
     }
 
     traversed_up_from_right = next_direction;
-    current->RecomputeAggregate();
+    if constexpr (!std::is_same<T, empty_t>::value)
+      current->RecomputeAggregate();
     current = p;
   }
   return {lesser, greater};
@@ -152,7 +152,8 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitLeft() {
     }
 
     traversed_up_from_right = next_direction;
-    current->RecomputeAggregate();
+    if constexpr (!std::is_same<T, empty_t>::value)
+      current->RecomputeAggregate();
     current = p;
   }
   return {lesser, greater};
@@ -183,7 +184,8 @@ std::pair<Node<T>*, Node<T>*> Node<T>::SplitAround() {
     }
 
     traversed_up_from_right = next_direction;
-    current->RecomputeAggregate();
+    if constexpr (!std::is_same<T, empty_t>::value)
+      current->RecomputeAggregate();
     current = p;
   }
   return {lesser, greater};
