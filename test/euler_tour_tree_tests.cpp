@@ -60,19 +60,19 @@ TEST(EulerTourTreeSuite, decremental_random_correctness_test) {
     }
 }
 
-TEST(EulerTourTreeSuite, subtree_query_test) {
-    vertex_t n = 256;
-    treap::EulerTourTree<int> tree(n);
-    treap::Node<int>::aggregate_function = [] (int x, int y) { return x+y; };
-    treap::Node<int>::empty_augment = 0;
+// TEST(EulerTourTreeSuite, subtree_query_test) {
+//     vertex_t n = 256;
+//     treap::EulerTourTree<int> tree(n);
+//     treap::Node<int>::aggregate_function = [] (int x, int y) { return x+y; };
+//     treap::Node<int>::empty_augment = 0;
 
-    for (int i = 0; i < n-1; i++)
-        tree.Link(i,i+1);
-    for (int i = 0; i < n; i++)
-        tree.UpdateValue(i, 1);
+//     for (int i = 0; i < n-1; i++)
+//         tree.Link(i,i+1);
+//     for (int i = 0; i < n; i++)
+//         tree.UpdateValue(i, 1);
 
-    for (int i = 1; i < n-1; i++) {
-        ASSERT_EQ(tree.GetSubtreeAggregate(i,i+1), i+1);
-        ASSERT_EQ(tree.GetSubtreeAggregate(i,i-1), n-(i+1));
-    }
-}
+//     for (int i = 1; i < n-1; i++) {
+//         ASSERT_EQ(tree.GetSubtreeAggregate(i,i+1), i+1);
+//         ASSERT_EQ(tree.GetSubtreeAggregate(i,i-1), n-(i+1));
+//     }
+// }

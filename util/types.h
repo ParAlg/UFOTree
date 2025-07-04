@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <parlay/sequence.h>
 
 
 namespace dgbs {
@@ -31,6 +32,11 @@ public:
 struct Update {
   UpdateType type;
   Edge edge;
+};
+
+struct UpdateBatch {
+  UpdateType type;
+  parlay::sequence<std::pair<int, int>> edges;
 };
 
 enum QueryType {

@@ -24,6 +24,8 @@ static long parallel_topology_remove_ancestor_time_2 = 0;
 static long parallel_topology_recluster_tree_time = 0;
 static long test_time = 0;
 
+namespace dgbs {
+
 template <typename aug_t>
 struct ParallelTopologyCluster {
   // Topology cluster data
@@ -75,15 +77,14 @@ class ParallelTopologyTree {
   using ClusterSubset = parlay::sequence<Cluster*>;
 
   // Topology tree interface
-  ParallelTopologyTree(
-     vertex_t n, vertex_t k, QueryType q = PATH,
-     std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {
-       return x + y;
-     },
-     aug_t id = 0, aug_t dval = 0);
+  ParallelTopologyTree(vertex_t n, vertex_t k, QueryType q = PATH,
+    std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {
+      return x + y;
+    },
+    aug_t id = 0, aug_t dval = 0);
   ~ParallelTopologyTree();
-  void batch_link(sequence<Edge>& links);
-  void batch_cut(sequence<Edge>& cuts);
+  void batch_link(sequence<std::pair<int, int>>& links);
+  void batch_cut(sequence<std::pair<int, int>>& cuts);
   bool connected(vertex_t u, vertex_t v);
   aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
   aug_t path_query(vertex_t u, vertex_t v);
@@ -108,7 +109,7 @@ class ParallelTopologyTree {
                               ParallelTopologyCluster<aug_t>* c2);
 
   // Initializes the tree at the leaves.
-  void initialize_from_leaves(sequence<Edge>& edges);
+  void initialize_from_leaves(sequence<std::pair<int, int>>& edges);
 };
 
 template <typename aug_t>
@@ -151,14 +152,14 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<Edge>& edges) {
+void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<std::pair<int, int>>& edges) {
   START_TIMER(ra_timer);
   // Serial elision.
   if (edges.size() < 5000) {
     root_clusters.clear();
     del_clusters.clear();
     for (size_t i=0; i <2*edges.size(); ++i) {
-      auto cluster = (i % 2 == 0) ? &leaves[edges[i / 2].src] : &leaves[edges[i / 2].dst];
+      auto cluster = (i % 2 == 0) ? &leaves[edges[i / 2].first] : &leaves[edges[i / 2].second];
       for (size_t j=0; j < 3; ++j) {
         auto neighbor = cluster->neighbors[j];
         if (neighbor && neighbor->parent == cluster->parent && !neighbor->del) {
@@ -181,7 +182,7 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<Edge>& edges) 
     }
   } else {
     auto all_clusters = parlay::delayed::tabulate(2*edges.size(), [&] (size_t i) {
-      auto cluster = (i % 2 == 0) ? &leaves[edges[i / 2].src] : &leaves[edges[i / 2].dst];
+      auto cluster = (i % 2 == 0) ? &leaves[edges[i / 2].first] : &leaves[edges[i / 2].second];
       auto ds = parlay::delayed::tabulate(4, [cluster] (size_t j) {
         if (j < 3) {
           auto neighbor = cluster->neighbors[j];
@@ -215,22 +216,22 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<Edge>& edges) 
 
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::batch_link(sequence<Edge>& links) {
+void ParallelTopologyTree<aug_t>::batch_link(sequence<std::pair<int, int>>& links) {
   // Generate root clusters.
   initialize_from_leaves(links);
   parallel_for(0, links.size(), [&](size_t i) {
-    leaves[links[i].src].insert_neighbor(&leaves[links[i].dst], default_value);
-    leaves[links[i].dst].insert_neighbor(&leaves[links[i].src], default_value);
+    leaves[links[i].first].insert_neighbor(&leaves[links[i].second], default_value);
+    leaves[links[i].second].insert_neighbor(&leaves[links[i].first], default_value);
   });
   recluster_tree();
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
+void ParallelTopologyTree<aug_t>::batch_cut(sequence<std::pair<int, int>>& cuts) {
   initialize_from_leaves(cuts);
   parallel_for(0, cuts.size(), [&](size_t i) {
-    leaves[cuts[i].src].remove_neighbor(&leaves[cuts[i].dst]);
-    leaves[cuts[i].dst].remove_neighbor(&leaves[cuts[i].src]);
+    leaves[cuts[i].first].remove_neighbor(&leaves[cuts[i].second]);
+    leaves[cuts[i].second].remove_neighbor(&leaves[cuts[i].first]);
   });
   recluster_tree();
 }
@@ -861,4 +862,6 @@ aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
     if (curr_u->neighbors[i] == curr_v)
       total = f(total, curr_u->edge_values[i]);
   return total;
+}
+
 }

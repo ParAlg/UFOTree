@@ -12,6 +12,8 @@
 
 using namespace parlay;
 
+namespace dgbs {
+
 template <typename aug_t>
 class ParallelUFOTree {
 public:
@@ -20,8 +22,8 @@ public:
     ParallelUFOTree(vertex_t n, vertex_t k, QueryType q = PATH,
         std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {
         return x + y; }, aug_t id = 0, aug_t dval = 0);
-    void batch_link(sequence<Edge>& links);
-    void batch_cut(sequence<Edge>& cuts);
+    void batch_link(parlay::sequence<std::pair<int, int>>& links);
+    void batch_cut(parlay::sequence<std::pair<int, int>>& cuts);
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid();
@@ -41,11 +43,11 @@ private:
     hashbag<vertex_t> D;
     hashbag<vertex_t> next_R;
     hashbag<vertex_t> next_D;
-    sequence<Edge> U;
+    sequence<std::pair<int, int>> U;
     UpdateType update_type;
     int level;
     // Main batch update functions
-    void update_tree(sequence<Edge>& updates);
+    void update_tree(parlay::sequence<std::pair<int, int>>& updates);
     void recluster_level();
 
     void mark_remove_parents();
@@ -68,10 +70,10 @@ std::function<aug_t(aug_t, aug_t)> f, aug_t id, aug_t d)
 }
 
 template <typename aug_t>
-void ParallelUFOTree<aug_t>::batch_link(sequence<Edge>& links) {
+void ParallelUFOTree<aug_t>::batch_link(parlay::sequence<std::pair<int, int>>& links) {
     #ifdef PRINT_DEBUG_INFO
     std::cout << std::endl << "[ BATCH LINK ]: ";
-    for (Edge e : links) std::cout << "(" << e.src << "," << e.dst << ") ";
+    for (auto e : links) std::cout << "(" << e.first << "," << e.second << ") ";
     std::cout << std::endl << std::endl;
     #endif
     update_type = INSERT;
@@ -79,10 +81,10 @@ void ParallelUFOTree<aug_t>::batch_link(sequence<Edge>& links) {
 }
 
 template <typename aug_t>
-void ParallelUFOTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
+void ParallelUFOTree<aug_t>::batch_cut(parlay::sequence<std::pair<int, int>>& cuts) {
     #ifdef PRINT_DEBUG_INFO
     std::cout << std::endl << "[ BATCH CUT ]: ";
-    for (Edge e : cuts) std::cout << "(" << e.src << "," << e.dst << ") ";
+    for (auto e : cuts) std::cout << "(" << e.first << "," << e.second << ") ";
     std::cout << std::endl << std::endl;
     #endif
     update_type = DELETE;
@@ -90,14 +92,14 @@ void ParallelUFOTree<aug_t>::batch_cut(sequence<Edge>& cuts) {
 }
 
 template <typename aug_t>
-void ParallelUFOTree<aug_t>::update_tree(sequence<Edge>& updates) {
+void ParallelUFOTree<aug_t>::update_tree(parlay::sequence<std::pair<int, int>>& updates) {
     // Determine the intial set of root clusters and deletion clusters
     parallel_for(0, updates.size(), [&](size_t i) {
-        if (forests[0].try_set_status_atomic(updates[i].src, ROOT)) R.insert(updates[i].src);
-        if (forests[0].try_set_status_atomic(updates[i].dst, ROOT)) R.insert(updates[i].dst);
+        if (forests[0].try_set_status_atomic(updates[i].first, ROOT)) R.insert(updates[i].first);
+        if (forests[0].try_set_status_atomic(updates[i].second, ROOT)) R.insert(updates[i].second);
         if (forests.size() > 1) {
-            vertex_t parent1 = forests[0].get_parent(updates[i].src);
-            vertex_t parent2 = forests[0].get_parent(updates[i].dst);
+            vertex_t parent1 = forests[0].get_parent(updates[i].first);
+            vertex_t parent2 = forests[0].get_parent(updates[i].second);
             if (parent1 != NONE && forests[1].try_set_status_atomic(parent1, DEL)) D.insert(parent1);
             if (parent2 != NONE && forests[1].try_set_status_atomic(parent2, DEL)) D.insert(parent2);
         }
@@ -438,10 +440,10 @@ void ParallelUFOTree<aug_t>::add_adjacency() {
             E.insert(VERTICES_TO_EDGE(v, neighbor));
         }
     });
-    sequence<Edge> edges = parlay::map_maybe(E.extract_all(), [&](edge_t e) -> std::optional<Edge> {
+    sequence<std::pair<int, int>> edges = parlay::map_maybe(E.extract_all(), [&](edge_t e) -> std::optional<std::pair<int, int>> {
         Edge edge = EDGE_TYPE_TO_STRUCT(e);
         if (forests[level].get_parent(edge.src) != forests[level].get_parent(edge.dst))
-            return (Edge) {forests[level].get_parent(edge.src), forests[level].get_parent(edge.dst)};
+            return std::make_pair((int) forests[level].get_parent(edge.src), (int) forests[level].get_parent(edge.dst));
         return std::nullopt;
     });
     if (forests.size() > level+1) forests[level+1].insert_edges(edges);
@@ -487,4 +489,6 @@ bool ParallelUFOTree<aug_t>::connected(vertex_t u, vertex_t v) {
     while (forests[level].get_parent(root_v) != -1)
         root_v = forests[level++].get_parent(root_v);
     return root_u == root_v;
+}
+
 }

@@ -25,8 +25,8 @@ using EdgeId = uint64_t;
 using EdgeId = uint32_t;
 #endif
 
-constexpr NodeId UINT_N_MAX = numeric_limits<NodeId>::max();
-constexpr EdgeId UINT_E_MAX = numeric_limits<EdgeId>::max();
+constexpr NodeId UINT_N_MAX = std::numeric_limits<NodeId>::max();
+constexpr EdgeId UINT_E_MAX = std::numeric_limits<EdgeId>::max();
 
 inline size_t num_blocks(size_t n, size_t block_size) {
   if (n == 0)

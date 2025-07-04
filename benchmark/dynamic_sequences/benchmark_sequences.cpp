@@ -1,9 +1,9 @@
 #include <parlay/parallel.h>
 #include "pam.h"
-#include "parett/sequence/treap/treap.hpp"
-#include "parett/sequence/skip_list/skip_list.hpp"
-#include "parett/sequence/parallel_skip_list/augmented_skip_list.hpp"
-#include "parett/sequence/splay_tree/splay_tree.hpp"
+#include "ParETT/sequence/treap/treap.hpp"
+#include "ParETT/sequence/skip_list/skip_list.hpp"
+#include "ParETT/sequence/parallel_skip_list/augmented_skip_list.hpp"
+#include "ParETT/sequence/splay_tree/splay_tree.hpp"
 
 using namespace dgbs;
 using key_type = uint32_t;

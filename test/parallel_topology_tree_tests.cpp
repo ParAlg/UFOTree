@@ -2,8 +2,13 @@
 #include <unordered_set>
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
+#include "../util/types.h"
 #include "../include/parallel_topology_tree.h"
+#include "../benchmark/dynamic_trees/benchmark.h"
+#include "../benchmark/parallel/parallel_benchmark.h"
 
+
+using namespace dgbs;
 
 template<typename aug_t>
 bool ParallelTopologyTree<aug_t>::is_valid() {
@@ -110,28 +115,14 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_linkedlist_correctness_test) {
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < n-1; i++)
-            edges.push_back({ids[i],ids[i+1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+        auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, rand());
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
-        parlay::sequence<Edge> batch;
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_link(batch);
-                batch.clear();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            }
+        for (auto batch : batches) {
+            if (batch.type != INSERT) return;
+            tree.batch_link(batch.edges);
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
         }
-        tree.batch_link(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
 
@@ -147,31 +138,14 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_binarytree_correctness_test) {
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < (n-1)/2; i++) {
-            edges.push_back({ids[i],ids[2*i+1]});
-            edges.push_back({ids[i],ids[2*i+2]});
-        }
-        if (n%2 == 0) edges.push_back({ids[(n-1)/2],ids[n-1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+        auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, rand());
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
-        parlay::sequence<Edge> batch;
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_link(batch);
-                batch.clear();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            }
+        for (auto batch : batches) {
+            if (batch.type != INSERT) return;
+            tree.batch_link(batch.edges);
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
         }
-        tree.batch_link(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
 
@@ -187,35 +161,14 @@ TEST(ParallelTopologyTreeSuite, batch_incremental_random_correctness_test) {
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        std::vector<int> vertex_degrees(n,0);
-        while (edges.size() < n-1) {
-            vertex_t u = edges.size()+1;
-            vertex_t v = rand() % u;
-            if (vertex_degrees[v] >= 3) continue;
-            edges.push_back({ids[u],ids[v]});
-            vertex_degrees[u]++;
-            vertex_degrees[v]++;
-        }
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+        auto update_sequence = dynamic_tree_benchmark::random_degree3_benchmark(n, rand());
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
-        parlay::sequence<Edge> batch;
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_link(batch);
-                batch.clear();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            }
+        for (auto batch : batches) {
+            if (batch.type != INSERT) return;
+            tree.batch_link(batch.edges);
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
         }
-        tree.batch_link(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
     }
 }
 
@@ -231,41 +184,17 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_linkedlist_correctness_test) {
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < n-1; i++)
-            edges.push_back({ids[i],ids[i+1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+        auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, rand());
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
-        parlay::sequence<Edge> batch;
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_link(batch);
-                batch.clear();
-            }
-        }
-        tree.batch_link(batch);
-        batch.clear();
-
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_cut(batch);
-                batch.clear();
+        for (auto batch : batches) {
+            if (batch.type == INSERT) {
+                tree.batch_link(batch.edges);
+            } else {
+                tree.batch_cut(batch.edges);
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
 
@@ -281,44 +210,17 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_binarytree_correctness_test) {
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        for (vertex_t i = 0; i < (n-1)/2; i++) {
-            edges.push_back({ids[i],ids[2*i+1]});
-            edges.push_back({ids[i],ids[2*i+2]});
-        }
-        if (n%2 == 0) edges.push_back({ids[(n-1)/2],ids[n-1]});
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+        auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, rand());
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
-        parlay::sequence<Edge> batch;
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_link(batch);
-                batch.clear();
-            }
-        }
-        tree.batch_link(batch);
-        batch.clear();
-
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_cut(batch);
-                batch.clear();
+        for (auto batch : batches) {
+            if (batch.type == INSERT) {
+                tree.batch_link(batch.edges);
+            } else {
+                tree.batch_cut(batch.edges);
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }
 
@@ -334,47 +236,16 @@ TEST(ParallelTopologyTreeSuite, batch_decremental_random_correctness_test) {
         auto f = [](int x, int y)->int {return x + y;};
         ParallelTopologyTree<int> tree(n, k, qt, f, 0, 0);
 
-        std::vector<Update> updates;
-        parlay::sequence<Edge> edges;
-        auto seed = seeds[trial];
-        srand(seed);
-        parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
-        ids = parlay::random_shuffle(ids, parlay::random(rand()));
-        std::vector<int> vertex_degrees(n,0);
-        while (edges.size() < n-1) {
-            vertex_t u = edges.size()+1;
-            vertex_t v = rand() % u;
-            if (vertex_degrees[v] >= 3) continue;
-            edges.push_back({ids[u],ids[v]});
-            vertex_degrees[u]++;
-            vertex_degrees[v]++;
-        }
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        for (auto edge : edges) updates.push_back({INSERT,edge});
+        auto update_sequence = dynamic_tree_benchmark::random_degree3_benchmark(n, rand());
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
-        parlay::sequence<Edge> batch;
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_link(batch);
-                batch.clear();
-            }
-        }
-        tree.batch_link(batch);
-        batch.clear();
-
-        edges = parlay::random_shuffle(edges, parlay::random(rand()));
-        updates.clear();
-        for (auto edge : edges) updates.push_back({DELETE,edge});
-        for (auto update : updates) {
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                tree.batch_cut(batch);
-                batch.clear();
+        for (auto batch : batches) {
+            if (batch.type == INSERT) {
+                tree.batch_link(batch.edges);
+            } else {
+                tree.batch_cut(batch.edges);
                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
             }
         }
-        tree.batch_cut(batch);
-        ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
     }
 }

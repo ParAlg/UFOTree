@@ -35,7 +35,7 @@ public:
     // insert into a random position between [2^i, 2^(i+1)]
     idx = (hb::_hash(u) & (len - 1)) + bag_size[local_pointer - 1];
     // reciprocal sample rate
-    rate = max(1.0, floor(len * load_factor / EXP_SAMPLES));
+    rate = std::max(1.0, floor(len * load_factor / EXP_SAMPLES));
   }
  public:
   void clear() {
@@ -68,7 +68,7 @@ public:
   }
   hashbag() = delete;
   hashbag(size_t _n, size_t _min_bag_size = MIN_BAG_SIZE,
-          double _load_factor = 0.5, ET _empty_key = numeric_limits<ET>::max())
+          double _load_factor = 0.5, ET _empty_key = std::numeric_limits<ET>::max())
       : n(_n), load_factor(_load_factor), empty_key(_empty_key) {
     pointer = 1;
     size_t cur_size = _min_bag_size;

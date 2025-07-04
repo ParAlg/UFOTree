@@ -107,7 +107,7 @@ size_t get_peak_space(vertex_t n, std::vector<std::vector<Update>> update_sequen
 Each benchmark class returns a randomly ordered list of updates for its test case
 ============================================================================== */
 
-std::vector<Update> linked_list_benchmark(vertex_t n, long seed) {
+static std::vector<Update> linked_list_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -124,7 +124,7 @@ std::vector<Update> linked_list_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> binary_tree_benchmark(vertex_t n, long seed) {
+static std::vector<Update> binary_tree_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -141,8 +141,7 @@ std::vector<Update> binary_tree_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> k_ary_tree_benchmark(vertex_t n, long seed) {
-    vertex_t k = 64;
+static std::vector<Update> k_ary_tree_benchmark_helper(vertex_t n, long seed, vertex_t k) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -159,7 +158,11 @@ std::vector<Update> k_ary_tree_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> star_benchmark(vertex_t n, long seed) {
+static std::vector<Update> k_ary_tree_benchmark(vertex_t n, long seed) {
+    return k_ary_tree_benchmark_helper(n, seed, 64);
+}
+
+static std::vector<Update> star_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -176,7 +179,7 @@ std::vector<Update> star_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> dandelion_benchmark(vertex_t n, long seed) {
+static std::vector<Update> dandelion_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -195,7 +198,7 @@ std::vector<Update> dandelion_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> random_degree3_benchmark(vertex_t n, long seed) {
+static std::vector<Update> random_degree3_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -219,7 +222,7 @@ std::vector<Update> random_degree3_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> random_unbounded_benchmark(vertex_t n, long seed) {
+static std::vector<Update> random_unbounded_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -239,7 +242,7 @@ std::vector<Update> random_unbounded_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
+static std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
     srand(seed);
@@ -267,7 +270,7 @@ std::vector<Update> preferential_attachment_benchmark(vertex_t n, long seed) {
     return updates;
 }
 
-std::vector<Update> dense_tree_update_generator(std::vector<Update> updates) {
+static std::vector<Update> dense_tree_update_generator(std::vector<Update> updates) {
     std::vector<Update> new_updates;
     std::vector<Edge> edges;
     bool first_deletion = true;
@@ -286,7 +289,7 @@ std::vector<Update> dense_tree_update_generator(std::vector<Update> updates) {
     return new_updates;
 }
 
-std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {
+static std::vector<Query> random_query_generator(vertex_t n, vertex_t num_queries) {
     std::vector<Query> queries;
     srand(time(NULL));
     for (int i = 0; i < num_queries; ++i){

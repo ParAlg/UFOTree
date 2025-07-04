@@ -7,6 +7,8 @@
 
 using namespace parlay;
 
+namespace dgbs {
+
 enum ClusterStatus {
     NORMAL,
     ROOT,
@@ -25,14 +27,14 @@ public:
     // Remove the set of vertices in V and any adjacent edges
     virtual void delete_vertices(sequence<vertex_t>& V) = 0;
     // Insert the set of edges in E
-    virtual void insert_edges(sequence<Edge>& E) = 0;
+    virtual void insert_edges(sequence<std::pair<int, int>>& E) = 0;
     // Remove the set of edges in E
-    virtual void delete_edges(sequence<Edge>& E) = 0;
+    virtual void delete_edges(sequence<std::pair<int, int>>& E) = 0;
     // Return the set of endpoints of the edges in E
-    virtual sequence<vertex_t> get_endpoints(sequence<Edge>& E) = 0;
+    virtual sequence<vertex_t> get_endpoints(sequence<std::pair<int, int>>& E) = 0;
 
     // Return the edges in E that still exist in the next level up
-    virtual sequence<Edge> map_edges_to_parents(sequence<Edge>& E) = 0;
+    virtual sequence<std::pair<int, int>> map_edges_to_parents(sequence<std::pair<int, int>>& E) = 0;
     // Return the set of parents of V
     virtual sequence<vertex_t> get_parents(sequence<vertex_t>& V) = 0;
     // Set the parents of each cluster in V to the corresponding cluster in P also adding to their child count
@@ -45,7 +47,7 @@ public:
     virtual void subtract_children(sequence<vertex_t>& V) = 0;
 
     // Compute and store the degrees of of vertices if this set of edges was deleted
-    virtual void compute_new_degrees(sequence<Edge>& E, UpdateType update_type) = 0;
+    virtual void compute_new_degrees(sequence<std::pair<int, int>>& E, UpdateType update_type) = 0;
 
     // Non batch read-only helper functions
     virtual vertex_t get_degree(vertex_t v) = 0;
@@ -73,3 +75,5 @@ public:
     virtual void unmark(vertex_t v) = 0;
     virtual bool is_marked(vertex_t v) = 0;
 };
+
+}

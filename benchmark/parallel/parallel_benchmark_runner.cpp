@@ -1,15 +1,17 @@
-#include "benchmark.h"
+#include "../dynamic_trees/benchmark.h"
 #include "parallel_benchmark.h"
 #include "util.h"
 #include "parallel_ufo_tree.h"
 #include "parallel_topology_tree.h"
-// #include "../baselines/dynamic_trees/parallel_euler_tour_tree/include/euler_tour_tree.hpp"
+#include "ParETT/euler_tour_tree.hpp"
 #include <fstream>
 
 
+using namespace dgbs;
+
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
-  std::vector<vertex_t> n_list = {1000};
+  std::vector<vertex_t> n_list = {10000000};
   if (argc < 2) {
     std::cout << "Using default hard-coded list for values of n." << std::endl;
   } else {
@@ -18,7 +20,7 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) n_list.push_back(std::atoi(argv[i]));
   }
   srand(time(NULL));
-  vertex_t k = 100;
+  vertex_t k = 1000000;
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
@@ -42,18 +44,17 @@ int main(int argc, char** argv) {
       auto update_generator = std::get<1>(test_case);
       bool ternarize = std::get<2>(test_case);
       int num_trials = std::get<3>(test_case);
-      std::vector<std::vector<Update>> update_sequences;
+      std::vector<std::vector<UpdateBatch>> update_sequences(num_trials);
       for (int i = 0; i < num_trials; i++) {
-        std::vector<Update> updates = update_generator(n, rand());
-        update_sequences.push_back(updates);
+        auto update_sequence = update_generator(n, rand());
+        update_sequences[i] = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
       }
       double time;
       std::cout << "[ RUNNING " << test_case_name << " PARALLEL UPDATE SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
       // Euler Tour Tree
-      // time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelEulerTourTree>(n, k, update_sequences);
-      time = 0;
+      time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
       // UFO Tree

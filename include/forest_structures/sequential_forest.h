@@ -8,6 +8,8 @@
 
 using namespace parlay;
 
+namespace dgbs {
+
 class SequentialNeighborIterator : public NeighborIterator {
 private:
     std::unordered_set<vertex_t>::iterator iter;
@@ -62,27 +64,27 @@ public:
         }
     }
 
-    void insert_edges(sequence<Edge>& E) {
+    void insert_edges(sequence<std::pair<int, int>>& E) {
         for (int i = 0; i < E.size(); ++i) {
-            vertices[E[i].src]->insert_neighbor(E[i].dst);
-            vertices[E[i].dst]->insert_neighbor(E[i].src);
+            vertices[E[i].first]->insert_neighbor(E[i].second);
+            vertices[E[i].second]->insert_neighbor(E[i].first);
         }
     }
 
-    void delete_edges(sequence<Edge>& E) {
+    void delete_edges(sequence<std::pair<int, int>>& E) {
         for (int i = 0; i < E.size(); ++i) {
-            if (vertices.find(E[i].src) == vertices.end()) continue;
-            if (vertices.find(E[i].dst) == vertices.end()) continue;
-            vertices[E[i].src]->remove_neighbor(E[i].dst);
-            vertices[E[i].dst]->remove_neighbor(E[i].src);
+            if (vertices.find(E[i].first) == vertices.end()) continue;
+            if (vertices.find(E[i].second) == vertices.end()) continue;
+            vertices[E[i].first]->remove_neighbor(E[i].second);
+            vertices[E[i].second]->remove_neighbor(E[i].first);
         }
     }
 
-    sequence<vertex_t> get_endpoints(sequence<Edge>& E) {
+    sequence<vertex_t> get_endpoints(sequence<std::pair<int, int>>& E) {
         std::unordered_set<vertex_t> endpoints;
         for (int i = 0; i < E.size(); ++i) {
-            endpoints.insert(E[i].src);
-            endpoints.insert(E[i].dst);
+            endpoints.insert(E[i].first);
+            endpoints.insert(E[i].second);
         }
         auto output = sequence<vertex_t>(endpoints.size());
         int index = 0;
@@ -92,14 +94,14 @@ public:
         return output;
     }
 
-    sequence<Edge> map_edges_to_parents(sequence<Edge>& E) {
-        sequence<Edge> output;
+    sequence<std::pair<int, int>> map_edges_to_parents(sequence<std::pair<int, int>>& E) {
+        sequence<std::pair<int, int>> output;
         for (int i = 0; i < E.size(); ++i) {
-            if (vertices.find(E[i].src) == vertices.end()) continue;
-            if (vertices.find(E[i].dst) == vertices.end()) continue;
-            if (vertices[E[i].src]->parent != NONE && vertices[E[i].dst]->parent != NONE) {
-                if (vertices[E[i].src]->parent != vertices[E[i].dst]->parent) {
-                    output.push_back({vertices[E[i].src]->parent,vertices[E[i].dst]->parent});
+            if (vertices.find(E[i].first) == vertices.end()) continue;
+            if (vertices.find(E[i].second) == vertices.end()) continue;
+            if (vertices[E[i].first]->parent != NONE && vertices[E[i].second]->parent != NONE) {
+                if (vertices[E[i].first]->parent != vertices[E[i].second]->parent) {
+                    output.push_back({vertices[E[i].first]->parent,vertices[E[i].second]->parent});
                 }
             }
         }
@@ -145,20 +147,20 @@ public:
         }
     }
 
-    void compute_new_degrees(sequence<Edge>& E, UpdateType update_type) {
+    void compute_new_degrees(sequence<std::pair<int, int>>& E, UpdateType update_type) {
         for (int i = 0; i < E.size(); ++i) {
-            vertices[E[i].src]->new_degree = get_degree(E[i].src);
-            vertices[E[i].dst]->new_degree = get_degree(E[i].dst);
+            vertices[E[i].first]->new_degree = get_degree(E[i].first);
+            vertices[E[i].second]->new_degree = get_degree(E[i].second);
         }
         if (update_type == INSERT) {
             for (int i = 0; i < E.size(); ++i) {
-                vertices[E[i].src]->new_degree++;
-                vertices[E[i].dst]->new_degree++;
+                vertices[E[i].first]->new_degree++;
+                vertices[E[i].second]->new_degree++;
             }
         } else {
             for (int i = 0; i < E.size(); ++i) {
-                vertices[E[i].src]->new_degree--;
-                vertices[E[i].dst]->new_degree--;
+                vertices[E[i].first]->new_degree--;
+                vertices[E[i].second]->new_degree--;
             }
         }
     }
@@ -275,3 +277,5 @@ public:
         return vertices[v]->marked;
     }
 };
+
+}

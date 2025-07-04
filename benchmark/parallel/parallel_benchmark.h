@@ -7,33 +7,49 @@
 #include "types.h"
 
 
+namespace dgbs {
+
 namespace parallel_dynamic_tree_benchmark {
+
+// Converts the sequence of updates into ~n/k batches of size k
+static std::vector<UpdateBatch> convert_updates_to_batches(const std::vector<Update>& updates, size_t batch_size) {
+    std::vector<UpdateBatch> batches;
+    if (updates.empty()) return batches;
+
+    UpdateType current_type = updates[0].type;
+    UpdateBatch current_batch;
+    current_batch.type = current_type;
+    for (const auto& update : updates) {
+        if (update.type != current_type || current_batch.edges.size() >= batch_size) {
+            batches.push_back(current_batch);
+            current_batch.edges.clear();
+            current_type = update.type;
+            current_batch.type = current_type;
+        }
+        current_batch.edges.push_back({(int)update.edge.src, (int)update.edge.dst});
+    }
+    if (!current_batch.edges.empty()) {
+        batches.push_back(current_batch);
+    }
+    return batches;
+}
 
 // Returns the time in seconds to perform all of the updates
 template <typename DynamicTree>
-double get_update_speed(vertex_t n, vertex_t k, std::vector<std::vector<Update>> update_sequences) {
+double get_update_speed(vertex_t n, vertex_t k, std::vector<std::vector<UpdateBatch>>& update_sequences) {
     parlay::internal::timer my_timer("");
     for (auto updates : update_sequences) {
         DynamicTree tree(n, k);
-        parlay::sequence<Edge> batch;
-        UpdateType batch_type = updates[0].type;
         my_timer.start();
-        for (auto update : updates) {
-            if (update.type != batch_type) {
-                (batch_type==INSERT) ? tree.batch_link(batch) : tree.batch_cut(batch);
-                batch.clear();
-                batch_type = updates[0].type;
-            }
-            batch.push_back(update.edge);
-            if (batch.size() == k) {
-                (batch_type==INSERT) ? tree.batch_link(batch) : tree.batch_cut(batch);
-                batch.clear();
-            }
+        for (auto batch : updates) {
+            if (batch.type == INSERT) tree.batch_link(batch.edges);
+            else tree.batch_cut(batch.edges);
         }
-        (batch_type==INSERT) ? tree.batch_link(batch) : tree.batch_cut(batch);
         my_timer.stop();
     }
     return my_timer.total_time()/update_sequences.size();
+}
+
 }
 
 }
