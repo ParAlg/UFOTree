@@ -65,8 +65,18 @@ add_executable(dynamic_tree_tests
   test/ufo_tree_tests.cpp
   test/ternarization_tests.cpp
 )
+
 target_link_libraries(dynamic_tree_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
 target_include_directories(dynamic_tree_tests PRIVATE include util baselines)
+
+add_executable(iufo_tests
+  test/test_runner.cpp
+  test/iufo_tree_tests.cpp
+)
+
+target_link_libraries(iufo_tests PRIVATE parlay GTest::gtest_main absl::flat_hash_map)
+target_include_directories(iufo_tests PRIVATE include util baselines)
+
 
 # add_executable(parallel_dynamic_tree_tests
 #   test/parallel_test_runner.cpp
