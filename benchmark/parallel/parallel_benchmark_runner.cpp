@@ -3,6 +3,7 @@
 #include "util.h"
 #include "parallel_ufo_tree.h"
 #include "parallel_topology_tree.h"
+#include "spaa_rc_tree.h"
 // #include "../baselines/dynamic_trees/parallel_euler_tour_tree/include/euler_tour_tree.hpp"
 #include <fstream>
 
@@ -24,18 +25,18 @@ int main(int argc, char** argv) {
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
     {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
     {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
-    {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
+    /*{"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
     {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
     {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 5},
     {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 5},
-    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 5}
+    {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 5}*/
   };
 
   for (vertex_t n : n_list) {
     std::string filename = "../results/parellel_update_speed_" + std::to_string(n) + "_" + std::to_string(k) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,Euler Tour Tree,UFO Tree,Topology Tree,\n";
+    output_csv << "Test Case,Euler Tour Tree, RC Tree, Topology Tree,\n";
 
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);
@@ -52,14 +53,19 @@ int main(int argc, char** argv) {
       output_csv << test_case_name << ",";
 
       // Euler Tour Tree
-      // time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelEulerTourTree>(n, k, update_sequences);
-      time = 0;
+      time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelEulerTourTree>(n, k, update_sequences);
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
-      // UFO Tree
+      
+      // RC Tree
+      time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelRCTree>(n, k, update_sequences);
+      std::cout << "RCTree : " << time << std::endl;
+      output_csv << time << ",";
+      /*// UFO Tree
       time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<int>>(n, k, update_sequences);
       std::cout << "UFOTree       : " << time << std::endl;
-      output_csv << time << ",";
+      output_csv << time << ",";*/
+
       // Topology Tree
       if (!ternarize) {
         time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);

@@ -5,7 +5,7 @@
 #include <parlay/primitives.h>
 #include <parlay/internal/get_time.h>
 #include "types.h"
-#include <../spaa_rc_tree/RCtrees/ternarizer.h>
+#include <spaa_rc_tree.h>
 
 namespace parallel_dynamic_tree_benchmark {
 
@@ -13,6 +13,11 @@ namespace parallel_dynamic_tree_benchmark {
 template <typename DynamicTree>
 double get_update_speed(vertex_t n, vertex_t k, std::vector<std::vector<Update>> update_sequences) {
     parlay::internal::timer my_timer("");
+    DynamicTree t(0,0);
+    ParallelRCTree<int> type_finder(0,0);
+    if(typeid(t).name() == typeid(type_finder).name()){
+      
+    }
     for (auto updates : update_sequences) {
         DynamicTree tree(n, k);
         parlay::sequence<Edge> batch;
