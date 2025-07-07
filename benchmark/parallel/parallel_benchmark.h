@@ -5,7 +5,7 @@
 #include <parlay/primitives.h>
 #include <parlay/internal/get_time.h>
 #include "types.h"
-
+#include <../spaa_rc_tree/RCtrees/ternarizer.h>
 
 namespace parallel_dynamic_tree_benchmark {
 
