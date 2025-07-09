@@ -39,6 +39,12 @@ struct UpdateBatch {
   parlay::sequence<std::pair<int, int>> edges;
 };
 
+struct UpdateBatchWithWeights{
+  UpdateType type;
+  parlay::sequence<std::tuple<int,int,int>> insert_edges;
+  parlay::sequence<std::pair<int,int>> delete_edges;
+};
+
 enum QueryType {
   CONNECTIVITY,
   PATH,

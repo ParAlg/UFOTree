@@ -114,6 +114,7 @@ add_executable(parallel_dynamic_tree_tests
   test/parallel_test_runner.cpp
   test/parallel_topology_tree_tests.cpp
   test/parallel_ufo_tree_tests.cpp
+  test/par_rc_tests.cpp
 )
 target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
 target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/forest_structures util)

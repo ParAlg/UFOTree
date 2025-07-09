@@ -50,6 +50,23 @@ double get_update_speed(vertex_t n, vertex_t k, std::vector<std::vector<UpdateBa
     return my_timer.total_time()/update_sequences.size();
 }
 
+template <typename DynamicTree>
+double get_update_speed_with_rand_edge_weights(vertex_t n, vertex_t k, std::vector<std::vector<UpdateBatchWithWeights>>& update_sequences)
+{
+    parlay::internal::timer my_timer("");
+    for (auto updates : update_sequences){
+        DynamicTree tree(n, k);
+        my_timer.start();
+        for (auto batch : updates){
+            if (batch.type == INSERT)
+                tree.batch_link(batch.insert_edges);
+            else
+                tree.batch_cut(batch.delete_edges);
+        }
+        my_timer.stop();
+    }
+    return my_timer.total_time() / update_sequences.size();
+}
 }
 
 }
