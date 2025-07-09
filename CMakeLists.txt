@@ -129,15 +129,16 @@ add_executable(benchmark_graph_algorithms
 target_link_libraries(benchmark_graph_algorithms PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_algorithms PRIVATE include util baselines)
 
-# add_executable(parallel_benchmark
-#   benchmark/parallel_benchmark_runner.cpp
-#   test/parallel_topology_tree_tests.cpp
-#   test/parallel_ufo_tree_tests.cpp
-#   baselines/dynamic_trees/parallel_euler_tour_tree/src/euler_tour_tree.cpp
-#   baselines/sequence/parallel_skip_list/src/augmented_skip_list.cpp
-# )
-# target_link_libraries(parallel_benchmark PRIVATE parlay CPAM aspen GTest::gtest_main)
-# target_include_directories(parallel_benchmark PRIVATE include include/forest_structures util baselines)
+ add_executable(parallel_benchmark
+   benchmark/parallel/parallel_benchmark_runner.cpp
+   #test/parallel_topology_tree_tests.cpp
+   #test/parallel_ufo_tree_tests.cpp
+   baselines/parett/dynamic_trees/parallel_euler_tour_tree/src/euler_tour_tree.cpp
+   baselines/parett/sequence/parallel_skip_list/augmented_skip_list.hpp
+   include/spaa_rc_tree.h
+ )
+ target_link_libraries(parallel_benchmark PRIVATE parlay CPAM aspen GTest::gtest_main)
+ target_include_directories(parallel_benchmark PRIVATE include include/forest_structures util baselines)
 
 # add_executable(incremental_MST
 #   test/incremental_mst_test.cpp

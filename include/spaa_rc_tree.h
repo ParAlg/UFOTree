@@ -1,3 +1,4 @@
+#pragma once
 #include "../spaa_rc_tree/RCtrees/RC.h"
 #include "../spaa_rc_tree/RCtrees/RCdynamic.h"
 #include "../spaa_rc_tree/RCtrees/ternarizer.h"
@@ -26,8 +27,8 @@ public:
   ternarizer<int, int> tr = ternarizer(200, std::numeric_limits<int>::min()); // NOTE: tern_node uses -1 as default edge array index - need to fix that before converting this to vertex_t
   vertex_t n;
   vertex_t k; 
-  void batch_link(parlay::sequence<Edge>& links);
-  void batch_cut(parlay::sequence<Edge>& cuts);
+  void batch_link(parlay::sequence<std::tuple<vertex_t, vertex_t, aug_t>>& links);
+  void batch_cut(parlay::sequence<std::pair<vertex_t,vertex_t>> & cuts);
   aug_t path_query(vertex_t u, vertex_t v);
   std::function<aug_t(aug_t,aug_t)> func;
   void verify_tree_correctness();
@@ -42,23 +43,15 @@ public:
 };
 
 template<typename aug_t>
-void ParallelRCTree<aug_t>::batch_link(parlay::sequence<Edge>& links){ 
+void ParallelRCTree<aug_t>::batch_link(parlay::sequence<std::tuple<vertex_t, vertex_t, aug_t>>& links){ 
   parlay::sequence<std::pair<vertex_t,vertex_t>> delete_edges;
-  parlay::sequence<std::tuple<vertex_t, vertex_t, aug_t>> link_edges;
-  for(auto e : links){
-    link_edges.push_back(std::make_tuple(e.src, e.dst, 0));
-  }
-  batchInsertEdge(delete_edges, link_edges, clusters, 0, func); 
+  batchInsertEdge(delete_edges, links, clusters, 0, func); 
 }
 
 template<typename aug_t>
-void ParallelRCTree<aug_t>::batch_cut(parlay::sequence<Edge>& cuts){
-  parlay::sequence<std::pair<vertex_t,vertex_t>> add_edges; 
-  parlay::sequence<std::tuple<vertex_t, vertex_t, aug_t>> delete_edges;
-  for(auto e : cuts){
-    delete_edges.push_back(std::make_pair(e.src, e.dst));
-  }
-  batchInsertEdge(delete_edges, add_edges, clusters, 0, func); 
+void ParallelRCTree<aug_t>::batch_cut(parlay::sequence<std::pair<vertex_t,vertex_t>>& cuts){
+  parlay::sequence<std::tuple<vertex_t, vertex_t, aug_t>> add_edges;
+  batchInsertEdge(cuts, add_edges, clusters, 0, func); 
  
 }
 

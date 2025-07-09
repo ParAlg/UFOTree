@@ -1,4 +1,4 @@
-#include "benchmark.h"
+#include "../dynamic_trees/benchmark.h"
 #include "parallel_benchmark.h"
 #include "util.h"
 #include "parallel_ufo_tree.h"
@@ -53,12 +53,13 @@ int main(int argc, char** argv) {
       output_csv << test_case_name << ",";
 
       // Euler Tour Tree
-      time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelEulerTourTree>(n, k, update_sequences);
+      //time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelEulerTourTree>(n, k, update_sequences);
+      time = 0;
       std::cout << "EulerTourTree : " << time << std::endl;
       output_csv << time << ",";
       
       // RC Tree
-      time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelRCTree>(n, k, update_sequences);
+      time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelRCTree<int>>(n, k, update_sequences);
       std::cout << "RCTree : " << time << std::endl;
       output_csv << time << ",";
       /*// UFO Tree
