@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) n_list.push_back(std::atoi(argv[i]));
   }
   srand(time(NULL));
-  vertex_t k = 1000000;
+  vertex_t k = 10000;
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
