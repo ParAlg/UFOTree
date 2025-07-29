@@ -1,4 +1,4 @@
 [submodule "spaa_rc_tree"]
 	path = spaa_rc_tree
-	url = git@github.com:sbird-kick/parlaylib.git
+	url = git@github.com:quintendeman/SPAA_RC_Tree.git
 	branch = incMST
