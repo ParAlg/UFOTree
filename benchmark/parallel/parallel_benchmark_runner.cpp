@@ -77,9 +77,9 @@ int main(int argc, char** argv) {
     std::cout << "EulerTourTree : " << time << std::endl;
     output_csv << time << ",";
     // UFO Tree
-    /*time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<int>>(n, k, update_sequences);
+    time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<>>(n, k, update_sequences);
     std::cout << "UFOTree       : " << time << std::endl;
-    output_csv << time << ",";*/
+    output_csv << time << ",";
     // Topology Tree
     if (!ternarize) {
       time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);
