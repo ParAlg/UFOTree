@@ -199,8 +199,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         previously happened to not contract with this cluster. Fortunately we can detect when this
         will happen by looking at the number of edges inserted, and we can grab that deg 1 neighbor
         easily before inserting all the edges and making this cluster high degree.
-        This might mean populating the adjacency lists should happen during the phase 3 of the next
-        level up. */
+        This means populating the adjacency lists should happen during phase 3 of the next level. */
 
 
         // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
@@ -212,17 +211,40 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 if (neighbor->get_degree() == 1) {
                     cluster->partner = neighbor;
                     neighbor->partner = cluster;
+                    if (neighbor->parent) {
+                        cluster->parent = neighbor->parent;
+                    }
+                    else if (cluster < neighbor) {
+                        Cluster* parent = allocator::create();
+                        cluster->parent = parent;
+                        neighbor->parent = parent;
+                    }
                 }
-                // Combine deg 1 root cluster with deg 2 non-root clusters that don't contract
+                // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
                 else if (neighbor->get_degree() == 2 && neighbor->parent) {
-                    if (!neighbor->contracts())
-                        if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, cluster))
+                    if (!neighbor->contracts()) {
+                        if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, cluster)) {
                             cluster->partner = neighbor;
+                            cluster->parent = neighbor->parent;
+                        }
+                    }
                 }
                 // Combine deg 1 root cluster with deg 3+ clusters always
                 else if (neighbor->get_degree() >= 3) {
                     cluster->partner = neighbor;
                     neighbor->partner = cluster;
+                    if (!neighbor->parent) {
+                        Cluster* parent = allocator::create();
+                        if (!gbbs::CAS(&neighbor->parent, (Cluster*) nullptr, parent))
+                            allocator::destroy(parent);
+                    }
+                    cluster->parent = neighbor->parent;
+                }
+                // Deg 1 root cluster that doesn't combine gets its own parent
+                else {
+                    cluster->partner = cluster;
+                    Cluster* parent = allocator::create();
+                    cluster->parent = parent;
                 }
             }
             else if (cluster->get_degree() == 2) {
@@ -244,19 +266,33 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     }
                     while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
                         if (curr->partner || !gbbs::CAS(&curr->partner, (Cluster*) nullptr, next)) return;
-                        if (next->get_degree() == 1) { // If next deg 1 they can combine
-                            next->partner = curr;
-                            return;
+                        if (next->get_degree() != 1) { // If next deg 1 they can combine
+                            if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, curr)) { // If the CAS fails next was combined from the other side
+                                if (next->partner != curr) curr->partner = nullptr;
+                                break;
+                            }
                         }
-                        if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, curr)) { // If the CAS fails next was combined from the other side
-                            if (next->partner != curr) curr->partner = nullptr;
-                            return;
+                        // Both CAS's succeeded or next was degree 1
+                        if (next->parent) {
+                            curr->parent = next->parent;
+                            return; // Stop traversing at a non-root cluster
                         }
-                        if (next->parent) return; // Stop traversing at a non-root cluster
+                        else {
+                            Cluster* parent = allocator::create();
+                            curr->parent = parent;
+                            next->parent = parent;
+                        }
+                        if (next->get_degree() == 1) break;
                         // Get the next two clusters in the chain
                         curr = next->get_other_neighbor(curr);
                         if (curr) next = curr->get_other_neighbor(next);
                     }
+                }
+                // Deg 2 root cluster that doesn't combine gets its own parent
+                if (!cluster->partner) {
+                    cluster->partner = cluster;
+                    Cluster* parent = allocator::create();
+                    cluster->parent = parent;
                 }
             }
         });
