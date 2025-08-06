@@ -11,9 +11,10 @@ struct ParallelUFOCluster {
     // Topology cluster data
     std::unordered_set<ParallelUFOCluster*> neighbors;
     ParallelUFOCluster* parent;
+    ParallelUFOCluster* partner;
 
     // Constructor
-    ParallelUFOCluster(){};
+    ParallelUFOCluster() : parent(nullptr), partner(nullptr), neighbors() {};
 
     // Functions
     std::mutex mtx;
