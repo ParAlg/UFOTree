@@ -93,6 +93,7 @@ bool ParallelUFOTree<aug_t>::is_valid() {
 template <typename aug_t>
 int ParallelUFOTree<aug_t>::get_height(vertex_t v) {
     // return forests.size();
+    return 0;
 }
 
 template <typename aug_t>

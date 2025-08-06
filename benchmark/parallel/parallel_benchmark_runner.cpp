@@ -86,11 +86,11 @@ int main(int argc, char** argv) {
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << time << ",";
     }
-
-    if(!ternarize){
+    // RC Tree
+    if (!ternarize) {
       time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n,k,weighted_update_sequences);
-      std::cout << "RCTree : " << time << std::endl;
-      output_csv << time;
+      std::cout << "RCTree        : " << time << std::endl;
+      output_csv << time << ",";
     }
     std::cout << std::endl;
     output_csv << "\n";
