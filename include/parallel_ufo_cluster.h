@@ -75,8 +75,9 @@ int ParallelUFOCluster<aug_t>::get_degree() {
 
 template <typename aug_t>
 bool ParallelUFOCluster<aug_t>::contracts() {
+    if (!parent) return false;
     for (auto neighbor : neighbors)
-        if (neighbor->parent == this->parent)
+        if (neighbor->parent == parent)
             return true;
     return false;
 }

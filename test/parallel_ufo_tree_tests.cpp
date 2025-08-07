@@ -91,25 +91,25 @@ void ParallelUFOCluster<aug_t>::print_neighbors() {
 }
 
 TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 100;
     long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 3;
+        vertex_t n = 4;
         vertex_t k = 1;
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
-        seed = 0;
+        std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
         for (auto batch : batches) {
-            if (batch.type != INSERT) return;
+            if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-            tree.print_tree();
+            // tree.print_tree();
         }
     }
 }
