@@ -61,8 +61,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
     // The intial dir updates are just the batch of links or cuts in both directions.
     dir_updates = parlay::tabulate(2*updates.size(), [&] (size_t i) {
-        if (i % 2 == 0) return std::make_pair(&leaves[updates[i].first], &leaves[updates[i].second]);
-        return std::make_pair(&leaves[updates[i].second], &leaves[updates[i].first]);
+        if (i % 2 == 0) return std::make_pair(&leaves[updates[i/2].first], &leaves[updates[i/2].second]);
+        return std::make_pair(&leaves[updates[i/2].second], &leaves[updates[i/2].first]);
     });
     
     // Group by endpoint. Then group by parent.
@@ -111,12 +111,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         });
         auto parent_groups = parlay::group_by_key(parents);
         // Get the next del clusters.
-        auto next_del_clusters = parlay::delayed::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
+        auto next_del_clusters1 = parlay::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
             if (!group.first) return std::nullopt;
             return group.first;
         });
         // Get next root clusters, clear their parent pointers, delete some current del clusters.
-        auto next_root_clusters = parlay::delayed::flatten(parlay::delayed_tabulate(parent_groups.size(), [&] (size_t i) {
+        auto next_root_clusters1 = parlay::flatten(parlay::delayed_tabulate(parent_groups.size(), [&] (size_t i) {
             auto& [parent, children] = parent_groups[i];
             parlay::sequence<Cluster*> local_root_clusters;
             if (parent == nullptr) return local_root_clusters;
@@ -203,8 +203,10 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
 
         // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
-        parlay::parallel_for(0, root_clusters.size(), [&] (size_t i) {
+        parlay::sequence<Cluster*> next_del_clusters2;
+        auto next_root_clusters2 = parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
             Cluster* cluster = root_clusters[i];
+            parlay::sequence<Cluster*> local_root_clusters;
             if (cluster->get_degree() == 1) {
                 Cluster* neighbor = cluster->get_neighbor();
                 // Combine deg 1 root clusters with deg 1 root or non-root clusters
@@ -218,6 +220,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         Cluster* parent = allocator::create();
                         cluster->parent = parent;
                         neighbor->parent = parent;
+                        local_root_clusters.push_back(parent);
                     }
                 }
                 // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
@@ -226,6 +229,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, cluster)) {
                             cluster->partner = neighbor;
                             cluster->parent = neighbor->parent;
+                            local_root_clusters.push_back(cluster->parent);
                         }
                     }
                 }
@@ -239,12 +243,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                             allocator::destroy(parent);
                     }
                     cluster->parent = neighbor->parent;
+                    local_root_clusters.push_back(cluster->parent);
                 }
                 // Deg 1 root cluster that doesn't combine gets its own parent
                 else {
                     cluster->partner = cluster;
                     Cluster* parent = allocator::create();
                     cluster->parent = parent;
+                    local_root_clusters.push_back(parent);
                 }
             }
             else if (cluster->get_degree() == 2) {
@@ -254,8 +260,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 uint64_t hash = hash64((uintptr_t) cluster);
                 uint64_t hash1 = hash64((uintptr_t) neighbor1);
                 uint64_t hash2 = hash64((uintptr_t) neighbor2);
-                if (neighbor1->get_degree() == 2 && (hash1 > hash || (hash1 == hash && neighbor1 > cluster))) return;
-                if (neighbor2->get_degree() == 2 && (hash2 > hash || (hash2 == hash && neighbor2 > cluster))) return;
+                if (neighbor1->get_degree() == 2 && (hash1 > hash || (hash1 == hash && neighbor1 > cluster))) return local_root_clusters;
+                if (neighbor2->get_degree() == 2 && (hash2 > hash || (hash2 == hash && neighbor2 > cluster))) return local_root_clusters;
                 // Travel left/right and pair clusters until a deg 3, deg 1, non-root, or partnered cluster is found
                 for (auto direction : {0, 1}) {
                     auto curr = cluster;
@@ -265,7 +271,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         next = curr->get_other_neighbor(cluster);
                     }
                     while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
-                        if (curr->partner || !gbbs::CAS(&curr->partner, (Cluster*) nullptr, next)) return;
+                        if (curr->partner || !gbbs::CAS(&curr->partner, (Cluster*) nullptr, next)) break;
                         if (next->get_degree() != 1) { // If next deg 1 they can combine
                             if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, curr)) { // If the CAS fails next was combined from the other side
                                 if (next->partner != curr) curr->partner = nullptr;
@@ -275,12 +281,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         // Both CAS's succeeded or next was degree 1
                         if (next->parent) {
                             curr->parent = next->parent;
-                            return; // Stop traversing at a non-root cluster
+                            local_root_clusters.push_back(curr->parent);
+                            break; // Stop traversing at a non-root cluster
                         }
                         else {
                             Cluster* parent = allocator::create();
                             curr->parent = parent;
                             next->parent = parent;
+                            local_root_clusters.push_back(parent);
                         }
                         if (next->get_degree() == 1) break;
                         // Get the next two clusters in the chain
@@ -293,9 +301,34 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     cluster->partner = cluster;
                     Cluster* parent = allocator::create();
                     cluster->parent = parent;
+                    local_root_clusters.push_back(parent);
                 }
             }
+            return local_root_clusters;
+        }));
+
+        // Fill the adjacency lists of new clusters
+        // This should work well for only linked list cases
+        parlay::parallel_for(0, root_clusters.size(), [&] (size_t i) {
+            auto cluster = root_clusters[i];
+            if (!cluster->parent) return;
+            Cluster* neighbor1 = cluster->get_neighbor();
+            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
+            if (neighbor1 && cluster->parent != neighbor1->parent) {
+                cluster->parent->insert_neighbor(neighbor1->parent);
+                neighbor1->parent->insert_neighbor(cluster->parent);
+            }
+            if (neighbor2 && cluster->parent != neighbor2->parent) {
+                cluster->parent->insert_neighbor(neighbor2->parent);
+                neighbor2->parent->insert_neighbor(cluster->parent);
+            }
         });
+
+        // ===============
+        // PREP NEXT LEVEL
+        // ===============
+        root_clusters = parlay::append(next_root_clusters1, next_root_clusters2);
+        del_clusters = parlay::append(next_del_clusters1, next_del_clusters2);
     }
 }
 

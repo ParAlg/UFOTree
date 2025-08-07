@@ -98,60 +98,66 @@ int ParallelUFOTree<aug_t>::get_height(vertex_t v) {
 
 template <typename aug_t>
 void ParallelUFOTree<aug_t>::print_tree() {
-    // std::multimap<vertex_t,vertex_t> clusters;
-    // std::multimap<vertex_t,vertex_t> next_clusters;
-    // std::cout << "========================= LEAVES =========================" << std::endl;
-    // for (vertex_t i = 0; i < n; i++) clusters.insert({forests[0].get_parent(i), i});
-    // for (auto entry : clusters) {
-    //     auto leaf = entry.second;
-    //     auto parent = entry.first;
-    //     std::cout << "VERTEX " << leaf << "\t " << " Parent " << (parent==NONE ? "NONE" : std::to_string(parent)) << "\t Neighbors: ";
-    //     auto iter = forests[0].get_neighbor_iterator(leaf);
-    //     for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next())  std::cout << neighbor << " ";
-    //     std::cout << std::endl;
-    //     bool in_map = false;
-    //     for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-    //     if (parent != NONE && !in_map) next_clusters.insert({forests[1].get_parent(parent), parent});
-    // }
-    // clusters.swap(next_clusters);
-    // next_clusters.clear();
-    // int level = 0;
-    // while (!clusters.empty()) {
-    //     level++;
-    //     std::cout << "======================== LEVEL " << level << " ========================" << std::endl;
-    //     for (auto entry : clusters) {
-    //         auto cluster = entry.second;
-    //         auto parent = entry.first;
-    //         std::cout << "CLUSTER: " << cluster << "\t" << " Parent: " << (parent==NONE ? "NONE" : std::to_string(parent)) << "\t Neighbors: ";
-    //         auto iter = forests[level].get_neighbor_iterator(cluster);
-    //         for(vertex_t neighbor = iter->next(); neighbor != NONE; neighbor = iter->next())  std::cout << neighbor << " ";
-    //         std::cout << std::endl;
-    //         bool in_map = false;
-    //         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
-    //         if (parent != NONE && !in_map) next_clusters.insert({forests[level+1].get_parent(parent), parent});
-    //     }
-    //     clusters.swap(next_clusters);
-    //     next_clusters.clear();
-    // }
+    std::multimap<Cluster*, Cluster*> clusters;
+    std::multimap<Cluster*, Cluster*> next_clusters;
+    std::cout << "========================= LEAVES =========================" << std::endl;
+    std::unordered_map<Cluster*, vertex_t> vertex_map;
+    for (int i = 0; i < this->leaves.size(); i++) vertex_map.insert({&leaves[i], i});
+    for (int i = 0; i < this->leaves.size(); i++) clusters.insert({leaves[i].parent, &leaves[i]});
+    for (auto entry : clusters) {
+        auto leaf = entry.second;
+        auto parent = entry.first;
+        std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
+        for (auto neighbor : leaf->neighbors) std::cout << vertex_map[neighbor] << " ";
+        std::cout << std::endl;
+        bool in_map = false;
+        for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+        if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+    }
+    clusters.swap(next_clusters);
+    next_clusters.clear();
+    while (!clusters.empty()) {
+        std::cout << "======================= NEXT LEVEL =======================" << std::endl;
+        for (auto entry : clusters) {
+            auto cluster = entry.second;
+            auto parent = entry.first;
+            std::cout << "Cluster: " << cluster << " Parent: " << parent << " Neighbors: ";
+            cluster->print_neighbors();
+            bool in_map = false;
+            for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
+            if (parent && !in_map) next_clusters.insert({parent->parent, parent});
+        }
+        clusters.swap(next_clusters);
+        next_clusters.clear();
+    }
+}
+
+template <typename aug_t>
+void ParallelUFOCluster<aug_t>::print_neighbors() {
+    for (auto neighbor : neighbors) std::cout << neighbor << " ";
+    std::cout << std::endl;
 }
 
 TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
     int num_trials = 1;
-    int seeds[num_trials];
+    long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
+        vertex_t n = 2;
+        vertex_t k = 1;
         ParallelUFOTree<> tree(n, k);
+        long seed = seeds[trial];
+        seed = 0;
 
-        auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, rand());
+        auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
         for (auto batch : batches) {
             if (batch.type != INSERT) return;
             tree.batch_link(batch.edges);
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            tree.print_tree();
         }
     }
 }

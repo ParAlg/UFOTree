@@ -30,6 +30,8 @@ struct ParallelUFOCluster {
     ParallelUFOCluster* get_neighbor();
     ParallelUFOCluster* get_other_neighbor(ParallelUFOCluster* c);
     ParallelUFOCluster* get_root();
+
+    void print_neighbors();
 };
 
 template <typename aug_t>

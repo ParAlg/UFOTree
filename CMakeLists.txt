@@ -111,7 +111,7 @@ target_link_libraries(benchmark_graph_algorithms PRIVATE parlay absl::flat_hash_
 target_include_directories(benchmark_graph_algorithms PRIVATE include util baselines)
 
 add_executable(parallel_dynamic_tree_tests
-  test/parallel_test_runner.cpp
+  test/test_runner.cpp
   test/parallel_topology_tree_tests.cpp
   test/parallel_ufo_tree_tests.cpp
   test/par_rc_tests.cpp
