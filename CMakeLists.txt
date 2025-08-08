@@ -13,6 +13,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # add_link_options(-fsanitize=address)
 # add_compile_options(-fsanitize=undefined)
 # add_link_options(-fsanitize=undefined)
+# add_compile_options(-fsanitize=thread)
+# add_link_options(-fsanitize=thread)
 
 FetchContent_Declare(parlaylib
   GIT_REPOSITORY  https://github.com/cmuparlay/parlaylib.git

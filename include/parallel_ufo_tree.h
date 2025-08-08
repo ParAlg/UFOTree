@@ -83,21 +83,26 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
         if (max_degree == 1) {
             Cluster* center = max->get_neighbor();
-            size_t adjusted_center_degree = center->get_degree() - children.size();
-            local_root_clusters = std::move(children);
-            if (adjusted_center_degree < 3) {
-                center->delete_neighbors(local_root_clusters); // Should replace delete / reinsert with parallel iteration
-                if (adjusted_center_degree >= 1) {
-                    Cluster* neighbor1 = center->get_neighbor();
-                    if (neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-                    if (adjusted_center_degree >= 2) {
-                        Cluster* neighbor2 = center->get_other_neighbor(neighbor1);
-                        if (neighbor2->parent == parent) local_root_clusters.push_back(center->get_other_neighbor(neighbor2));
-                    }
-                }
-                center->insert_neighbors(local_root_clusters);
-                local_root_clusters.push_back(center);
+            if (center->parent != max->parent) {
+                local_root_clusters.push_back(max);
                 parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+            } else {
+                size_t adjusted_center_degree = center->get_degree() - children.size();
+                local_root_clusters = std::move(children);
+                if (adjusted_center_degree < 3) {
+                    center->delete_neighbors(local_root_clusters); // Should replace delete / reinsert with parallel iteration
+                    if (adjusted_center_degree >= 1) {
+                        Cluster* neighbor1 = center->get_neighbor();
+                        if (neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
+                        if (adjusted_center_degree >= 2) {
+                            Cluster* neighbor2 = center->get_other_neighbor(neighbor1);
+                            if (neighbor2->parent == parent) local_root_clusters.push_back(center->get_other_neighbor(neighbor2));
+                        }
+                    }
+                    center->insert_neighbors(local_root_clusters);
+                    local_root_clusters.push_back(center);
+                    parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                }
             }
         }
 
@@ -182,21 +187,26 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
             if (max_degree == 1) {
                 Cluster* center = max->get_neighbor();
-                size_t adjusted_center_degree = center->get_degree() - children.size();
-                local_root_clusters = parlay::filter(children, [&] (Cluster* x) { return !x->partner; });
-                if (adjusted_center_degree < 3) {
-                    center->delete_neighbors(children); // Should replace delete / reinsert with parallel iteration
-                    if (adjusted_center_degree >= 1) {
-                        Cluster* neighbor1 = center->get_neighbor();
-                        if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-                        if (adjusted_center_degree >= 2) {
-                            Cluster* neighbor2 = center->get_other_neighbor(neighbor1);
-                            if (!neighbor2->partner && neighbor2->parent == parent) local_root_clusters.push_back(center->get_other_neighbor(neighbor2));
-                        }
-                    }
-                    center->insert_neighbors(children);
-                    if (!center->partner) local_root_clusters.push_back(center);
+                if (center->parent != max->parent) {
+                    local_root_clusters.push_back(max);
                     parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                } else {
+                    size_t adjusted_center_degree = center->get_degree() - children.size();
+                    local_root_clusters = parlay::filter(children, [&] (Cluster* x) { return !x->partner; });
+                    if (adjusted_center_degree < 3) {
+                        center->delete_neighbors(children); // Should replace delete / reinsert with parallel iteration
+                        if (adjusted_center_degree >= 1) {
+                            Cluster* neighbor1 = center->get_neighbor();
+                            if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
+                            if (adjusted_center_degree >= 2) {
+                                Cluster* neighbor2 = center->get_other_neighbor(neighbor1);
+                                if (!neighbor2->partner && neighbor2->parent == parent) local_root_clusters.push_back(center->get_other_neighbor(neighbor2));
+                            }
+                        }
+                        center->insert_neighbors(children);
+                        if (!center->partner) local_root_clusters.push_back(center);
+                        parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                    }
                 }
             }
 
@@ -284,8 +294,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 // Combine deg 1 root clusters with deg 1 root or non-root clusters
                 if (neighbor->get_degree() == 1) {
                     cluster->partner = neighbor;
-                    neighbor->partner = cluster;
                     if (neighbor->parent && !neighbor->partner) {
+                        neighbor->partner = neighbor; // Mark non-root contracting clusters with a self-partner
                         cluster->parent = neighbor->parent;
                         local_root_clusters.push_back(cluster->parent);
                     }
@@ -300,7 +310,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 else if (neighbor->get_degree() == 2) {
                     if (neighbor->parent && !neighbor->partner) {
                         if (!neighbor->contracts()) {
-                            if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, cluster)) {
+                            // Mark non-root contracting clusters with a self-partner
+                            if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, neighbor)) {
                                 cluster->partner = neighbor;
                                 cluster->parent = neighbor->parent;
                                 local_root_clusters.push_back(cluster->parent);
@@ -335,8 +346,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 uint64_t hash = hash64((uintptr_t) cluster);
                 uint64_t hash1 = hash64((uintptr_t) neighbor1);
                 uint64_t hash2 = hash64((uintptr_t) neighbor2);
-                if (neighbor1->get_degree() == 2 && (hash1 > hash || (hash1 == hash && neighbor1 > cluster))) return local_root_clusters;
-                if (neighbor2->get_degree() == 2 && (hash2 > hash || (hash2 == hash && neighbor2 > cluster))) return local_root_clusters;
+                if (neighbor1->get_degree() == 2 && (!neighbor1->parent || neighbor1->partner))
+                    if (hash1 > hash || (hash1 == hash && neighbor1 > cluster))
+                        return local_root_clusters;
+                if (neighbor2->get_degree() == 2 && (!neighbor2->parent || neighbor2->partner))
+                    if (hash2 > hash || (hash2 == hash && neighbor2 > cluster))
+                        return local_root_clusters;
                 // Travel left/right and pair clusters until a deg 3, deg 1, non-root, or partnered cluster is found
                 for (auto direction : {0, 1}) {
                     auto curr = cluster;
@@ -347,8 +362,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     }
                     while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
                         if (curr->partner || !gbbs::CAS(&curr->partner, (Cluster*) nullptr, next)) break;
-                        if (next->get_degree() != 1) { // If next deg 1 they can definitely combine
-                            if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, curr)) { // If the CAS fails next was combined from the other side
+                        if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
+                            if (!next->parent) next->partner = curr;
+                            else next->partner = next; // Mark non-root contracting clusters with a self-partner
+                        } else {
+                            Cluster* new_partner = next->parent ? next : curr; // Mark non-root contracting clusters with a self-partner
+                            if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
                                 if (next->partner != curr) curr->partner = nullptr;
                                 break;
                             }
@@ -393,11 +412,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         parlay::parallel_for(0, root_clusters.size(), [&] (size_t i) {
             auto cluster = root_clusters[i];
             if (!cluster->parent) return;
+
+            if (cluster->partner != cluster)
+                if (cluster->partner->partner == cluster->partner)
+                    cluster->partner->partner = nullptr;
+            cluster->partner = nullptr;
+
             Cluster* neighbor1 = cluster->get_neighbor();
             Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-            cluster->partner = nullptr;
-            if (neighbor1) neighbor1->partner = nullptr;
-            if (neighbor2) neighbor2->partner = nullptr;
             if (neighbor1 && cluster->parent != neighbor1->parent) {
                 cluster->parent->insert_neighbor(neighbor1->parent);
                 neighbor1->parent->insert_neighbor(cluster->parent);
