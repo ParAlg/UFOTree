@@ -20,19 +20,39 @@ bool ParallelUFOTree<aug_t>::is_valid() {
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
             for (auto neighbor : cluster->neighbors) // Ensure all neighbors also point back
-                if (!neighbor->contains_neighbor(cluster)) return false;
+                if (!neighbor->contains_neighbor(cluster)) {
+                    std::cerr << "NEIGHBOR DOESN'T POINT BACK, CLUSTER " << cluster << std::endl;
+                    return false;
+                }
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
-                    if (cluster->get_neighbor()->get_degree() > 2) return false;
-                    else if (!cluster->get_neighbor()->contracts()) return false;
+                    if (cluster->get_neighbor()->get_degree() > 2) {
+                        std::cerr << "NON-MAXIMAL CONTRACTION, DEG 1 CLUSTER " << cluster << std::endl;
+                        return false;
+                    }
+                    else if (!cluster->get_neighbor()->contracts()) {
+                        std::cerr << "NON-MAXIMAL CONTRACTION, DEG 1 CLUSTER " << cluster << std::endl;
+                        return false;
+                    }
                 } else if (cluster->get_degree() == 2) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor->get_degree() < 3 && !neighbor->contracts()) return false;
+                        if (neighbor->get_degree() < 3 && !neighbor->contracts()) {
+                            std::cerr << "NON-MAXIMAL CONTRACTION, DEG 2 CLUSTER " << cluster << std::endl;
+                            return false;
+                        }
                 } else if (cluster->get_degree() >= 3) {
                     for (auto neighbor : cluster->neighbors)
-                        if (neighbor && neighbor->get_degree() < 2) return false;
+                        if (neighbor && neighbor->get_degree() < 2) {
+                            std::cerr << "NON-MAXIMAL CONTRACTION, DEG 3+ CLUSTER " << cluster << std::endl;
+                            return false;
+                        }
                 }
             }
+            for (auto cluster : clusters) // Ensure no partner fields are still set
+                if (cluster->partner) {
+                    std::cerr << "PARTNER FIELD ERRONEOUSLY SET, CLUSTER " << cluster << std::endl;
+                    return false;
+                }
             if (cluster->parent) // Get next level
                 next_clusters.insert(cluster->parent);
         }
@@ -96,11 +116,11 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 5;
+        vertex_t n = 6;
         vertex_t k = 1;
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
-        // seed = 1238399614;
+        seed = 793623154;
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
