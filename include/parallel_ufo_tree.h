@@ -163,8 +163,198 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     lists of our new parent clusters and add them to the adjacency list of their neighbors. */
     while (root_clusters.size() > 0 || del_clusters.size() > 0) {
         // =======
+        // PHASE 2
+        // =======
+
+        // Insert or delete the edges at this level.
+        auto dir_update_groups = parlay::group_by_key(dir_updates);
+        parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
+            auto& [cluster, neighbors] = dir_update_groups[i];
+            if (update_type == INSERT) cluster->insert_neighbors(neighbors);
+            else cluster->delete_neighbors(neighbors);
+        });
+
+        // Map the dir updates to the next level.
+        dir_updates = parlay::map_maybe(dir_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
+            if (x.first->parent != x.second->parent)
+                return std::make_pair(x.first->parent, x.second->parent);
+            return std::nullopt;
+        });
+
+        // =======
+        // PHASE 3
+        // =======
+
+        /* We also need to handle the case where a root cluster became high degree because of many
+        insertions, but it needs to find a degree 1 neighbor that is a non-root cluster because it
+        previously happened to not contract with this cluster. Fortunately we can detect when this
+        will happen by looking at the number of edges inserted, and we can grab that deg 1 neighbor
+        easily before inserting all the edges and making this cluster high degree.
+        This means populating the adjacency lists should happen during phase 3 of the next level. */
+
+
+        // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
+        // This returns the parent's of non-root clusters that were combined with, starting new RA paths.
+        auto additional_del_clusters = parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
+            Cluster* cluster = root_clusters[i];
+            parlay::sequence<Cluster*> local_del_clusters;
+            if (cluster->get_degree() == 1) {
+                Cluster* neighbor = cluster->get_neighbor();
+                // Combine deg 1 root clusters with deg 1 root or non-root clusters
+                if (neighbor->get_degree() == 1) {
+                    cluster->partner = neighbor;
+                    if (neighbor->parent && !neighbor->partner) {
+                        neighbor->partner = neighbor; // Mark non-root contracting clusters with a self-partner
+                        cluster->parent = neighbor->parent;
+                        local_del_clusters.push_back(neighbor->parent);
+                    }
+                    else if (!neighbor->parent && cluster < neighbor) {
+                        Cluster* parent = allocator::create();
+                        cluster->parent = parent;
+                        neighbor->parent = parent;
+                    }
+                }
+                // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
+                else if (neighbor->get_degree() == 2) {
+                    if (neighbor->parent && !neighbor->partner) {
+                        if (!neighbor->contracts()) {
+                            // Mark non-root contracting clusters with a self-partner
+                            if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, neighbor)) {
+                                cluster->partner = neighbor;
+                                cluster->parent = neighbor->parent;
+                                local_del_clusters.push_back(neighbor->parent);
+                            }
+                        } else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
+                            cluster->partner = cluster;
+                            Cluster* parent = allocator::create();
+                            cluster->parent = parent;
+                        }
+                    }
+                }
+                // Combine deg 1 root cluster with deg 3+ clusters always
+                else if (neighbor->get_degree() >= 3) {
+                    cluster->partner = neighbor;
+                    neighbor->partner = cluster;
+                    if (!neighbor->parent) {
+                        Cluster* parent = allocator::create();
+                        if (!gbbs::CAS(&neighbor->parent, (Cluster*) nullptr, parent))
+                            allocator::destroy(parent);
+                    }
+                    else if (neighbor->parent && !neighbor->partner) {
+                        local_del_clusters.push_back(neighbor->parent);
+                    }
+                    cluster->parent = neighbor->parent;
+                }
+            }
+            else if (cluster->get_degree() == 2) {
+                // Only local maxima in priority with respect to deg 2 clusters will act
+                Cluster* neighbor1 = cluster->get_neighbor();
+                Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
+                uint64_t hash = hash64((uintptr_t) cluster);
+                uint64_t hash1 = hash64((uintptr_t) neighbor1);
+                uint64_t hash2 = hash64((uintptr_t) neighbor2);
+                if (neighbor1->get_degree() == 2 && (!neighbor1->parent || neighbor1->partner))
+                    if (hash1 > hash || (hash1 == hash && neighbor1 > cluster))
+                        return local_del_clusters;
+                if (neighbor2->get_degree() == 2 && (!neighbor2->parent || neighbor2->partner))
+                    if (hash2 > hash || (hash2 == hash && neighbor2 > cluster))
+                        return local_del_clusters;
+                // Travel left/right and pair clusters until a deg 3, deg 1, non-root, or partnered cluster is found
+                for (auto direction : {0, 1}) {
+                    auto curr = cluster;
+                    auto next = direction ? neighbor1 : neighbor2;
+                    if (curr->partner) {
+                        curr = next;
+                        next = curr->get_other_neighbor(cluster);
+                    }
+                    while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
+                        if (curr->partner || !gbbs::CAS(&curr->partner, (Cluster*) nullptr, next)) break;
+                        if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
+                            if (!next->parent) next->partner = curr;
+                            else next->partner = next; // Mark non-root contracting clusters with a self-partner
+                        } else {
+                            Cluster* new_partner = next->parent ? next : curr; // Mark non-root contracting clusters with a self-partner
+                            if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
+                                if (next->partner != curr) curr->partner = nullptr;
+                                break;
+                            }
+                        }
+                        // Both CAS's succeeded or next was degree 1
+                        if (next->parent) {
+                            curr->parent = next->parent;
+                            local_del_clusters.push_back(next->parent);
+                            break; // Stop traversing at a non-root cluster
+                        }
+                        else {
+                            Cluster* parent = allocator::create();
+                            curr->parent = parent;
+                            next->parent = parent;
+                        }
+                        if (next->get_degree() == 1) break;
+                        // Get the next two clusters in the chain
+                        curr = next->get_other_neighbor(curr);
+                        if (curr) next = curr->get_other_neighbor(next);
+                    }
+                    if (curr && !curr->parent && curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
+                        curr->partner = curr;
+                        Cluster* parent = allocator::create();
+                        curr->parent = parent;
+                    }
+                }
+                // Deg 2 root cluster that doesn't combine gets its own parent
+                if (!cluster->partner) {
+                    cluster->partner = cluster;
+                    Cluster* parent = allocator::create();
+                    cluster->parent = parent;
+                }
+            }
+            return local_del_clusters;
+        }));
+
+        // Fill the adjacency lists of new clusters
+        // This should work well for only linked list cases
+        // This returns only the new clusters that were created during the reclustering at this level.
+        auto next_root_clusters1 = parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
+            auto cluster = root_clusters[i];
+            parlay::sequence<Cluster*> local_root_clusters;
+            if (!cluster->parent) return local_root_clusters; // Only deg 0
+
+            // Clear partner pointers and find the newly created clusters
+            Cluster* partner = cluster->partner;
+            if (partner && partner != cluster) {
+                if (partner->partner != cluster) { // Non-root partner
+                    partner->partner = nullptr;
+                    cluster->partner = nullptr;
+                } else if (cluster < partner) { // Tie-break
+                    cluster->partner->partner = nullptr;
+                    cluster->partner = nullptr;
+                    local_root_clusters.push_back(cluster->parent);
+                }
+            } else if (partner) { // Non-combining cluster has its own parent
+                cluster->partner = nullptr;
+                local_root_clusters.push_back(cluster->parent);
+            }
+
+            // Fill adjacency lists at the next level up
+            Cluster* neighbor1 = cluster->get_neighbor();
+            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
+            if (neighbor1 && cluster->parent != neighbor1->parent) {
+                cluster->parent->insert_neighbor(neighbor1->parent);
+                neighbor1->parent->insert_neighbor(cluster->parent);
+            }
+            if (neighbor2 && cluster->parent != neighbor2->parent) {
+                cluster->parent->insert_neighbor(neighbor2->parent);
+                neighbor2->parent->insert_neighbor(cluster->parent);
+            }
+
+            return local_root_clusters;
+        }));
+
+        // =======
         // PHASE 1
         // =======
+
+        del_clusters.append(additional_del_clusters);
 
         // Group del clusters by parent.
         auto parents = parlay::delayed_tabulate(del_clusters.size(), [&] (size_t i) {
@@ -172,12 +362,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         });
         auto parent_groups = parlay::group_by_key(parents);
         // Get the next del clusters.
-        auto next_del_clusters1 = parlay::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
+        auto next_del_clusters = parlay::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
             if (!group.first) return std::nullopt;
             return group.first;
         });
         // Get next root clusters, clear their parent pointers, delete some current del clusters.
-        auto next_root_clusters1 = parlay::flatten(parlay::delayed_tabulate(parent_groups.size(), [&] (size_t i) {
+        // This should return any del cluster that doesn't get deleted, but whose parent get's deleted.
+        // This should also return any cluster that is not a del cluster, but is a child of a deleted parent.
+        auto next_root_clusters2 = parlay::flatten(parlay::delayed_tabulate(parent_groups.size(), [&] (size_t i) {
             auto& [parent, children] = parent_groups[i];
             parlay::sequence<Cluster*> local_root_clusters;
             if (parent == nullptr) return local_root_clusters;
@@ -253,188 +445,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
             if (del_clusters[i]->partner) allocator::destroy(del_clusters[i]);
         });
-        // =======
-        // PHASE 2
-        // =======
-
-        // Insert or delete the edges at this level.
-        auto dir_update_groups = parlay::group_by_key(dir_updates);
-        parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
-            auto& [cluster, neighbors] = dir_update_groups[i];
-            if (update_type == INSERT) cluster->insert_neighbors(neighbors);
-            else cluster->delete_neighbors(neighbors);
-        });
-
-        // Map the dir updates to the next level.
-        dir_updates = parlay::map_maybe(dir_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-            if (x.first->parent != x.second->parent)
-                return std::make_pair(x.first->parent, x.second->parent);
-            return std::nullopt;
-        });
-
-        // =======
-        // PHASE 3
-        // =======
-
-        /* We also need to handle the case where a root cluster became high degree because of many
-        insertions, but it needs to find a degree 1 neighbor that is a non-root cluster because it
-        previously happened to not contract with this cluster. Fortunately we can detect when this
-        will happen by looking at the number of edges inserted, and we can grab that deg 1 neighbor
-        easily before inserting all the edges and making this cluster high degree.
-        This means populating the adjacency lists should happen during phase 3 of the next level. */
-
-
-        // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
-        parlay::sequence<Cluster*> next_del_clusters2;
-        auto next_root_clusters2 = parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
-            Cluster* cluster = root_clusters[i];
-            parlay::sequence<Cluster*> local_root_clusters;
-            if (cluster->get_degree() == 1) {
-                Cluster* neighbor = cluster->get_neighbor();
-                // Combine deg 1 root clusters with deg 1 root or non-root clusters
-                if (neighbor->get_degree() == 1) {
-                    cluster->partner = neighbor;
-                    if (neighbor->parent && !neighbor->partner) {
-                        neighbor->partner = neighbor; // Mark non-root contracting clusters with a self-partner
-                        cluster->parent = neighbor->parent;
-                        local_root_clusters.push_back(cluster->parent);
-                    }
-                    else if (!neighbor->parent && cluster < neighbor) {
-                        Cluster* parent = allocator::create();
-                        cluster->parent = parent;
-                        neighbor->parent = parent;
-                        local_root_clusters.push_back(parent);
-                    }
-                }
-                // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
-                else if (neighbor->get_degree() == 2) {
-                    if (neighbor->parent && !neighbor->partner) {
-                        if (!neighbor->contracts()) {
-                            // Mark non-root contracting clusters with a self-partner
-                            if (!neighbor->partner && gbbs::CAS(&neighbor->partner, (Cluster*) nullptr, neighbor)) {
-                                cluster->partner = neighbor;
-                                cluster->parent = neighbor->parent;
-                                local_root_clusters.push_back(cluster->parent);
-                            }
-                        } else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
-                            cluster->partner = cluster;
-                            Cluster* parent = allocator::create();
-                            cluster->parent = parent;
-                            local_root_clusters.push_back(parent);
-                        }
-                    }
-                }
-                // Combine deg 1 root cluster with deg 3+ clusters always
-                else if (neighbor->get_degree() >= 3) {
-                    cluster->partner = neighbor;
-                    neighbor->partner = cluster;
-                    if (!neighbor->parent) {
-                        Cluster* parent = allocator::create();
-                        if (!gbbs::CAS(&neighbor->parent, (Cluster*) nullptr, parent)) {
-                            allocator::destroy(parent);
-                        } else {
-                            local_root_clusters.push_back(parent);
-                        }
-                    }
-                    cluster->parent = neighbor->parent;
-                }
-            }
-            else if (cluster->get_degree() == 2) {
-                // Only local maxima in priority with respect to deg 2 clusters will act
-                Cluster* neighbor1 = cluster->get_neighbor();
-                Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-                uint64_t hash = hash64((uintptr_t) cluster);
-                uint64_t hash1 = hash64((uintptr_t) neighbor1);
-                uint64_t hash2 = hash64((uintptr_t) neighbor2);
-                if (neighbor1->get_degree() == 2 && (!neighbor1->parent || neighbor1->partner))
-                    if (hash1 > hash || (hash1 == hash && neighbor1 > cluster))
-                        return local_root_clusters;
-                if (neighbor2->get_degree() == 2 && (!neighbor2->parent || neighbor2->partner))
-                    if (hash2 > hash || (hash2 == hash && neighbor2 > cluster))
-                        return local_root_clusters;
-                // Travel left/right and pair clusters until a deg 3, deg 1, non-root, or partnered cluster is found
-                for (auto direction : {0, 1}) {
-                    auto curr = cluster;
-                    auto next = direction ? neighbor1 : neighbor2;
-                    if (curr->partner) {
-                        curr = next;
-                        next = curr->get_other_neighbor(cluster);
-                    }
-                    while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
-                        if (curr->partner || !gbbs::CAS(&curr->partner, (Cluster*) nullptr, next)) break;
-                        if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
-                            if (!next->parent) next->partner = curr;
-                            else next->partner = next; // Mark non-root contracting clusters with a self-partner
-                        } else {
-                            Cluster* new_partner = next->parent ? next : curr; // Mark non-root contracting clusters with a self-partner
-                            if (next->partner || !gbbs::CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
-                                if (next->partner != curr) curr->partner = nullptr;
-                                break;
-                            }
-                        }
-                        // Both CAS's succeeded or next was degree 1
-                        if (next->parent) {
-                            curr->parent = next->parent;
-                            local_root_clusters.push_back(curr->parent);
-                            break; // Stop traversing at a non-root cluster
-                        }
-                        else {
-                            Cluster* parent = allocator::create();
-                            curr->parent = parent;
-                            next->parent = parent;
-                            local_root_clusters.push_back(parent);
-                        }
-                        if (next->get_degree() == 1) break;
-                        // Get the next two clusters in the chain
-                        curr = next->get_other_neighbor(curr);
-                        if (curr) next = curr->get_other_neighbor(next);
-                    }
-                    if (curr && !curr->parent && curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
-                        curr->partner = curr;
-                        Cluster* parent = allocator::create();
-                        curr->parent = parent;
-                        local_root_clusters.push_back(parent);
-                    }
-                }
-                // Deg 2 root cluster that doesn't combine gets its own parent
-                if (!cluster->partner) {
-                    cluster->partner = cluster;
-                    Cluster* parent = allocator::create();
-                    cluster->parent = parent;
-                    local_root_clusters.push_back(parent);
-                }
-            }
-            return local_root_clusters;
-        }));
-
-        // Fill the adjacency lists of new clusters
-        // This should work well for only linked list cases
-        parlay::parallel_for(0, root_clusters.size(), [&] (size_t i) {
-            auto cluster = root_clusters[i];
-            if (!cluster->parent) return;
-
-            if (cluster->partner != cluster)
-                if (cluster->partner->partner == cluster->partner)
-                    cluster->partner->partner = nullptr;
-            cluster->partner = nullptr;
-
-            Cluster* neighbor1 = cluster->get_neighbor();
-            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-            if (neighbor1 && cluster->parent != neighbor1->parent) {
-                cluster->parent->insert_neighbor(neighbor1->parent);
-                neighbor1->parent->insert_neighbor(cluster->parent);
-            }
-            if (neighbor2 && cluster->parent != neighbor2->parent) {
-                cluster->parent->insert_neighbor(neighbor2->parent);
-                neighbor2->parent->insert_neighbor(cluster->parent);
-            }
-        });
 
         // ===============
         // PREP NEXT LEVEL
         // ===============
         root_clusters = parlay::append(next_root_clusters1, next_root_clusters2);
-        del_clusters = parlay::append(next_del_clusters1, next_del_clusters2);
+        del_clusters = std::move(next_del_clusters);
     }
 }
 
