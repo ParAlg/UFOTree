@@ -15,7 +15,10 @@ bool ParallelUFOTree<aug_t>::is_valid() {
     std::unordered_set<Cluster*> next_clusters;
     for (int i = 0; i < leaves.size(); i++) // Ensure that every pair of incident vertices are in the same component
         for (auto neighbor : leaves[i].neighbors) // This ensures all connectivity is correct by transitivity
-            if (leaves[i].get_root() != neighbor->get_root()) return false;
+            if (leaves[i].get_root() != neighbor->get_root()) {
+                std::cerr << "CONNECTIVITY INCORRECT" << std::endl;
+                return false;
+            }
     for (int i = 0; i < leaves.size(); i++) clusters.insert(&leaves[i]);
     while (!clusters.empty()) {
         for (auto cluster : clusters) {
@@ -111,7 +114,7 @@ void ParallelUFOCluster<aug_t>::print_neighbors() {
 }
 
 TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
-    int num_trials = 1;
+    int num_trials = 100;
     long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
@@ -120,7 +123,6 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         vertex_t k = 1;
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
-        seed = 793623154;
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
@@ -129,8 +131,8 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
             // tree.print_tree();
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
         }
     }
 }

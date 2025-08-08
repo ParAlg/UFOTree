@@ -318,45 +318,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             return local_del_clusters;
         }));
 
-        // Fill the adjacency lists of new clusters
-        // This should work well for only linked list cases
-        // This returns only the new clusters that were created during the reclustering at this level.
-        auto next_root_clusters1 = parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
-            auto cluster = root_clusters[i];
-            parlay::sequence<Cluster*> local_root_clusters;
-            if (!cluster->parent) return local_root_clusters; // Only deg 0
-
-            // Clear partner pointers and find the newly created clusters
-            Cluster* partner = cluster->partner;
-            if (partner && partner != cluster) {
-                if (partner->partner != cluster) { // Non-root partner
-                    partner->partner = nullptr;
-                    cluster->partner = nullptr;
-                } else if (cluster < partner) { // Tie-break
-                    cluster->partner->partner = nullptr;
-                    cluster->partner = nullptr;
-                    local_root_clusters.push_back(cluster->parent);
-                }
-            } else if (partner) { // Non-combining cluster has its own parent
-                cluster->partner = nullptr;
-                local_root_clusters.push_back(cluster->parent);
-            }
-
-            // Fill adjacency lists at the next level up
-            Cluster* neighbor1 = cluster->get_neighbor();
-            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-            if (neighbor1 && cluster->parent != neighbor1->parent) {
-                cluster->parent->insert_neighbor(neighbor1->parent);
-                neighbor1->parent->insert_neighbor(cluster->parent);
-            }
-            if (neighbor2 && cluster->parent != neighbor2->parent) {
-                cluster->parent->insert_neighbor(neighbor2->parent);
-                neighbor2->parent->insert_neighbor(cluster->parent);
-            }
-
-            return local_root_clusters;
-        }));
-
         // =======
         // PHASE 1
         // =======
@@ -452,6 +413,50 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
             if (del_clusters[i]->partner) allocator::destroy(del_clusters[i]);
         });
+
+
+        // =======
+        // PHASE 3
+        // =======
+
+        // Fill the adjacency lists of new clusters
+        // This should work well for only linked list cases
+        // This returns only the new clusters that were created during the reclustering at this level.
+        auto next_root_clusters1 = parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
+            auto cluster = root_clusters[i];
+            parlay::sequence<Cluster*> local_root_clusters;
+            if (!cluster->parent) return local_root_clusters; // Only deg 0
+
+            // Clear partner pointers and find the newly created clusters
+            Cluster* partner = cluster->partner;
+            if (partner && partner != cluster) {
+                if (partner->partner != cluster) { // Non-root partner
+                    partner->partner = nullptr;
+                    cluster->partner = nullptr;
+                } else if (cluster < partner) { // Tie-break
+                    cluster->partner->partner = nullptr;
+                    cluster->partner = nullptr;
+                    local_root_clusters.push_back(cluster->parent);
+                }
+            } else if (partner) { // Non-combining cluster has its own parent
+                cluster->partner = nullptr;
+                local_root_clusters.push_back(cluster->parent);
+            }
+
+            // Fill adjacency lists at the next level up
+            Cluster* neighbor1 = cluster->get_neighbor();
+            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
+            if (neighbor1 && cluster->parent != neighbor1->parent) {
+                cluster->parent->insert_neighbor(neighbor1->parent);
+                neighbor1->parent->insert_neighbor(cluster->parent);
+            }
+            if (neighbor2 && cluster->parent != neighbor2->parent) {
+                cluster->parent->insert_neighbor(neighbor2->parent);
+                neighbor2->parent->insert_neighbor(cluster->parent);
+            }
+
+            return local_root_clusters;
+        }));
 
         // ===============
         // PREP NEXT LEVEL
