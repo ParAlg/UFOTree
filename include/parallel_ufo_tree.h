@@ -295,15 +295,22 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         curr = next->get_other_neighbor(curr);
                         if (curr) next = curr->get_other_neighbor(next);
                     }
-                    if (curr && !curr->parent && curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
-                        curr->partner = curr;
-                        Cluster* parent = allocator::create();
-                        curr->parent = parent;
+                    if (curr && !curr->parent) {
+                        if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
+                            curr->partner = curr;
+                            Cluster* parent = allocator::create();
+                            curr->parent = parent;
+                        }
+                        if (curr->get_degree() == 2) { // Deg 2 root cluster that doesn't combine gets its own parent
+                            if (!curr->partner && gbbs::CAS(&curr->partner, (Cluster*) nullptr, curr)) {
+                                Cluster* parent = allocator::create();
+                                curr->parent = parent;
+                            }
+                        }
                     }
                 }
                 // Deg 2 root cluster that doesn't combine gets its own parent
-                if (!cluster->partner) {
-                    cluster->partner = cluster;
+                if (!cluster->partner && gbbs::CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
                     Cluster* parent = allocator::create();
                     cluster->parent = parent;
                 }
