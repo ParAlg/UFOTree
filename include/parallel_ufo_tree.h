@@ -295,7 +295,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         curr = next->get_other_neighbor(curr);
                         if (curr) next = curr->get_other_neighbor(next);
                     }
-                    if (curr && !curr->parent) {
+                    if (curr && curr != cluster && !curr->parent) {
                         if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
                             curr->partner = curr;
                             Cluster* parent = allocator::create();
