@@ -5,6 +5,35 @@
 
 namespace dgbs {
 
+template <class ET>
+inline bool CAS(ET *ptr, ET oldv, ET newv) {
+  if (sizeof(ET) == 1) {
+    return __sync_bool_compare_and_swap((bool*)ptr, *((bool*)&oldv), *((bool*)&newv));
+  } else if (sizeof(ET) == 4) {
+    return __sync_bool_compare_and_swap((int*)ptr, *((int*)&oldv), *((int*)&newv));
+  } else if (sizeof(ET) == 8) {
+    return __sync_bool_compare_and_swap((long*)ptr, *((long*)&oldv), *((long*)&newv));
+  } else {
+    std::cout << "CAS bad length : " << sizeof(ET) << std::endl;
+    abort();
+  }
+}
+
+template <class ET>
+inline ET AtomicLoad(ET *ptr) {
+  return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+}
+
+template <class ET>
+inline void AtomicStore(ET *ptr, ET val) {
+  __atomic_store_n(ptr, val, __ATOMIC_SEQ_CST);
+}
+
+template <class ET>
+inline ET AtomicExchange(ET *ptr, ET val) {
+  return __sync_lock_test_and_set(ptr, val);
+}
+
 #define MAX_VERTEX_T (std::numeric_limits<uint32_t>::max())
 
 #define VERTICES_TO_EDGE(U, V) (edge_t) U + (((edge_t) V) << 32)

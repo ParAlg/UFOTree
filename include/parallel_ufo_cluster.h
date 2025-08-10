@@ -30,6 +30,8 @@ struct ParallelUFOCluster {
     ParallelUFOCluster* get_neighbor();
     ParallelUFOCluster* get_other_neighbor(ParallelUFOCluster* c);
     ParallelUFOCluster* get_root();
+    
+    bool atomic_contracts();
 
     void print_neighbors();
 };
@@ -78,6 +80,16 @@ bool ParallelUFOCluster<aug_t>::contracts() {
     if (!parent) return false;
     for (auto neighbor : neighbors)
         if (neighbor->parent == parent)
+            return true;
+    return false;
+}
+
+template <typename aug_t>
+bool ParallelUFOCluster<aug_t>::atomic_contracts() {
+    auto parent = AtomicLoad(&this->parent);
+    if (!parent) return false;
+    for (auto neighbor : neighbors)
+        if (AtomicLoad(&neighbor->parent) == parent)
             return true;
     return false;
 }
