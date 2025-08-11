@@ -216,27 +216,29 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                                 AtomicStore(&cluster->parent, neighbor_parent);
                                 local_del_clusters.push_back(neighbor_parent);
                             }
-                        } else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
-                            AtomicStore(&cluster->partner, cluster); // This can probably all be non-atomic
-                            Cluster* parent = allocator::create();
-                            cluster->parent = parent;
+                        }
+                        else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
+                            if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
+                                Cluster* parent = allocator::create();
+                                AtomicStore(&cluster->parent, parent);
+                            }
                         }
                     }
                 }
                 // Combine deg 1 root cluster with deg 3+ clusters always
-                else if (neighbor->get_degree() >= 3) { // Need to fix this later
-                    cluster->partner, neighbor;
-                    neighbor->partner = cluster; // Do we need this line?
-                    if (!neighbor->parent) {
-                        Cluster* parent = allocator::create();
-                        if (!CAS(&neighbor->parent, (Cluster*) nullptr, parent))
-                            allocator::destroy(parent);
-                    }
-                    else if (neighbor->parent && !neighbor->partner) {
-                        local_del_clusters.push_back(neighbor->parent);
-                    }
-                    cluster->parent = neighbor->parent;
-                }
+                // else if (neighbor->get_degree() >= 3) { // Need to fix this later
+                //     cluster->partner = neighbor;
+                //     neighbor->partner = cluster; // Do we need this line?
+                //     if (!neighbor->parent) {
+                //         Cluster* parent = allocator::create();
+                //         if (!CAS(&neighbor->parent, (Cluster*) nullptr, parent))
+                //             allocator::destroy(parent);
+                //     }
+                //     else if (neighbor->parent && !neighbor->partner) {
+                //         local_del_clusters.push_back(neighbor->parent);
+                //     }
+                //     cluster->parent = neighbor->parent;
+                // }
             }
             else if (cluster->get_degree() == 2) {
                 // Only local maxima in priority with respect to deg 2 clusters will act
@@ -293,12 +295,13 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     }
                     if (curr && curr != cluster && !AtomicLoad(&curr->parent)) {
                         if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
-                            AtomicStore(&curr->partner, curr);
-                            Cluster* parent = allocator::create();
-                            AtomicStore(&curr->parent, parent);
+                            if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
+                                Cluster* parent = allocator::create();
+                                AtomicStore(&curr->parent, parent);
+                            }
                         }
                         if (curr->get_degree() == 2) { // Deg 2 root cluster that doesn't combine gets its own parent
-                            if (!AtomicLoad(&curr->partner) && CAS(&curr->partner, (Cluster*) nullptr, curr)) {
+                            if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
                                 Cluster* parent = allocator::create();
                                 AtomicStore(&curr->parent, parent);
                             }
@@ -306,7 +309,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     }
                 }
                 // Deg 2 root cluster that doesn't combine gets its own parent
-                if (!AtomicLoad(&cluster->partner) && CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
+                if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
                     Cluster* parent = allocator::create();
                     AtomicStore(&cluster->parent, parent);
                 }
@@ -344,7 +347,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             if (max_degree == 1) {
                 Cluster* center = max->get_neighbor();
                 if (center->parent != max->parent) {
-                    local_root_clusters.push_back(max);
+                    if (!max->partner) local_root_clusters.push_back(max);
                     parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
                 } else if (center->get_degree() < children.size() + 3) {
                     for (auto neighbor : center->neighbors) // Repace with parallel neighbor iteration
@@ -364,24 +367,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
                 else if (!neighbor2->partner && neighbor2->parent == parent) local_root_clusters.push_back(neighbor2);
                 parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
-            }
-
-            else if (max_degree >= 3) {
-                local_root_clusters = parlay::filter(children, [&] (Cluster* x) { return !x->partner; });
-                if (max_degree - (children.size()-1) < 3) {
-                    max->delete_neighbors(children); // Should replace delete / reinsert with parallel iteration
-                    Cluster* neighbor1 = max->get_neighbor();
-                    if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-                    if (max_degree - children.size() == 2) {
-                        Cluster* neighbor2 = max->get_other_neighbor(neighbor1);
-                        if (!neighbor2->partner && neighbor2->parent == parent) local_root_clusters.push_back(max->get_other_neighbor(neighbor2));
-                    }
-                    max->insert_neighbors(children);
-                    parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
-                } else {
-                    auto iter = parlay::find(local_root_clusters, max);
-                    if (iter != local_root_clusters.end()) local_root_clusters.erase(iter);
-                }
             }
 
             else if (max_degree >= 3) {
