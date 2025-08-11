@@ -86,23 +86,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             if (center->parent != max->parent) {
                 local_root_clusters.push_back(max);
                 parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
-            } else {
-                size_t adjusted_center_degree = center->get_degree() - children.size();
-                local_root_clusters = std::move(children);
-                if (adjusted_center_degree < 3) {
-                    center->delete_neighbors(local_root_clusters); // Should replace delete / reinsert with parallel iteration
-                    if (adjusted_center_degree >= 1) {
-                        Cluster* neighbor1 = center->get_neighbor();
-                        if (neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-                        if (adjusted_center_degree >= 2) {
-                            Cluster* neighbor2 = center->get_other_neighbor(neighbor1);
-                            if (neighbor2->parent == parent) local_root_clusters.push_back(center->get_other_neighbor(neighbor2));
-                        }
-                    }
-                    center->insert_neighbors(local_root_clusters);
-                    local_root_clusters.push_back(center);
-                    parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
-                }
+            } else if (center->get_degree() < children.size() + 3) {
+                for (auto neighbor : center->neighbors) // Repace with parallel neighbor iteration
+                    if (neighbor->parent == parent)
+                        local_root_clusters.push_back(neighbor);
+                local_root_clusters.push_back(center);
+                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
             }
         }
 
@@ -116,18 +105,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         }
 
         else if (max_degree >= 3) {
-            local_root_clusters = std::move(children);
-            if (max_degree - (children.size()-1) < 3) {
-                max->delete_neighbors(children); // Should replace delete / reinsert with parallel iteration
-                Cluster* neighbor1 = max->get_neighbor();
-                if (neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-                if (max_degree - children.size() == 2) {
-                    Cluster* neighbor2 = max->get_other_neighbor(neighbor1);
-                    if (neighbor2->parent == parent) local_root_clusters.push_back(max->get_other_neighbor(neighbor2));
-                }
-                max->insert_neighbors(children);
+            if (max_degree < (children.size()-1) + 3) {
+                for (auto neighbor : max->neighbors) // Repace with parallel neighbor iteration
+                    if (neighbor->parent == parent)
+                        local_root_clusters.push_back(neighbor);
+                local_root_clusters.push_back(max);
                 parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
             } else {
+                local_root_clusters = std::move(children);
                 local_root_clusters.erase(parlay::find(local_root_clusters, max));
             }
         }
@@ -361,23 +346,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 if (center->parent != max->parent) {
                     local_root_clusters.push_back(max);
                     parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                } else if (center->get_degree() < children.size() + 3) {
+                    for (auto neighbor : center->neighbors) // Repace with parallel neighbor iteration
+                        if (!neighbor->partner && neighbor->parent == parent)
+                            local_root_clusters.push_back(neighbor);
+                    if (!center->partner) local_root_clusters.push_back(center);
+                    parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
                 } else {
-                    size_t adjusted_center_degree = center->get_degree() - children.size();
                     local_root_clusters = parlay::filter(children, [&] (Cluster* x) { return !x->partner; });
-                    if (adjusted_center_degree < 3) {
-                        center->delete_neighbors(children); // Should replace delete / reinsert with parallel iteration
-                        if (adjusted_center_degree >= 1) {
-                            Cluster* neighbor1 = center->get_neighbor();
-                            if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-                            if (adjusted_center_degree >= 2) {
-                                Cluster* neighbor2 = center->get_other_neighbor(neighbor1);
-                                if (!neighbor2->partner && neighbor2->parent == parent) local_root_clusters.push_back(center->get_other_neighbor(neighbor2));
-                            }
-                        }
-                        center->insert_neighbors(children);
-                        if (!center->partner) local_root_clusters.push_back(center);
-                        parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
-                    }
                 }
             }
 
@@ -408,16 +384,42 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 }
             }
 
-            parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                if (children[i]->partner) // should replace with parallel neighbor iteration
-                    for (auto neighbor : children[i]->neighbors)
-                        if (!neighbor->partner)
-                            neighbor->delete_neighbor(children[i]);
-            });
+            else if (max_degree >= 3) {
+                if (max_degree < (children.size()-1) + 3) {
+                    for (auto neighbor : max->neighbors) // Repace with parallel neighbor iteration
+                        if (!neighbor->partner && neighbor->parent == parent)
+                            local_root_clusters.push_back(neighbor);
+                    if (!max->partner) local_root_clusters.push_back(max);
+                    parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                } else {
+                    local_root_clusters = parlay::filter(children, [&] (Cluster* x) { return !x->partner && x != max; });
+                }
+            }
 
             return local_root_clusters;
         }));
 
+        // Clear pointers to nodes that will get deleted.
+        auto del_edges = parlay::flatten(parlay::tabulate(parent_groups.size(), [&] (size_t i) {
+            auto& [parent, children] = parent_groups[i];
+            auto local_edges = parlay::flatten(parlay::tabulate(children.size(), [&] (size_t j) {
+                parlay::sequence<std::pair<Cluster*, Cluster*>> local_local_edges;
+                if (children[j]->partner) // should replace with parallel neighbor iteration
+                    for (auto neighbor : children[j]->neighbors)
+                        if (!neighbor->partner)
+                            local_local_edges.push_back(std::make_pair(neighbor, children[j]));
+                return local_local_edges;
+            }));
+            return local_edges;
+        }));
+        auto del_edge_groups = parlay::group_by_key(del_edges);
+
+        parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
+            auto& [cluster, neighbors] = del_edge_groups[i];
+            cluster->delete_neighbors(neighbors);
+        });
+
+        // Delete clusters.
         parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
             if (del_clusters[i]->partner) allocator::destroy(del_clusters[i]);
         });
