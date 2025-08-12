@@ -25,12 +25,13 @@ public:
     bool is_valid();
     int get_height(vertex_t v);
     void print_tree();
-private:
+// private:
     // Class data and parameters
     std::vector<Cluster> leaves;
     // Helper functions
     void recluster_tree(parlay::sequence<std::pair<int, int>>& updates, UpdateType update_type);
-    inline bool is_local_max(Cluster* c);
+    static parlay::sequence<Cluster*> recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters);
+    static inline bool is_local_max(Cluster* c);
 };
 
 template <typename aug_t>
@@ -181,147 +182,13 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         easily before inserting all the edges and making this cluster high degree.
         This means populating the adjacency lists should happen during phase 3 of the next level. */
 
-
-        // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
-        // This returns the parent's of non-root clusters that were combined with, starting new RA paths.
-        auto additional_del_clusters = parlay::tabulate(root_clusters.size(), [&] (size_t i) {
-            Cluster* cluster = root_clusters[i];
-            parlay::sequence<Cluster*> local_del_clusters;
-            if (cluster->get_degree() == 1) {
-                Cluster* neighbor = cluster->get_neighbor();
-                // Combine deg 1 root clusters with deg 1 root or non-root clusters
-                if (neighbor->get_degree() == 1) {
-                    AtomicStore(&cluster->partner, neighbor);
-                    Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
-                    Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
-                    if (neighbor_parent && !neighbor_partner) {
-                        AtomicStore(&neighbor->partner, (Cluster*) 1); // Mark non-root contracting cluster's partner field
-                        AtomicStore(&cluster->parent, neighbor->parent); // These two can probably be non-atomic
-                        local_del_clusters.push_back(neighbor->parent);
-                    }
-                    else if (!neighbor_parent && cluster < neighbor) {
-                        Cluster* parent = allocator::create();
-                        AtomicStore(&cluster->parent, parent);
-                        AtomicStore(&neighbor->parent, parent); // This can probably be non-atomic
-                    }
-                }
-                // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
-                else if (neighbor->get_degree() == 2) {
-                    Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
-                    Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
-                    if (neighbor_parent && !neighbor_partner) {
-                        if (!neighbor->atomic_contracts()) {
-                            // Mark non-root contracting cluster's partner field
-                            if (!CAS(&neighbor->partner, (Cluster*) nullptr, (Cluster*) 1)) {
-                                AtomicStore(&cluster->partner, neighbor);
-                                AtomicStore(&cluster->parent, neighbor_parent);
-                                local_del_clusters.push_back(neighbor_parent);
-                            }
-                        }
-                        else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
-                            if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
-                                Cluster* parent = allocator::create();
-                                AtomicStore(&cluster->parent, parent);
-                            }
-                        }
-                    }
-                }
-                // Combine deg 1 root cluster with deg 3+ clusters always
-                // else if (neighbor->get_degree() >= 3) { // Need to fix this later
-                //     cluster->partner = neighbor;
-                //     neighbor->partner = cluster; // Do we need this line?
-                //     if (!neighbor->parent) {
-                //         Cluster* parent = allocator::create();
-                //         if (!CAS(&neighbor->parent, (Cluster*) nullptr, parent))
-                //             allocator::destroy(parent);
-                //     }
-                //     else if (neighbor->parent && !neighbor->partner) {
-                //         local_del_clusters.push_back(neighbor->parent);
-                //     }
-                //     cluster->parent = neighbor->parent;
-                // }
-            }
-            else if (cluster->get_degree() == 2) {
-                // Only local maxima in priority with respect to deg 2 clusters will act
-                if (!is_local_max(cluster)) return local_del_clusters;
-                // Travel left/right and pair clusters until a deg 3+, deg 1, non-root, or partnered cluster is found
-                Cluster* neighbor1 = cluster->get_neighbor();
-                Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-                for (bool direction : {0, 1}) {
-                    Cluster* curr = cluster;
-                    Cluster* next = direction ? neighbor1 : neighbor2;
-                    if (AtomicLoad(&curr->partner)) {
-                        curr = next;
-                        next = curr->get_other_neighbor(cluster);
-                    }
-                    while (curr && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->atomic_contracts()) {
-                        Cluster* curr_parent = AtomicLoad(&curr->parent);
-                        Cluster* next_parent = AtomicLoad(&next->parent);
-                        if (curr_parent) break;
-                        if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
-                        if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
-                            if (!next_parent) AtomicStore(&next->partner, curr); // This can probably be non-atomic
-                            else AtomicStore(&next->partner, (Cluster*) 1); // Mark non-root contracting cluster's partner field
-                        } else {
-                            Cluster* new_partner = next_parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
-                            if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
-                                if (AtomicLoad(&next->partner) == curr) { // Both sides made the same combination
-                                    if (curr < next) { // Symmetry break
-                                        Cluster* parent = allocator::create();
-                                        AtomicStore(&curr->parent, parent);
-                                        AtomicStore(&next->parent, parent);
-                                    }
-                                } else { // Other side combined with the opposite cluster (you got left hanging)
-                                    AtomicStore(&curr->partner, (Cluster*) nullptr);
-                                }
-                                break;
-                            }
-                        }
-                        // Both CAS's succeeded or next was degree 1
-                        if (next_parent) {
-                            AtomicStore(&curr->parent, next->parent);
-                            local_del_clusters.push_back(next->parent);
-                            break; // Stop traversing at a non-root cluster
-                        }
-                        else {
-                            Cluster* parent = allocator::create();
-                            AtomicStore(&curr->parent, parent);
-                            AtomicStore(&next->parent, parent);
-                        }
-                        if (next->get_degree() == 1) break;
-                        // Get the next two clusters in the chain
-                        curr = next->get_other_neighbor(curr);
-                        if (curr) next = curr->get_other_neighbor(next);
-                    }
-                    if (curr && curr != cluster && !AtomicLoad(&curr->parent)) {
-                        if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
-                            if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
-                                Cluster* parent = allocator::create();
-                                AtomicStore(&curr->parent, parent);
-                            }
-                        }
-                        if (curr->get_degree() == 2) { // Deg 2 root cluster that doesn't combine gets its own parent
-                            if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
-                                Cluster* parent = allocator::create();
-                                AtomicStore(&curr->parent, parent);
-                            }
-                        }
-                    }
-                }
-                // Deg 2 root cluster that doesn't combine gets its own parent
-                if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
-                    Cluster* parent = allocator::create();
-                    AtomicStore(&cluster->parent, parent);
-                }
-            }
-            return local_del_clusters;
-        });
+        auto additional_del_clusters = recluster_root_clusters(root_clusters);
 
         // =======
         // PHASE 1
         // =======
 
-        del_clusters.append(parlay::flatten(additional_del_clusters));
+        del_clusters.append(additional_del_clusters);
 
         // Group del clusters by parent.
         auto parents = parlay::delayed_tabulate(del_clusters.size(), [&] (size_t i) {
@@ -463,6 +330,144 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         root_clusters = parlay::append(next_root_clusters1, next_root_clusters2);
         del_clusters = std::move(next_del_clusters);
     }
+}
+
+template <typename aug_t>
+parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters) {
+    // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
+    // This returns the parent's of non-root clusters that were combined with, starting new RA paths.
+    return parlay::flatten(parlay::tabulate(root_clusters.size(), [&] (size_t i) {
+        Cluster* cluster = root_clusters[i];
+        parlay::sequence<Cluster*> local_del_clusters;
+        if (cluster->get_degree() == 1) {
+            Cluster* neighbor = cluster->get_neighbor();
+            // Combine deg 1 root clusters with deg 1 root or non-root clusters
+            if (neighbor->get_degree() == 1) {
+                AtomicStore(&cluster->partner, neighbor);
+                Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
+                Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
+                if (neighbor_parent && !neighbor_partner) {
+                    AtomicStore(&neighbor->partner, (Cluster*) 1); // Mark non-root contracting cluster's partner field
+                    AtomicStore(&cluster->parent, neighbor->parent); // These two can probably be non-atomic
+                    local_del_clusters.push_back(neighbor->parent);
+                }
+                else if (!neighbor_parent && cluster < neighbor) {
+                    Cluster* parent = allocator::create();
+                    AtomicStore(&cluster->parent, parent);
+                    AtomicStore(&neighbor->parent, parent); // This can probably be non-atomic
+                }
+            }
+            // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
+            else if (neighbor->get_degree() == 2) {
+                Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
+                Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
+                if (neighbor_parent && !neighbor_partner) {
+                    if (!neighbor->atomic_contracts()) {
+                        // Mark non-root contracting cluster's partner field
+                        if (!CAS(&neighbor->partner, (Cluster*) nullptr, (Cluster*) 1)) {
+                            AtomicStore(&cluster->partner, neighbor);
+                            AtomicStore(&cluster->parent, neighbor_parent);
+                            local_del_clusters.push_back(neighbor_parent);
+                        }
+                    }
+                    else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
+                        if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
+                            Cluster* parent = allocator::create();
+                            AtomicStore(&cluster->parent, parent);
+                        }
+                    }
+                }
+            }
+            // Combine deg 1 root cluster with deg 3+ clusters always
+            // else if (neighbor->get_degree() >= 3) { // Need to fix this later
+            //     cluster->partner = neighbor;
+            //     neighbor->partner = cluster; // Do we need this line?
+            //     if (!neighbor->parent) {
+            //         Cluster* parent = allocator::create();
+            //         if (!CAS(&neighbor->parent, (Cluster*) nullptr, parent))
+            //             allocator::destroy(parent);
+            //     }
+            //     else if (neighbor->parent && !neighbor->partner) {
+            //         local_del_clusters.push_back(neighbor->parent);
+            //     }
+            //     cluster->parent = neighbor->parent;
+            // }
+        }
+        else if (cluster->get_degree() == 2) {
+            // Only local maxima in priority with respect to deg 2 clusters will act
+            if (!is_local_max(cluster)) return local_del_clusters;
+            // Travel left/right and pair clusters until a deg 3+, deg 1, non-root, or partnered cluster is found
+            Cluster* neighbor1 = cluster->get_neighbor();
+            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
+            for (bool direction : {0, 1}) {
+                Cluster* curr = cluster;
+                Cluster* next = direction ? neighbor1 : neighbor2;
+                if (AtomicLoad(&curr->partner)) {
+                    curr = next;
+                    next = curr->get_other_neighbor(cluster);
+                }
+                while (curr && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->atomic_contracts()) {
+                    Cluster* curr_parent = AtomicLoad(&curr->parent);
+                    Cluster* next_parent = AtomicLoad(&next->parent);
+                    if (curr_parent) break;
+                    if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
+                    if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
+                        if (!next_parent) AtomicStore(&next->partner, curr); // This can probably be non-atomic
+                        else AtomicStore(&next->partner, (Cluster*) 1); // Mark non-root contracting cluster's partner field
+                    } else {
+                        Cluster* new_partner = next_parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
+                        if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
+                            if (AtomicLoad(&next->partner) == curr) { // Both sides made the same combination
+                                if (curr < next) { // Symmetry break
+                                    Cluster* parent = allocator::create();
+                                    AtomicStore(&curr->parent, parent);
+                                    AtomicStore(&next->parent, parent);
+                                }
+                            } else { // Other side combined with the opposite cluster (you got left hanging)
+                                AtomicStore(&curr->partner, (Cluster*) nullptr);
+                            }
+                            break;
+                        }
+                    }
+                    // Both CAS's succeeded or next was degree 1
+                    if (next_parent) {
+                        AtomicStore(&curr->parent, next->parent);
+                        local_del_clusters.push_back(next->parent);
+                        break; // Stop traversing at a non-root cluster
+                    }
+                    else {
+                        Cluster* parent = allocator::create();
+                        AtomicStore(&curr->parent, parent);
+                        AtomicStore(&next->parent, parent);
+                    }
+                    if (next->get_degree() == 1) break;
+                    // Get the next two clusters in the chain
+                    curr = next->get_other_neighbor(curr);
+                    if (curr) next = curr->get_other_neighbor(next);
+                }
+                if (curr && curr != cluster && !AtomicLoad(&curr->parent)) {
+                    if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
+                        if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
+                            Cluster* parent = allocator::create();
+                            AtomicStore(&curr->parent, parent);
+                        }
+                    }
+                    if (curr->get_degree() == 2) { // Deg 2 root cluster that doesn't combine gets its own parent
+                        if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
+                            Cluster* parent = allocator::create();
+                            AtomicStore(&curr->parent, parent);
+                        }
+                    }
+                }
+            }
+            // Deg 2 root cluster that doesn't combine gets its own parent
+            if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
+                Cluster* parent = allocator::create();
+                AtomicStore(&cluster->parent, parent);
+            }
+        }
+        return local_del_clusters;
+    }));
 }
 
 template <typename aug_t>

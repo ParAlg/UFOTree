@@ -114,6 +114,7 @@ target_include_directories(benchmark_graph_algorithms PRIVATE include util basel
 
 add_executable(parallel_dynamic_tree_tests
   test/test_runner.cpp
+  test/parallel_mis_tests.cpp
   test/parallel_topology_tree_tests.cpp
   test/parallel_ufo_tree_tests.cpp
   test/par_rc_tests.cpp
@@ -123,8 +124,6 @@ target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/f
 
 add_executable(parallel_benchmark
   benchmark/parallel/parallel_benchmark_runner.cpp
-  test/parallel_topology_tree_tests.cpp
-  test/parallel_ufo_tree_tests.cpp
 )
 target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett)
 target_include_directories(parallel_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
