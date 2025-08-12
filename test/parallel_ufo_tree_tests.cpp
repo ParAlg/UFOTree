@@ -114,13 +114,13 @@ void ParallelUFOCluster<aug_t>::print_neighbors() {
 }
 
 TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
-    int num_trials = 100000;
+    int num_trials = 1;
     long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 100;
-        vertex_t k = 99;
+        vertex_t n = 256;
+        vertex_t k = 16;
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
@@ -132,7 +132,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
             // tree.print_tree();
-            // ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
         }
     }
 }
@@ -182,20 +182,23 @@ TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
 
 TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
     int num_trials = 1;
-    int seeds[num_trials];
+    long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
     for (int trial = 0; trial < num_trials; trial++) {
         vertex_t n = 256;
         vertex_t k = 16;
         ParallelUFOTree<> tree(n, k);
+        long seed = seeds[trial];
+        std::cout << "SEED: " << seed << std::endl;
 
-        auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, rand());
+        auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
         for (auto batch : batches) {
-            if (batch.type != INSERT) return;
+            if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
+            // tree.print_tree();
             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
         }
     }
