@@ -1,4 +1,5 @@
 #pragma once
+#include "bridge.h"
 #include "types.h"
 #include "util.h"
 #include <mutex>
@@ -7,16 +8,17 @@
 
 namespace dgbs {
 
+
 template <typename aug_t>
 struct ParallelUFOClusterUSet {
   // Topology cluster data
   std::unordered_set<ParallelUFOClusterUSet*> neighbors;
   ParallelUFOClusterUSet* parent;
   ParallelUFOClusterUSet* partner;
-
+  size_t granularity = 10000;
   // Constructor
   ParallelUFOClusterUSet() : parent(nullptr), partner(nullptr), neighbors() {};
-
+  ParallelUFOClusterUSet(size_t _granularity) : parent(nullptr), partner(nullptr), neighbors() {granularity = _granularity;}
   // Functions
   std::mutex mtx;
   void insert_neighbor(ParallelUFOClusterUSet* c);
@@ -53,12 +55,21 @@ void ParallelUFOClusterUSet<aug_t>::delete_neighbor(ParallelUFOClusterUSet* c) {
 
 template <typename aug_t>
 void ParallelUFOClusterUSet<aug_t>::insert_neighbors(parlay::sequence<ParallelUFOClusterUSet*>& cs) {
-  for (auto c : cs) neighbors.insert(c);
+  parlay::parallel_for(0, cs.size() - 1, [&] (int i){
+    mtx.lock();
+    neighbors.insert(cs[i]);
+    mtx.unlock();
+  },granularity);
 }
 
 template <typename aug_t>
 void ParallelUFOClusterUSet<aug_t>::delete_neighbors(parlay::sequence<ParallelUFOClusterUSet*>& cs) {
-  for (auto c : cs) neighbors.erase(c);
+  parlay::parallel_for(0, cs.size() - 1, [&] (int i){
+    mtx.lock();
+    neighbors.erase(cs[i]);
+    mtx.unlock();
+  }, granularity);
+
 }
 
 
@@ -102,5 +113,3 @@ ParallelUFOClusterUSet<aug_t>* ParallelUFOClusterUSet<aug_t>::get_root() {
 }
 
 }
-
-

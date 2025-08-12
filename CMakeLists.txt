@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_PREFIX_PATH "build/_deps/parlaylib-src")
+#set(CMAKE_DISABLE_FIND_PACKAGE_Parlay TRUE)
+#set(DOWNLOAD_PARLAY TRUE CACHE BOOL "Whether to download ParlayLib if not found")
 
 
 # add_compile_options(-fsanitize=address)
@@ -51,6 +54,12 @@ FetchContent_Declare(parallel-ett
     GIT_TAG         master
 )
 FetchContent_MakeAvailable(parallel-ett)
+
+FetchContent_Declare(pam
+    GIT_REPOSITORY  git@github.com:happyrogue2307/PAM.git
+    GIT_TAG         master
+)
+FetchContent_MakeAvailable(pam)
 
 add_library(dgbs INTERFACE)
 include(GNUInstallDirs)
@@ -126,6 +135,14 @@ add_executable(parallel_benchmark
 )
 target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett)
 target_include_directories(parallel_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
+
+add_executable(parallel_cluster_benchmark
+  benchmark/parallel/parallel_cluster_benchmark_runner.cpp
+)
+
+target_link_libraries(parallel_cluster_benchmark PRIVATE parlay absl::flat_hash_set pam) 
+target_include_directories(parallel_cluster_benchmark PRIVATE benchmark/parallel include include/parallel_clusters include/forest_structures util)
+
 
 # add_executable(incremental_MST
 #   test/incremental_mst_test.cpp

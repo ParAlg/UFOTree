@@ -12,7 +12,7 @@ namespace dgbs {
 
 template <typename aug_t = empty_t>
 class ParallelUFOTree {
-    using Cluster = ParallelUFOCluster<aug_t>;
+    using Cluster = ParallelUFOClusterUSet<aug_t>;
     using allocator = parlay::type_allocator<Cluster>;
 public:
     // UFO tree interface
