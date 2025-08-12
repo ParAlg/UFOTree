@@ -30,6 +30,7 @@ private:
     std::vector<Cluster> leaves;
     // Helper functions
     void recluster_tree(parlay::sequence<std::pair<int, int>>& updates, UpdateType update_type);
+    inline bool is_local_max(Cluster* c);
 };
 
 template <typename aug_t>
@@ -242,18 +243,10 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             }
             else if (cluster->get_degree() == 2) {
                 // Only local maxima in priority with respect to deg 2 clusters will act
+                if (!is_local_max(cluster)) return local_del_clusters;
+                // Travel left/right and pair clusters until a deg 3+, deg 1, non-root, or partnered cluster is found
                 Cluster* neighbor1 = cluster->get_neighbor();
                 Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-                uint64_t hash = hash64((uintptr_t) cluster);
-                uint64_t hash1 = hash64((uintptr_t) neighbor1);
-                uint64_t hash2 = hash64((uintptr_t) neighbor2);
-                if (neighbor1->get_degree() == 2 && (!AtomicLoad(&neighbor1->parent) || AtomicLoad(&neighbor1->partner)))
-                    if (hash1 > hash || (hash1 == hash && neighbor1 > cluster))
-                        return local_del_clusters;
-                if (neighbor2->get_degree() == 2 && (!AtomicLoad(&neighbor2->parent) || AtomicLoad(&neighbor2->partner)))
-                    if (hash2 > hash || (hash2 == hash && neighbor2 > cluster))
-                        return local_del_clusters;
-                // Travel left/right and pair clusters until a deg 3, deg 1, non-root, or partnered cluster is found
                 for (bool direction : {0, 1}) {
                     Cluster* curr = cluster;
                     Cluster* next = direction ? neighbor1 : neighbor2;
@@ -272,8 +265,15 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         } else {
                             Cluster* new_partner = next_parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
                             if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
-                                if (AtomicLoad(&next->partner) != curr)
-                                    AtomicStore(&curr->partner, (Cluster*) nullptr); // This can probably be non-atomic
+                                if (AtomicLoad(&next->partner) == curr) { // Both sides made the same combination
+                                    if (curr < next) { // Symmetry break
+                                        Cluster* parent = allocator::create();
+                                        AtomicStore(&curr->parent, parent);
+                                        AtomicStore(&next->parent, parent);
+                                    }
+                                } else { // Other side combined with the opposite cluster (you got left hanging)
+                                    AtomicStore(&curr->partner, (Cluster*) nullptr);
+                                }
                                 break;
                             }
                         }
@@ -463,6 +463,23 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         root_clusters = parlay::append(next_root_clusters1, next_root_clusters2);
         del_clusters = std::move(next_del_clusters);
     }
+}
+
+template <typename aug_t>
+bool ParallelUFOTree<aug_t>::is_local_max(Cluster* c) {
+    // Assumes the input is a degree 2 cluster
+    Cluster* neighbor1 = c->get_neighbor();
+    Cluster* neighbor2 = c->get_other_neighbor(neighbor1);
+    uint64_t hash = hash64((uintptr_t) c);
+    uint64_t hash1 = hash64((uintptr_t) neighbor1);
+    uint64_t hash2 = hash64((uintptr_t) neighbor2);
+    if (neighbor1->get_degree() == 2 && (!AtomicLoad(&neighbor1->parent) || AtomicLoad(&neighbor1->partner)))
+        if (hash1 > hash || (hash1 == hash && neighbor1 > c))
+            return false;
+    if (neighbor2->get_degree() == 2 && (!AtomicLoad(&neighbor2->parent) || AtomicLoad(&neighbor2->partner)))
+        if (hash2 > hash || (hash2 == hash && neighbor2 > c))
+            return false;
+    return true;
 }
 
 template <typename aug_t>
