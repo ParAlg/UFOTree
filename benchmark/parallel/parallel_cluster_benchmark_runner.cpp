@@ -7,8 +7,8 @@
 #include "util.h"
 using ll = long long;
 
-vector<ll> batch_sizes({1,10,100,1000,10000});
-vector<ll> granularities({1,10,100,1000,10000});
+vector<ll> batch_sizes({1,10,100,1000,10000,1000000,10000000});
+vector<ll> granularities({100});
 
 int main(){
   /*std::cout << "[Benchmarking Single Insert Delete Continuous:] \n\n";
@@ -23,10 +23,9 @@ int main(){
   benchmark_single_insert_delete_continuous<ParallelUFOClusterPAM<int>>();
   std::cout << "\n";
   std::cout << "Other Parallel Hash Map: " << "\n";*/
-  for(auto b_size : batch_sizes){
+    for(auto b_size : batch_sizes){
     batch_size = b_size;
     for(auto g : granularities){
-      if(g > b_size) break;
       granularity = g; 
       std::cout << "[Benchmarking Single Insert Delete Randomized : Batch Size = " << batch_size << ", Granularity = " << granularity << "]\n\n";
 
@@ -36,15 +35,15 @@ int main(){
       std::cout << "Abseil Hash Set: " << "\n";
       benchmark_single_insert_delete_randomized<ParallelUFOClusterASet<int>>();
       std::cout << "PAM: " << "\n";
-      benchmark_single_insert_delete_randomized<ParallelUFOClusterPAM<int>>();
+      //benchmark_single_insert_delete_randomized<ParallelUFOClusterPAM<int>>();
       //std::cout << "Other Parallel Hash Map: " << "\n";
 
       std::cout << "[Benchmarking Batched Insert Delete: Batch Size = " << batch_size << ", Granularity = " << granularity << "]\n\n";
       std::cout << "Unordered Set: " << "\n";
-      benchmark_batch_updates<ParallelUFOClusterUSet<int>>();
+      //benchmark_batch_updates<ParallelUFOClusterUSet<int>>();
       std::cout << "\n";
       std::cout << "Abseil Hash Set: " << "\n";
-      benchmark_batch_updates<ParallelUFOClusterASet<int>>();
+      //benchmark_batch_updates<ParallelUFOClusterASet<int>>();
       std::cout << "PAM: " << "\n";
       benchmark_batch_updates<ParallelUFOClusterPAM<int>>();
       std::cout << "\n";

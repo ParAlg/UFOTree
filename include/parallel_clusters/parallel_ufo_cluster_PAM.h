@@ -56,22 +56,26 @@ using pam_set = pam_set<entry>;
 // NOTE: Merge these insert and delete functions into 1 and use parfor with granularity.
 template <typename aug_t>
 void ParallelUFOClusterPAM<aug_t>::insert_neighbor(ParallelUFOClusterPAM* c) {
+  mtx.lock();
   pam_set::insert(neighbors,c);
+  mtx.unlock();
 }
 
 template <typename aug_t>
 void ParallelUFOClusterPAM<aug_t>::delete_neighbor(ParallelUFOClusterPAM* c) {
+  mtx.lock(); 
   pam_set::remove(neighbors,c);
+  mtx.unlock();
 }
 
 template <typename aug_t>
 void ParallelUFOClusterPAM<aug_t>::insert_neighbors(parlay::sequence<ParallelUFOClusterPAM*>& cs) {
-  pam_set::multi_insert(neighbors, cs);
+  neighbors = pam_set::multi_insert(std::move(neighbors), cs);
 }
 
 template <typename aug_t>
 void ParallelUFOClusterPAM<aug_t>::delete_neighbors(parlay::sequence<ParallelUFOClusterPAM*>& cs) {
-    pam_set::multi_delete(neighbors, cs);
+  neighbors =  pam_set::multi_delete(std::move(neighbors), cs);
 }
 
 

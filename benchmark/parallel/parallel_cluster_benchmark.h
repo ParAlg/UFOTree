@@ -18,7 +18,7 @@
 
 using namespace dgbs;
 uint32_t batch_size = 1000;
-uint32_t single_size = 100;
+//uint32_t single_size = 100;
 uint32_t granularity = 100;
 
 // Try out random insertions and deletions vs batched insertions/deletions
@@ -28,7 +28,7 @@ static void benchmark_single_insert_delete_randomized(){
   parlay::internal::timer my_timer("");
   par_cluster cluster(granularity);
   parlay::sequence<std::pair<par_cluster*, bool> > updates;
-  for(int i = 0; i < single_size; i++){
+  for(int i = 0; i < batch_size; i++){
     par_cluster new_cluster;
     cluster.insert_neighbor(&new_cluster);
     updates.push_back(std::make_pair(&new_cluster, 1));
@@ -38,7 +38,7 @@ static void benchmark_single_insert_delete_randomized(){
   std::shuffle(updates.begin(), updates.end(), std::mt19937());
   
   my_timer.start();
-  parlay::parallel_for(0, 2*single_size, [&] (int i){
+  parlay::parallel_for(0, 2*batch_size, [&] (int i){
     if(updates[i].second){
       cluster.delete_neighbor(updates[i].first);
     } else{
@@ -46,7 +46,7 @@ static void benchmark_single_insert_delete_randomized(){
     }
   }, granularity);
   my_timer.stop();
-  std::cout << "Total Time for " << (2 * single_size) << " Inserts and Deletes: " << my_timer.total_time() << "\n";
+  std::cout << "Total Time for " << (2 * batch_size) << " Inserts and Deletes: " << my_timer.total_time() << "\n";
 }
 
 template <typename par_cluster>
