@@ -8,6 +8,12 @@
 #include "parallel_ufo_cluster.h"
 
 
+extern parlay::internal::timer timer1;
+extern parlay::internal::timer timer2;
+extern parlay::internal::timer timer3;
+extern parlay::internal::timer timer4;
+extern parlay::internal::timer timer5;
+
 namespace dgbs {
 
 template <typename aug_t = empty_t>
@@ -83,11 +89,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     });
     
     // Group by endpoint. Then group by parent.
-    auto dir_update_groups = parlay::group_by_key(dir_updates);
-    auto parents = parlay::delayed_tabulate(dir_update_groups.size(), [&] (size_t i) {
-        return std::make_pair(dir_update_groups[i].first->parent, dir_update_groups[i].first);
+    auto dir_update_groups = integer_group_by_key_inplace(dir_updates);
+    auto parents = parlay::delayed_map(dir_update_groups, [&] (auto group) {
+        return std::make_pair(group.first->parent, group.first);
     });
     auto parent_groups = parlay::group_by_key(parents);
+    // auto parent_groups = integer_group_by_key_inplace(parents);
 
     // The level 0 root clusters are children of level 1 parents that will get deleted, or deg 1 endpoints.
     auto unflattened_root_clusters = parlay::tabulate(parent_groups.size(), [&] (size_t i) {
@@ -163,9 +170,9 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         // =======
 
         // Insert or delete the edges at this level.
-        auto dir_update_groups = parlay::group_by_key(dir_updates);
         parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
-            auto& [cluster, neighbors] = dir_update_groups[i];
+            auto& [cluster, edges] = dir_update_groups[i];
+            auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
             if (update_type == INSERT) cluster->insert_neighbors(neighbors);
             else cluster->delete_neighbors(neighbors);
         });

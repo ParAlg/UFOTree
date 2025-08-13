@@ -1,37 +1,55 @@
 #pragma once
 #include <math.h>
+#include <parlay/parallel.h>
+#include <parlay/primitives.h>
+#include <parlay/sequence.h>
 #include "types.h"
 
 
 namespace dgbs {
 
+template <typename K, typename V>
+auto integer_group_by_key_inplace(parlay::sequence<std::pair<K, V>>& seq) {
+    parlay::integer_sort_inplace(seq, [&] (auto pair) { return (uintptr_t) pair.first; });
+    auto starts = parlay::delayed_tabulate(seq.size(), [&] (int i) {
+        if (i == 0 || seq[i].first != seq[i-1].first) return true;
+        return false;
+    });
+    auto offsets = parlay::pack_index(starts);
+    return parlay::tabulate(offsets.size(), [&] (size_t i) {
+        size_t start = offsets[i];
+        size_t end = i == offsets.size()-1 ? seq.size() : offsets[i+1];
+        return std::make_pair(seq[offsets[i]].first, parlay::make_slice(seq.begin() + start, seq.begin() + end));
+    });
+}
+
 template <class ET>
 inline bool CAS(ET *ptr, ET oldv, ET newv) {
-  if (sizeof(ET) == 1) {
-    return __sync_bool_compare_and_swap((bool*)ptr, *((bool*)&oldv), *((bool*)&newv));
-  } else if (sizeof(ET) == 4) {
-    return __sync_bool_compare_and_swap((int*)ptr, *((int*)&oldv), *((int*)&newv));
-  } else if (sizeof(ET) == 8) {
-    return __sync_bool_compare_and_swap((long*)ptr, *((long*)&oldv), *((long*)&newv));
-  } else {
-    std::cout << "CAS bad length : " << sizeof(ET) << std::endl;
-    abort();
-  }
+    if (sizeof(ET) == 1) {
+        return __sync_bool_compare_and_swap((bool*)ptr, *((bool*)&oldv), *((bool*)&newv));
+    } else if (sizeof(ET) == 4) {
+        return __sync_bool_compare_and_swap((int*)ptr, *((int*)&oldv), *((int*)&newv));
+    } else if (sizeof(ET) == 8) {
+        return __sync_bool_compare_and_swap((long*)ptr, *((long*)&oldv), *((long*)&newv));
+    } else {
+        std::cout << "CAS bad length : " << sizeof(ET) << std::endl;
+        abort();
+    }
 }
 
 template <class ET>
 inline ET AtomicLoad(ET *ptr) {
-  return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+    return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
 }
 
 template <class ET>
 inline void AtomicStore(ET *ptr, ET val) {
-  __atomic_store_n(ptr, val, __ATOMIC_SEQ_CST);
+    __atomic_store_n(ptr, val, __ATOMIC_SEQ_CST);
 }
 
 template <class ET>
 inline ET AtomicExchange(ET *ptr, ET val) {
-  return __sync_lock_test_and_set(ptr, val);
+    return __sync_lock_test_and_set(ptr, val);
 }
 
 #define MAX_VERTEX_T (std::numeric_limits<uint32_t>::max())

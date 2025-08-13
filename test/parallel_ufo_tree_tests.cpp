@@ -127,6 +127,12 @@ void ParallelUFOCluster<aug_t>::print_neighbors() {
 }
 
 
+parlay::internal::timer timer1("");
+parlay::internal::timer timer2("");
+parlay::internal::timer timer3("");
+parlay::internal::timer timer4("");
+parlay::internal::timer timer5("");
+
 extern int command_line_n;
 extern int command_line_k;
 extern int command_line_num_trials;
