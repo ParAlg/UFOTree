@@ -39,6 +39,21 @@ ParallelUFOTree<aug_t>::ParallelUFOTree(vertex_t n, vertex_t k) : leaves(n) {}
 
 template <typename aug_t>
 ParallelUFOTree<aug_t>::~ParallelUFOTree() {
+    auto clusters_to_delete = parlay::flatten(parlay::tabulate(leaves.size(), [&] (size_t i) {
+        parlay::sequence<Cluster*> clusters;
+        Cluster* curr = leaves[i].parent;
+        while (curr && curr != (Cluster*) 1) {
+            Cluster* next = AtomicLoad(&curr->parent);
+            if (next != (Cluster*) 1 && CAS(&curr->parent, next, (Cluster*) 1))
+                clusters.push_back(curr);
+            else break;
+            curr = next;
+        }
+        return clusters;
+    }));
+    parlay::parallel_for(0, clusters_to_delete.size(), [&] (size_t i) {
+        allocator::destroy(clusters_to_delete[i]);
+    });
     allocator::finish();
 }
 
