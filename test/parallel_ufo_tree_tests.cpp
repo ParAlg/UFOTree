@@ -126,14 +126,21 @@ void ParallelUFOCluster<aug_t>::print_neighbors() {
     std::cout << std::endl;
 }
 
+
+extern int command_line_n;
+extern int command_line_k;
+extern int command_line_num_trials;
+
 TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
-    int num_trials = 1;
+    vertex_t n = command_line_n > 0 ? command_line_n : 256;
+    vertex_t k = command_line_k > 0 ? command_line_k : 16;
+    int num_trials = command_line_num_trials > 0 ? command_line_num_trials : 1;
+
     long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
@@ -151,13 +158,15 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
 }
 
 TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
-    int num_trials = 1;
+    vertex_t n = command_line_n > 0 ? command_line_n : 256;
+    vertex_t k = command_line_k > 0 ? command_line_k : 16;
+    int num_trials = command_line_num_trials > 0 ? command_line_num_trials : 1;
+
     long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+
     for (int trial = 0; trial < num_trials; trial++) {
-        vertex_t n = 256;
-        vertex_t k = 16;
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
@@ -241,29 +250,64 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
 //     }
 // }
 
-// TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
-//     int num_trials = 1;
-//     int seeds[num_trials];
-//     srand(time(NULL));
-//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-//     for (int trial = 0; trial < num_trials; trial++) {
-//         vertex_t n = 256;
-//         vertex_t k = 16;
-//         ParallelUFOTree<> tree(n, k);
+TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
+    vertex_t n = command_line_n > 0 ? command_line_n : 256;
+    vertex_t k = command_line_k > 0 ? command_line_k : 16;
+    int num_trials = command_line_num_trials > 0 ? command_line_num_trials : 1;
 
-//         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, rand());
-//         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+    long seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
 
-//         for (auto batch : batches) {
-//             if (batch.type == INSERT) {
-//                 tree.batch_link(batch.edges);
-//             } else {
-//                 tree.batch_cut(batch.edges);
-//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-//             }
-//         }
-//     }
-// }
+    for (int trial = 0; trial < num_trials; trial++) {
+        ParallelUFOTree<> tree(n, k);
+        long seed = seeds[trial];
+        seed = 1928905925;
+        std::cout << "SEED: " << seed << std::endl;
+
+        auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+
+        for (auto batch : batches) {
+            if (batch.type == INSERT) {
+                tree.batch_link(batch.edges);
+            } else {
+                tree.batch_cut(batch.edges);
+                // tree.print_tree();
+                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+            }
+        }
+    }
+}
+
+TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
+    vertex_t n = command_line_n > 0 ? command_line_n : 256;
+    vertex_t k = command_line_k > 0 ? command_line_k : 16;
+    int num_trials = command_line_num_trials > 0 ? command_line_num_trials : 1;
+
+    long seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
+
+    for (int trial = 0; trial < num_trials; trial++) {
+        ParallelUFOTree<> tree(n, k);
+        long seed = seeds[trial];
+        std::cout << "SEED: " << seed << std::endl;
+
+        auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, seed);
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+
+        for (auto batch : batches) {
+            if (batch.type == INSERT) {
+                tree.batch_link(batch.edges);
+            } else {
+                tree.batch_cut(batch.edges);
+                // tree.print_tree();
+                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+            }
+        }
+    }
+}
 
 // TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
 //     int num_trials = 1;
@@ -301,30 +345,6 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
 //         ParallelUFOTree<> tree(n, k);
 
 //         auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, rand(), fanout);
-//         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
-
-//         for (auto batch : batches) {
-//             if (batch.type == INSERT) {
-//                 tree.batch_link(batch.edges);
-//             } else {
-//                 tree.batch_cut(batch.edges);
-//                 ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
-//             }
-//         }
-//     }
-// }
-
-// TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
-//     int num_trials = 1;
-//     int seeds[num_trials];
-//     srand(time(NULL));
-//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-//     for (int trial = 0; trial < num_trials; trial++) {
-//         vertex_t n = 256;
-//         vertex_t k = 16;
-//         ParallelUFOTree<> tree(n, k);
-
-//         auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, rand());
 //         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
 
 //         for (auto batch : batches) {
