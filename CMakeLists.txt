@@ -26,17 +26,6 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-# FetchContent_Declare(CPAM
-#   GIT_REPOSITORY  https://github.com/ParAlg/CPAM.git
-#   GIT_TAG         cmake
-# )
-# FetchContent_GetProperties(CPAM)
-# if(NOT CPAM_POPULATED)
-#   FetchContent_Populate(CPAM)  
-#   message(${cpam_SOURCE_DIR})
-#   add_subdirectory(${cpam_SOURCE_DIR} EXCLUDE_FROM_ALL)
-# endif()
-
 FetchContent_Declare(googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
@@ -53,6 +42,13 @@ FetchContent_Declare(parallel-ett
     GIT_TAG         master
 )
 FetchContent_MakeAvailable(parallel-ett)
+
+FetchContent_Declare(pam
+    GIT_REPOSITORY  git@github.com:happyrogue2307/PAM.git
+    GIT_TAG         master
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(pam)
 
 add_library(dgbs INTERFACE)
 include(GNUInstallDirs)
@@ -119,13 +115,13 @@ add_executable(parallel_dynamic_tree_tests
   test/parallel_ufo_tree_tests.cpp
   test/par_rc_tests.cpp
 )
-target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main pam)
 target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/forest_structures util)
 
 add_executable(parallel_benchmark
   benchmark/parallel/parallel_benchmark_runner.cpp
 )
-target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett)
+target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett pam)
 target_include_directories(parallel_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
 
 # add_executable(incremental_MST

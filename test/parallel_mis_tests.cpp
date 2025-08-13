@@ -55,21 +55,15 @@ TEST(ParallelMISSuite, mis_test) {
             Cluster* cluster = root_clusters[i];
             if (!cluster->contracts()) {
                 if (cluster->get_degree() == 1) {
-                    if (cluster->get_neighbor()->get_degree() > 2) {
+                    if (cluster->get_neighbor()->get_degree() > 2)
                         non_maximal_cluster = cluster;
-                        return;
-                    }
-                    else if (!cluster->get_neighbor()->contracts()) {
+                    else if (!cluster->get_neighbor()->contracts())
                         non_maximal_cluster = cluster;
-                        return;
-                    }
                 } else if (cluster->get_degree() == 2) {
-                    for (auto neighbor : cluster->neighbors) {
-                        if (neighbor->get_degree() < 3 && !neighbor->contracts()) {
+                    cluster->for_all_neighbors([&] (auto neighbor) {
+                        if (neighbor->get_degree() < 3 && !neighbor->contracts())
                             non_maximal_cluster = cluster;
-                            return;
-                        }
-                    }
+                    });
                 }
             }
         });
