@@ -259,7 +259,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             }
 
             else if (max_degree == 2) {
-                local_root_clusters.push_back(max);
+                if (!max->partner) local_root_clusters.push_back(max);
                 Cluster* neighbor1 = max->get_neighbor();
                 Cluster* neighbor2 = max->get_other_neighbor(neighbor1);
                 if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);

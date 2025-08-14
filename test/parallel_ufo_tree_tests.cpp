@@ -36,18 +36,14 @@ bool ParallelUFOTree<aug_t>::is_valid() {
             }
             if (cluster->get_degree() <= 3 && !cluster->contracts()) { // Ensure maximality of contraction
                 if (cluster->get_degree() == 1) {
-                    if (cluster->get_neighbor()->get_degree() > 2) {
-                        std::cerr << "NON-MAXIMAL CONTRACTION, DEG 1 CLUSTER " << cluster << std::endl;
-                        return false;
-                    }
-                    else if (!cluster->get_neighbor()->contracts()) {
+                    if (cluster->get_neighbor()->get_degree() > 2 || !cluster->get_neighbor()->contracts()) {
                         std::cerr << "NON-MAXIMAL CONTRACTION, DEG 1 CLUSTER " << cluster << std::endl;
                         return false;
                     }
                 } else if (cluster->get_degree() == 2) {
                     std::atomic<bool> deg2_maximal = true;
                     cluster->for_all_neighbors([&] (auto neighbor) {
-                        if (!neighbor->get_degree() < 3 && !neighbor->contracts()) deg2_maximal = false;
+                        if (neighbor->get_degree() < 3 && !neighbor->contracts()) deg2_maximal = false;
                     });
                     if (!deg2_maximal) {
                         std::cerr << "NON-MAXIMAL CONTRACTION, DEG 2 CLUSTER " << cluster << std::endl;
@@ -56,7 +52,7 @@ bool ParallelUFOTree<aug_t>::is_valid() {
                 } else if (cluster->get_degree() >= 3) {
                     std::atomic<bool> deg3_maximal = true;
                     cluster->for_all_neighbors([&] (auto neighbor) {
-                        if (!neighbor->get_degree() == 1) deg3_maximal = false;
+                        if (neighbor->get_degree() == 1 && neighbor->parent != cluster->parent) deg3_maximal = false;
                     });
                     if (!deg3_maximal) {
                         std::cerr << "NON-MAXIMAL CONTRACTION, DEG 3+ CLUSTER " << cluster << std::endl;
@@ -189,29 +185,31 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
     }
 }
 
-// TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
-//     int num_trials = 1;
-//     long seeds[num_trials];
-//     srand(time(NULL));
-//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-//     for (int trial = 0; trial < num_trials; trial++) {
-//         vertex_t n = 3;
-//         vertex_t k = 1;
-//         ParallelUFOTree<> tree(n, k);
-//         long seed = seeds[trial];
-//         std::cout << "SEED: " << seed << std::endl;
+TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
+    vertex_t n = command_line_n > 0 ? command_line_n : 256;
+    vertex_t k = command_line_k > 0 ? command_line_k : 16;
+    int num_trials = command_line_num_trials > 0 ? command_line_num_trials : 1;
 
-//         auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, seed);
-//         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+    long seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
 
-//         for (auto batch : batches) {
-//             if (batch.type != INSERT) break;
-//             tree.batch_link(batch.edges);
-//             // tree.print_tree();
-//             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-//         }
-//     }
-// }
+    for (int trial = 0; trial < num_trials; trial++) {
+        ParallelUFOTree<> tree(n, k);
+        long seed = seeds[trial];
+        std::cout << "SEED: " << seed << std::endl;
+
+        auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, seed);
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+
+        for (auto batch : batches) {
+            if (batch.type != INSERT) break;
+            tree.batch_link(batch.edges);
+            // tree.print_tree();
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+        }
+    }
+}
 
 // TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
 //     int num_trials = 1;
@@ -268,7 +266,6 @@ TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
         long seed = seeds[trial];
-        seed = 1928905925;
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
