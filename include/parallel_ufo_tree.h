@@ -355,9 +355,11 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
 {
   parlay::sequence<Cluster*> local_del_clusters;
   Cluster* neighbor = cluster->get_neighbor();
+
   // Combine deg 1 root clusters with deg 1 root or non-root clusters
   if (neighbor->get_degree() == 1) {
       AtomicStore(&cluster->partner, neighbor);
+      // neighbor_parent is null iff it is a root cluster.
       Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
       Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
       if (neighbor_parent && !neighbor_partner) {
@@ -365,6 +367,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
           AtomicStore(&cluster->parent, neighbor->parent); // These two can probably be non-atomic
           local_del_clusters.push_back(neighbor->parent);
       }
+      // Symmetry break when both are root clusters so that we create the parent exactly once.
       else if (!neighbor_parent && cluster < neighbor) {
           Cluster* parent = allocator::create();
           AtomicStore(&cluster->parent, parent);
@@ -397,7 +400,6 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
   }
   return local_del_clusters;
 }
-
 
 template <typename aug_t>
 parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_degree_two_root(Cluster* cluster)
@@ -479,6 +481,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
           }
       }
   }
+
   // Deg 2 root cluster that doesn't combine gets its own
   // parent, after we've tried both directions and failed
   // to cluster it.
