@@ -87,7 +87,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         if (i % 2 == 0) return std::make_pair(&leaves[updates[i/2].first], &leaves[updates[i/2].second]);
         return std::make_pair(&leaves[updates[i/2].second], &leaves[updates[i/2].first]);
     });
-    
+
     // Group by endpoint. Then group by parent.
     auto dir_update_groups = integer_group_by_key_inplace(dir_updates);
     auto parents = parlay::delayed_map(dir_update_groups, [&] (auto group) {
@@ -449,6 +449,16 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
                     curr = next->get_other_neighbor(curr);
                     if (curr) next = curr->get_other_neighbor(next);
                 }
+                // We are at the end of a chain (the loop above
+                // broke). If the loop broke because we're at a degree
+                // one node and the node is a root cluster (i.e., it
+                // has no parent), then it needs to be allocated a
+                // parent. Similarly, if we break at a degree two
+                // node (e.g., if its neighbor is deg > 2), we need to
+                // create a parent for it.
+                // Note that we check curr != cluster, since we need
+                // to check both directions before we do this for the
+                // current cluster.
                 if (curr && curr != cluster && !AtomicLoad(&curr->parent)) {
                     if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
                         if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
@@ -464,7 +474,9 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
                     }
                 }
             }
-            // Deg 2 root cluster that doesn't combine gets its own parent
+            // Deg 2 root cluster that doesn't combine gets its own
+            // parent, after we've tried both directions and failed
+            // to cluster it.
             if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
                 Cluster* parent = allocator::create();
                 AtomicStore(&cluster->parent, parent);
