@@ -364,9 +364,10 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 template <typename aug_t>
 parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters) {
     // This function sets the partner fields for all root clusters. For a non-root
-    // cluster, we mark its partner field with 0x1. For high degree root clusters,
-    // we don't assign it a partner, but we add a parent for it in this part. All
-    // other root clusters receive no parent at this point.
+    // cluster, we mark its partner field with 0x1. For root clusters that don't
+    // combine with anything, we leave its partner field empty. For high degree
+    // root clusters, we don't assign it a partner, but we add a parent for it in
+    // this part. All other root clusters receive no parent at this point.
     return parlay::flatten(parlay::tabulate(root_clusters.size(), [&] (size_t i) {
         parlay::sequence<Cluster*> del_clusters;
         Cluster* cluster = root_clusters[i];
@@ -387,7 +388,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
 
 template <typename aug_t>
 ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster) {
-    // Always combine with a degree 1 or 3+ neighbor. For degree 2
+    // Always partner with a degree 1 or 3+ neighbor. For degree 2
     // neighbors, only attempt to partner with it if it is a non-root
     // cluster that does not already contract. Partnering with degree
     // 2 root clusters will be handled from the deg 2 cluster's side.
