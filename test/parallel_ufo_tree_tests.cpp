@@ -211,27 +211,32 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
     }
 }
 
-// TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
-//     int num_trials = 1;
-//     int seeds[num_trials];
-//     srand(time(NULL));
-//     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
-//     for (int trial = 0; trial < num_trials; trial++) {
-//         vertex_t n = 256;
-//         vertex_t fanout = 32; // K-ary tree
-//         vertex_t k = 16; // batch size
-//         ParallelUFOTree<> tree(n, k);
+TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
+    vertex_t n = command_line_n > 0 ? command_line_n : 256;
+    vertex_t k = command_line_k > 0 ? command_line_k : 16;
+    int num_trials = command_line_num_trials > 0 ? command_line_num_trials : 1;
+    vertex_t fanout = 8;
 
-//         auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, rand(), fanout);
-//         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+    long seeds[num_trials];
+    srand(time(NULL));
+    for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
 
-//         for (auto batch : batches) {
-//             if (batch.type != INSERT) return;
-//             tree.batch_link(batch.edges);
-//             ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
-//         }
-//     }
-// }
+    for (int trial = 0; trial < num_trials; trial++) {
+        ParallelUFOTree<> tree(n, k);
+        long seed = seeds[trial];
+        std::cout << "SEED: " << seed << std::endl;
+
+        auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, seed, fanout);
+        auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+
+        for (auto batch : batches) {
+            if (batch.type != INSERT) break;
+            tree.batch_link(batch.edges);
+            // tree.print_tree();
+            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+        }
+    }
+}
 
 // TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
 //     int num_trials = 1;

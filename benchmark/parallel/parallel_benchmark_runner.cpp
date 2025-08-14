@@ -35,9 +35,9 @@ int main(int argc, char** argv) {
     a bool indicating if ternarization may be necessary for this input */
     std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
         // {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
-        // {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
+        {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
         // {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
-        {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
+        // {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
         // {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 5},
         // {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 5},
         // {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 5}

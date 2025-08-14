@@ -121,6 +121,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 });
                 local_root_clusters.push_back(center);
                 parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+            } else {
+                local_root_clusters = parlay::map(children, [&] (auto x) { return x.second; });
             }
         }
 
@@ -234,7 +236,10 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         auto next_root_clusters2 = parlay::flatten(parlay::tabulate(parent_groups.size(), [&] (size_t i) {
             auto& [parent, children] = parent_groups[i];
             parlay::sequence<Cluster*> local_root_clusters;
-            if (parent == nullptr) return local_root_clusters;
+            if (parent == nullptr) return parlay::map_maybe(children, [&] (auto child) -> std::optional<Cluster*> {
+                if (!child.second->partner) return child.second;
+                return std::nullopt;
+            });
 
             Cluster* max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
             size_t max_degree = max->get_degree();
