@@ -10,7 +10,8 @@ namespace dgbs {
 
 template <typename K, typename V>
 auto integer_group_by_key_inplace(parlay::sequence<std::pair<K, V>>& seq) {
-    parlay::integer_sort_inplace(seq, [&] (auto pair) { return (uintptr_t) pair.first; });
+    parlay::sort_inplace(seq);
+    // parlay::integer_sort_inplace(seq, [&] (auto pair) { return (uintptr_t) pair.first; });
     auto starts = parlay::delayed_tabulate(seq.size(), [&] (int i) {
         if (i == 0 || seq[i].first != seq[i-1].first) return true;
         return false;

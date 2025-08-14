@@ -35,6 +35,8 @@ struct ParallelUFOCluster {
     void delete_neighbor(ParallelUFOCluster* c);
     void insert_neighbors(parlay::sequence<ParallelUFOCluster*>& cs);
     void delete_neighbors(parlay::sequence<ParallelUFOCluster*>& cs);
+    void insert_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs);
+    void delete_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs);
 
     int get_degree();
     bool contracts();
@@ -82,6 +84,16 @@ void ParallelUFOCluster<aug_t>::insert_neighbors(parlay::sequence<ParallelUFOClu
 template <typename aug_t>
 void ParallelUFOCluster<aug_t>::delete_neighbors(parlay::sequence<ParallelUFOCluster*>& cs) {
     neighbors = ufo_pam_set::multi_delete(std::move(neighbors), cs);
+}
+
+template <typename aug_t>
+void ParallelUFOCluster<aug_t>::insert_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs) {
+    neighbors = ufo_pam_set::multi_insert_sorted(std::move(neighbors), cs);
+}
+
+template <typename aug_t>
+void ParallelUFOCluster<aug_t>::delete_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs) {
+    neighbors = ufo_pam_set::multi_delete_sorted(std::move(neighbors), cs);
 }
 
 template <typename aug_t>
