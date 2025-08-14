@@ -37,9 +37,11 @@ public:
     // Helper functions
     void recluster_tree(parlay::sequence<std::pair<int, int>>& updates, UpdateType update_type);
 
-    static parlay::sequence<Cluster*> recluster_degree_one_root(Cluster* root_cluster);
-    static parlay::sequence<Cluster*> recluster_degree_two_root(Cluster* root_cluster);
     static parlay::sequence<Cluster*> recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters);
+    static Cluster* recluster_degree_one_root(Cluster* root_cluster);
+    static parlay::sequence<Cluster*> recluster_degree_two_root(Cluster* root_cluster);
+    static Cluster* recluster_high_degree_root(Cluster* root_cluster);
+    static parlay::sequence<Cluster*> create_new_parents(parlay::sequence<Cluster*>& root_clusters);
     static inline bool is_local_max(Cluster* c);
 };
 
@@ -316,17 +318,18 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         // PHASE 3
         // =======
 
-        // Fill the adjacency lists of new clusters
-        // This should work well for only linked list cases
         // This returns only the new clusters that were created during the reclustering at this level.
-        auto next_root_clusters1 = parlay::flatten(parlay::tabulate(root_clusters.size(), [&] (size_t i) {
-            auto cluster = root_clusters[i];
-            parlay::sequence<Cluster*> local_root_clusters;
-            if (!cluster->parent) return local_root_clusters; // Only deg 0
+        auto next_root_clusters1 = create_new_parents(root_clusters);
 
-            // Clear partner pointers and find the newly created clusters
+        // Fill the adjacency lists of new clusters
+        // This should work well for only low degree cases
+        parlay::parallel_for(0, root_clusters.size(), [&] (size_t i) {
+            auto cluster = root_clusters[i];
+            if (!cluster->parent) return; // Only deg 0
+
+            // Clear partner pointers
             Cluster* partner = AtomicLoad(&cluster->partner);
-            if (partner && partner != cluster) {
+            if (partner) {
                 Cluster* partner_partner = AtomicLoad(&partner->partner);
                 if (partner_partner != cluster) { // Non-root partner
                     AtomicStore(&partner->partner, (Cluster*) nullptr);
@@ -334,27 +337,17 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 } else if (cluster < partner) { // Tie-break
                     AtomicStore(&partner->partner, (Cluster*) nullptr);
                     AtomicStore(&cluster->partner, (Cluster*) nullptr);
-                    local_root_clusters.push_back(cluster->parent);
                 }
-            } else if (partner) { // Non-combining cluster has its own parent
-                AtomicStore(&cluster->partner, (Cluster*) nullptr);
-                local_root_clusters.push_back(cluster->parent);
             }
 
             // Fill adjacency lists at the next level up
-            Cluster* neighbor1 = cluster->get_neighbor();
-            Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-            if (neighbor1 && cluster->parent != neighbor1->parent) {
-                cluster->parent->insert_neighbor(neighbor1->parent);
-                neighbor1->parent->insert_neighbor(cluster->parent);
-            }
-            if (neighbor2 && cluster->parent != neighbor2->parent) {
-                cluster->parent->insert_neighbor(neighbor2->parent);
-                neighbor2->parent->insert_neighbor(cluster->parent);
-            }
-
-            return local_root_clusters;
-        }));
+            cluster->for_all_neighbors([&] (auto neighbor) {
+                if (neighbor->parent != cluster->parent) {
+                    cluster->parent->insert_neighbor(neighbor->parent);
+                    neighbor->parent->insert_neighbor(cluster->parent);
+                }
+            });
+        });
 
         // ===============
         // PREP NEXT LEVEL
@@ -369,176 +362,148 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 }
 
 template <typename aug_t>
-parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster)
-{
-  parlay::sequence<Cluster*> local_del_clusters;
-  Cluster* neighbor = cluster->get_neighbor();
-
-  // Combine deg 1 root clusters with deg 1 root or non-root clusters
-  if (neighbor->get_degree() == 1) {
-      AtomicStore(&cluster->partner, neighbor);
-      // neighbor_parent is null iff it is a root cluster.
-      Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
-      Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
-      if (neighbor_parent && !neighbor_partner) {
-          AtomicStore(&neighbor->partner, (Cluster*) 1); // Mark non-root contracting cluster's partner field
-          AtomicStore(&cluster->parent, neighbor->parent); // These two can probably be non-atomic
-          local_del_clusters.push_back(neighbor->parent);
-      }
-      // Symmetry break when both are root clusters so that we create the parent exactly once.
-      else if (!neighbor_parent && cluster < neighbor) {
-          Cluster* parent = allocator::create();
-          AtomicStore(&cluster->parent, parent);
-          AtomicStore(&neighbor->parent, parent); // This can probably be non-atomic
-      }
-  }
-  // Combine deg 1 root cluster with deg 2 non-root clusters that don't combine
-  else if (neighbor->get_degree() == 2) {
-      Cluster* neighbor_parent = AtomicLoad(&neighbor->parent);
-      Cluster* neighbor_partner = AtomicLoad(&neighbor->partner);
-      if (neighbor_parent && !neighbor_partner) {
-          if (!neighbor->atomic_contracts()) {
-              // Mark non-root contracting cluster's partner field
-              if (!CAS(&neighbor->partner, (Cluster*) nullptr, (Cluster*) 1)) { // Why is this when the CAS fails, not succeeds?
-                  AtomicStore(&cluster->partner, neighbor);
-                  AtomicStore(&cluster->parent, neighbor_parent);
-                  local_del_clusters.push_back(neighbor_parent);
-              }
-          }
-          else { // Deg 1 cluster neighboring a contracting deg 2 non-root cluster gets its own parent
-              if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
-                  Cluster* parent = allocator::create();
-                  AtomicStore(&cluster->parent, parent);
-              }
-          }
-      }
-  } else { // Combine deg 1 root cluster with possible deg 3+ non-root clusters
-      Cluster* parent = AtomicLoad(&neighbor->parent);
-      if (parent) AtomicStore(&cluster->parent, parent);
-  }
-  return local_del_clusters;
-}
-
-template <typename aug_t>
-parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_degree_two_root(Cluster* cluster)
-{
-  parlay::sequence<Cluster*> local_del_clusters;
-  // Only local maxima in priority with respect to deg 2 clusters will act
-  if (!is_local_max(cluster)) return local_del_clusters;
-  // Travel left/right and pair clusters until a deg 3+, deg 1, non-root, or partnered cluster is found
-  Cluster* neighbor1 = cluster->get_neighbor();
-  Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
-  for (bool direction : {0, 1}) {
-      Cluster* curr = cluster;
-      Cluster* next = direction ? neighbor1 : neighbor2;
-      if (AtomicLoad(&curr->partner)) {
-          curr = next;
-          next = curr->get_other_neighbor(cluster);
-      }
-      while (curr && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->atomic_contracts()) {
-          Cluster* curr_parent = AtomicLoad(&curr->parent);
-          Cluster* next_parent = AtomicLoad(&next->parent);
-          if (curr_parent) break;
-          if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
-          if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
-              if (!next_parent) AtomicStore(&next->partner, curr); // This can probably be non-atomic
-              else AtomicStore(&next->partner, (Cluster*) 1); // Mark non-root contracting cluster's partner field
-          } else {
-              Cluster* new_partner = next_parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
-              if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
-                  if (AtomicLoad(&next->partner) == curr) { // Both sides made the same combination
-                      if (curr < next) { // Symmetry break
-                          Cluster* parent = allocator::create();
-                          AtomicStore(&curr->parent, parent);
-                          AtomicStore(&next->parent, parent);
-                      }
-                  } else { // Other side combined with the opposite cluster (you got left hanging)
-                      AtomicStore(&curr->partner, (Cluster*) nullptr);
-                  }
-                  break;
-              }
-          }
-          // Both CAS's succeeded or next was degree 1
-          if (next_parent) {
-              AtomicStore(&curr->parent, next->parent);
-              local_del_clusters.push_back(next->parent);
-              break; // Stop traversing at a non-root cluster
-          }
-          else {
-              Cluster* parent = allocator::create();
-              AtomicStore(&curr->parent, parent);
-              AtomicStore(&next->parent, parent);
-          }
-          if (next->get_degree() == 1) break;
-          // Get the next two clusters in the chain
-          curr = next->get_other_neighbor(curr);
-          if (curr) next = curr->get_other_neighbor(next);
-      }
-      // We are at the end of a chain (the loop above
-      // broke). If the loop broke because we're at a degree
-      // one node and the node is a root cluster (i.e., it
-      // has no parent), then it needs to be allocated a
-      // parent. Similarly, if we break at a degree two
-      // node (e.g., if its neighbor is deg > 2), we need to
-      // create a parent for it.
-      // Note that we check curr != cluster, since we need
-      // to check both directions before we do this for the
-      // current cluster.
-      if (curr && curr != cluster && !AtomicLoad(&curr->parent)) {
-          if (curr->get_degree() == 1) { // Deg 1 cluster neighboring a contracting deg 2 root cluster gets its own parent
-              if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
-                  Cluster* parent = allocator::create();
-                  AtomicStore(&curr->parent, parent);
-              }
-          }
-          if (curr->get_degree() == 2) { // Deg 2 root cluster that doesn't combine gets its own parent
-              if (CAS(&curr->partner, (Cluster*) nullptr, curr)) {
-                  Cluster* parent = allocator::create();
-                  AtomicStore(&curr->parent, parent);
-              }
-          }
-      }
-  }
-
-  // Deg 2 root cluster that doesn't combine gets its own
-  // parent, after we've tried both directions and failed
-  // to cluster it.
-  if (CAS(&cluster->partner, (Cluster*) nullptr, cluster)) {
-      Cluster* parent = allocator::create();
-      AtomicStore(&cluster->parent, parent);
-  }
-
-  return local_del_clusters;
-}
-
-template <typename aug_t>
 parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters) {
-    // We can probably eliminate the extra `partner` field per cluster by using the `parent` field smartly.
-    // This returns the parent's of non-root clusters that were combined with, starting new RA paths.
+    // This function sets the partner fields for all root clusters. For a non-root
+    // cluster, we mark its partner field with 0x1. For high degree root clusters,
+    // we don't assign it a partner, but we add a parent for it in this part. All
+    // other root clusters receive no parent at this point.
     return parlay::flatten(parlay::tabulate(root_clusters.size(), [&] (size_t i) {
+        parlay::sequence<Cluster*> del_clusters;
         Cluster* cluster = root_clusters[i];
-        parlay::sequence<Cluster*> local_del_clusters;
-
         if (cluster->get_degree() == 1) {
-            return recluster_degree_one_root(cluster);
-        } else if (cluster->get_degree() == 2) {
-            return recluster_degree_two_root(cluster);
-        } else if (cluster->get_degree() >= 3) {
-            Cluster* parent = allocator::create();
-            AtomicStore(&cluster->parent, parent);
-            cluster->for_all_neighbors([&] (auto neighbor) {
-                if (neighbor->get_degree() == 1) {
-                    Cluster* neighbor_parent = AtomicLoad(&neighbor->parent); // This can probably be non-atomic
-                    if (neighbor_parent && neighbor_parent != parent) {
-                        neighbor_parent->partner = (Cluster*) 1;
-                        local_del_clusters.push_back(neighbor_parent); // Only once in this loop
-                    }
-                    AtomicStore(&neighbor->parent, parent);
-                }
-            });
+            Cluster* del_cluster = recluster_degree_one_root(cluster);
+            if (del_cluster) del_clusters.push_back(del_cluster);
         }
-        return local_del_clusters;
+        else if (cluster->get_degree() == 2) {
+            del_clusters = recluster_degree_two_root(cluster);
+        }
+        else if (cluster->get_degree() >= 3) {
+            Cluster* del_cluster = recluster_high_degree_root(cluster);
+            if (del_cluster) del_clusters.push_back(del_cluster);
+        }
+        return del_clusters;
     }));
+}
+
+template <typename aug_t>
+ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster) {
+    // Always combine with a degree 1 or 3+ neighbor. For degree 2
+    // neighbors, only attempt to partner with it if it is a non-root
+    // cluster that does not already contract. Partnering with degree
+    // 2 root clusters will be handled from the deg 2 cluster's side.
+    // Return the parent of a non-root combination, if any.
+    Cluster* neighbor = cluster->get_neighbor();
+    if (neighbor->get_degree() == 1) { // Combine deg 1 root clusters with deg 1 root or non-root clusters
+        cluster->partner = neighbor;
+        if (neighbor->parent) {
+            neighbor->partner = (Cluster*) 1; // Mark non-root contracting cluster's partner field
+            return neighbor->parent;
+        }
+    }
+    else if (neighbor->get_degree() == 2) { // Combine deg 1 root cluster with deg 2 non-root clusters that don't contract
+        if (neighbor->parent && !neighbor->contracts()) {
+            if (CAS(&neighbor->partner, (Cluster*) nullptr, (Cluster*) 1)) { // Mark non-root contracting cluster's partner field
+                cluster->partner = neighbor;
+                return neighbor->parent;
+            }
+        }
+    }
+    else { // Combine deg 1 root cluster with possible deg 3+ non-root clusters
+        cluster->partner = neighbor;
+    }
+    return nullptr;
+}
+
+template <typename aug_t>
+parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_degree_two_root(Cluster* cluster) {
+    parlay::sequence<Cluster*> local_del_clusters;
+    // Only local maxima in priority with respect to deg 2 clusters will act
+    if (!is_local_max(cluster)) return local_del_clusters;
+    // Travel left/right and pair clusters until a deg 3+, deg 1, non-root, or partnered cluster is found
+    Cluster* neighbor1 = cluster->get_neighbor();
+    Cluster* neighbor2 = cluster->get_other_neighbor(neighbor1);
+    for (bool direction : {0, 1}) {
+        Cluster* curr = cluster;
+        Cluster* next = direction ? neighbor1 : neighbor2;
+        if (AtomicLoad(&curr->partner)) {
+            curr = next;
+            next = curr->get_other_neighbor(cluster);
+        }
+        while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
+            if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
+            if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
+                if (!next->parent) next->partner = curr;
+                else next->partner = (Cluster*) 1; // Mark non-root contracting cluster's partner field
+            } else {
+                Cluster* new_partner = next->parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
+                if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
+                    if (AtomicLoad(&next->partner) != curr) // Other side combined with the opposite cluster (you got left hanging)
+                        AtomicStore(&curr->partner, (Cluster*) nullptr);
+                    break;
+                }
+            }
+            // Both CAS's succeeded or next was degree 1
+            if (next->parent) { // Stop traversing at a non-root cluster
+                local_del_clusters.push_back(next->parent); // This happens at most twice, once per direction
+                break;
+            }
+            if (next->get_degree() == 1) // Stop traversing at deg 1 cluster
+                break;
+            // Get the next two clusters in the chain
+            curr = next->get_other_neighbor(curr);
+            if (curr) next = curr->get_other_neighbor(next);
+        }
+    }
+    return local_del_clusters;
+}
+
+template <typename aug_t>
+ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_high_degree_root(Cluster* cluster) {
+    // Create the new parent for a high degree root cluster.
+    // Find at most one possible non-root degree 1 neighbor,
+    // combine with it, and return its parent as del cluster.
+    Cluster* del_cluster = nullptr;
+    Cluster* parent = allocator::create();
+    cluster->parent = parent;
+    cluster->for_all_neighbors([&] (auto neighbor) {
+        if (neighbor->get_degree() == 1 && neighbor->parent && neighbor->parent != parent) {
+            neighbor->parent->partner = (Cluster*) 1;
+            del_cluster = neighbor->parent; // Only once in this loop
+            neighbor->parent = parent;
+        }
+    });
+    return del_cluster;
+}
+
+template <typename aug_t>
+parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::create_new_parents(parlay::sequence<Cluster*>& root_clusters) {
+    // Only returns the brand new clusters to be root clusters at the next level,
+    // not the parents of non-root clusters. Those may become root clusters also,
+    // but it will be determined by the later step which checks if the grandparent
+    // should be deleted.
+    return parlay::map_maybe(root_clusters, [&] (Cluster* cluster) -> std::optional<Cluster*> {
+        if (cluster->get_degree() == 0) return std::nullopt;
+        if (cluster->get_degree() >= 3) return cluster->parent;
+        Cluster* partner = cluster->partner;
+        if (partner) {
+            if (partner->partner != cluster) { // Non-root partner
+                cluster->parent = partner->parent;
+                return std::nullopt;
+            } else if (cluster < partner) { // Tie-break for two partnered root clusters
+                Cluster* parent = allocator::create();
+                cluster->parent = parent;
+                partner->parent = parent;
+                return parent;
+            } else { // Lost tie-break, only return new parent once
+                return std::nullopt;
+            }
+        }
+        else { // Non-combining root cluster gets its own parent
+            Cluster* parent = allocator::create();
+            cluster->parent = parent;
+            return parent;
+        }
+    });
 }
 
 template <typename aug_t>

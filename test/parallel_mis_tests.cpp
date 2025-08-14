@@ -40,6 +40,7 @@ TEST(ParallelMISSuite, mis_test) {
 
         // Call the parallel MIS algorithm to recluster the root clusters
         UFOTree::recluster_root_clusters(root_clusters);
+        UFOTree::create_new_parents(root_clusters);
 
         // Check that all clusters have a parent
         std::atomic<Cluster*> parentless_cluster = nullptr;
