@@ -296,7 +296,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_ini
         }
 
         else {
-            if (max_degree < (children.size()-1) + 3) {
+            if (max_degree <= (children.size()-1) + 3) {
                 local_root_clusters = max->filter_neighbors([&] (auto neighbor) {
                     return neighbor->parent == parent;
                 });
@@ -346,17 +346,8 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del
             }
         }
 
-        else if (max_degree == 2) {
-            if (!max->partner) local_root_clusters.push_back(max);
-            Cluster* neighbor1 = max->get_neighbor();
-            Cluster* neighbor2 = max->get_other_neighbor(neighbor1);
-            if (!neighbor1->partner && neighbor1->parent == parent) local_root_clusters.push_back(neighbor1);
-            else if (!neighbor2->partner && neighbor2->parent == parent) local_root_clusters.push_back(neighbor2);
-            parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
-        }
-
-        else if (max_degree >= 3) {
-            if (max_degree < (children.size()-1) + 3) {
+        else {
+            if (max_degree <= (children.size()-1) + 3) {
                 local_root_clusters = max->filter_neighbors([&] (auto neighbor) {
                     return !neighbor->partner && neighbor->parent == parent;
                 });
@@ -424,6 +415,7 @@ ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Clu
     }
     else { // Combine deg 1 root cluster with possible deg 3+ non-root clusters
         cluster->partner = neighbor;
+        if (neighbor->parent) return neighbor->parent;
     }
     return nullptr;
 }
