@@ -105,6 +105,7 @@ class ParallelTopologyTree {
   parlay::sequence<ParallelTopologyCluster<aug_t>*> del_clusters;
   // Helper functions
   void recluster_tree();
+  bool is_local_max(Cluster* c);
   void recompute_parent_value(ParallelTopologyCluster<aug_t>* c1,
                               ParallelTopologyCluster<aug_t>* c2);
 
@@ -325,46 +326,35 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
         }
       } else if (cluster->get_degree() == 2 && !cluster->parent) {
         // Only local maxima in priority with respect to deg 2 clusters will act
-        bool local_max = true;
-        for (auto neighbor : cluster->neighbors)
-          if (neighbor && !neighbor->parent && neighbor->get_degree() == 2 &&
-              neighbor->priority >= cluster->priority)
-            local_max = false;
-        if (!local_max)
-          return;
+        if (!is_local_max(cluster)) return;
         for (auto direction : {0, 1}) {
           // Travel left/right and pair clusters until a deg 3, deg 1, non-root,
           // or combined cluster found
           auto curr = cluster;
           auto next = cluster->get_neighbor(direction);
-          if (curr->partner) {
+          if (AtomicLoad(&curr->partner)) {
             curr = cluster->get_neighbor(direction);
             next = curr->get_other_neighbor(cluster);
           }
-          while (curr && !curr->parent && curr->get_degree() == 2 && next &&
-                 next->get_degree() < 3 && !next->contracts()) {
-            if (curr->partner ||
-                !gbbs::CAS(&curr->partner, (ParallelTopologyCluster<aug_t>*)nullptr,
-                     next))
-              break;
+          while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
+            if (curr != cluster && is_local_max(curr)) break;
+            if (next->get_degree() == 2 && !next->parent && is_local_max(next)) break;
+            if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
             if (next->get_degree() == 1) {   // If next deg 1 they can combine
               next->partner = curr;
-              break;
+            } else {
+              if (!CAS(&next->partner, (Cluster*) nullptr, curr)) { // If the CAS fails next was combined from the other side
+                if (AtomicLoad(&next->partner) != curr) // Other side combined with the opposite cluster (you got left hanging)
+                  AtomicStore(&curr->partner, (Cluster*) nullptr);
+                break;
+              }
             }
-            if (next->partner ||
-                !gbbs::CAS(&next->partner, (ParallelTopologyCluster<aug_t>*)nullptr,
-                     curr)) {   // If the CAS fails next was combined from the
-                                // other side
-              if (next->partner != curr)
-                curr->partner = nullptr;
-              break;
-            }
-            if (next->parent)
-              break;   // Stop traversing at a non-root cluster
+            if (next->parent) break;   // Stop traversing at a non-root cluster
+            if (next->get_degree() == 1) break; // Stop traversing at deg 1 cluster
             // Get the next two clusters in the chain
             curr = next->get_other_neighbor(curr);
-            if (curr)
-              next = curr->get_other_neighbor(next);
+            if (curr) next = curr->get_other_neighbor(next);
+            else break;
           }
         }
       } else if (cluster->get_degree() == 1) {
@@ -377,14 +367,9 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
           }
           // Combine deg 1 root cluster with deg 2 or 3 non-root clusters that
           // don't contract
-          if (neighbor && neighbor->parent &&
-              (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
-            if (neighbor->contracts())
-              continue;
-            if (neighbor->partner ||
-                !gbbs::CAS(&neighbor->partner,
-                     (ParallelTopologyCluster<aug_t>*)nullptr, cluster))
-              continue;
+          if (neighbor && neighbor->parent && (neighbor->get_degree() == 2 || neighbor->get_degree() == 3)) {
+            if (neighbor->contracts()) continue;
+            if (!CAS(&neighbor->partner, (Cluster*) nullptr, cluster)) continue;
             cluster->partner = neighbor;
             neighbor->partner = cluster;
             break;
@@ -507,6 +492,16 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
     }
     STOP_TIMER(ra_timer2, parallel_topology_remove_ancestor_time_2);
   }
+}
+
+template <typename aug_t>
+bool ParallelTopologyTree<aug_t>::is_local_max(Cluster* c) {
+  // Assumes the input is a degree 2 cluster
+  for (auto neighbor : c->neighbors)
+    if (neighbor && !neighbor->parent && neighbor->get_degree() == 2)
+      if (neighbor->priority > c->priority || (neighbor->priority == c->priority && neighbor > c))
+        return false;
+  return true;
 }
 
 template <typename aug_t>
