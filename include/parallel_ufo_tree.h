@@ -19,6 +19,10 @@ namespace dgbs {
 template <typename aug_t = empty_t>
 class ParallelUFOTree {
     using Cluster = ParallelUFOCluster<aug_t>;
+    static constexpr uintptr_t NULL_PTR = 0;
+    static constexpr uintptr_t DEL_MARK = 1;
+    static constexpr uintptr_t NON_ROOT_MARK = 2;
+    static constexpr uintptr_t NEW_PAR_MARK = 3;
     using allocator = parlay::type_allocator<Cluster>;
     using EdgeSlice = parlay::slice<std::pair<Cluster*, Cluster*>*, std::pair<Cluster*, Cluster*>*>;
 public:
@@ -56,9 +60,9 @@ ParallelUFOTree<aug_t>::~ParallelUFOTree() {
     auto clusters_to_delete = parlay::flatten(parlay::tabulate(leaves.size(), [&] (size_t i) {
         parlay::sequence<Cluster*> clusters;
         Cluster* curr = leaves[i].parent;
-        while (curr && curr != (Cluster*) 1) {
+        while (curr && curr != (Cluster*) DEL_MARK) {
             Cluster* next = AtomicLoad(&curr->parent);
-            if (next != (Cluster*) 1 && CAS(&curr->parent, next, (Cluster*) 1))
+            if (next != (Cluster*) DEL_MARK && CAS(&curr->parent, next, (Cluster*) DEL_MARK))
                 clusters.push_back(curr);
             else break;
             curr = next;
@@ -237,14 +241,17 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
             // Clear partner pointers
             Cluster* partner = AtomicLoad(&cluster->partner);
-            if (partner) {
+            if (partner == (Cluster*) NEW_PAR_MARK) {
+                AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
+            }
+            else if (partner) {
                 Cluster* partner_partner = AtomicLoad(&partner->partner);
                 if (partner_partner != cluster) { // Non-root partner
-                    AtomicStore(&partner->partner, (Cluster*) nullptr);
-                    AtomicStore(&cluster->partner, (Cluster*) nullptr);
+                    AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
+                    AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
                 } else if (cluster < partner) { // Tie-break
-                    AtomicStore(&partner->partner, (Cluster*) nullptr);
-                    AtomicStore(&cluster->partner, (Cluster*) nullptr);
+                    AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
+                    AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
                 }
             }
 
@@ -283,13 +290,13 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_ini
             Cluster* center = max->get_neighbor();
             if (center->parent != max->parent) {
                 local_root_clusters.push_back(max);
-                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                parent->partner = (Cluster*) DEL_MARK;
             } else if (center->get_degree() < children.size() + 3) {
                 local_root_clusters = center->filter_neighbors([&] (auto neighbor) {
                     return neighbor->parent == parent;
                 });
                 local_root_clusters.push_back(center);
-                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                parent->partner = (Cluster*) DEL_MARK;
             } else {
                 local_root_clusters = parlay::map(children, [&] (auto x) { return x.second; });
             }
@@ -301,7 +308,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_ini
                     return neighbor->parent == parent;
                 });
                 local_root_clusters.push_back(max);
-                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                parent->partner = (Cluster*) DEL_MARK;
             } else {
                 local_root_clusters = parlay::map_maybe(children, [&] (auto child) -> std::optional<Cluster*> {
                     if (child.second != max) return child.second;
@@ -331,13 +338,13 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del
             Cluster* center = max->get_neighbor();
             if (center->parent != max->parent) {
                 if (!max->partner) local_root_clusters.push_back(max);
-                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                parent->partner = (Cluster*) DEL_MARK;
             } else if (center->get_degree() < children.size() + 3) {
                 local_root_clusters = center->filter_neighbors([&] (auto neighbor) {
                     return !neighbor->partner && neighbor->parent == parent;
                 });
                 if (!center->partner) local_root_clusters.push_back(center);
-                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                parent->partner = (Cluster*) DEL_MARK;
             } else {
                 local_root_clusters = parlay::map_maybe(children, [&] (auto x) -> std::optional<Cluster*> {
                     if (!x.second->partner) return x.second;
@@ -352,7 +359,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del
                     return !neighbor->partner && neighbor->parent == parent;
                 });
                 if (!max->partner) local_root_clusters.push_back(max);
-                parent->partner = (Cluster*) 1; // Use the partner field to mark a cluster for deletion
+                parent->partner = (Cluster*) DEL_MARK;
             } else {
                 local_root_clusters = parlay::map_maybe(children, [&] (auto x) -> std::optional<Cluster*> {
                     if (!x.second->partner && x.second != max) return x.second;
@@ -401,13 +408,13 @@ ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Clu
     if (neighbor->get_degree() == 1) { // Combine deg 1 root clusters with deg 1 root or non-root clusters
         cluster->partner = neighbor;
         if (neighbor->parent) {
-            neighbor->partner = (Cluster*) 1; // Mark non-root contracting cluster's partner field
+            neighbor->partner = (Cluster*) NON_ROOT_MARK;
             return neighbor->parent;
         }
     }
     else if (neighbor->get_degree() == 2) { // Combine deg 1 root cluster with deg 2 non-root clusters that don't contract
         if (neighbor->parent && !neighbor->contracts()) {
-            if (CAS(&neighbor->partner, (Cluster*) nullptr, (Cluster*) 1)) { // Mark non-root contracting cluster's partner field
+            if (CAS(&neighbor->partner, (Cluster*) NULL_PTR, (Cluster*) NON_ROOT_MARK)) {
                 cluster->partner = neighbor;
                 return neighbor->parent;
             }
@@ -415,7 +422,9 @@ ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Clu
     }
     else { // Combine deg 1 root cluster with possible deg 3+ non-root clusters
         cluster->partner = neighbor;
-        if (neighbor->parent) return neighbor->parent;
+        if (AtomicLoad(&neighbor->parent))
+            if (CAS(&neighbor->partner, (Cluster*) NULL_PTR, (Cluster*) NON_ROOT_MARK))
+                return neighbor->parent;
     }
     return nullptr;
 }
@@ -438,15 +447,15 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
         while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
             if (curr != cluster && is_local_max(curr)) break;
             if (next->get_degree() == 2 && !next->parent && is_local_max(next)) break;
-            if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
+            if (!CAS(&curr->partner, (Cluster*) NULL_PTR, next)) break;
             if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
                 if (!next->parent) next->partner = curr;
-                else next->partner = (Cluster*) 1; // Mark non-root contracting cluster's partner field
+                else next->partner = (Cluster*) NON_ROOT_MARK;
             } else { // deg 2
-                Cluster* new_partner = next->parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
-                if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
+                Cluster* new_partner = next->parent ? (Cluster*) NON_ROOT_MARK : curr;
+                if (!CAS(&next->partner, (Cluster*) NULL_PTR, new_partner)) { // If the CAS fails next was combined from the other side
                     if (AtomicLoad(&next->partner) != curr) // Other side combined with the opposite cluster (you got left hanging)
-                        AtomicStore(&curr->partner, (Cluster*) nullptr);
+                        AtomicStore(&curr->partner, (Cluster*) NULL_PTR);
                     break;
                 }
             }
@@ -473,10 +482,11 @@ ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_high_degree_root(Cl
     // combine with it, and return its parent as del cluster.
     Cluster* del_cluster = nullptr;
     Cluster* parent = allocator::create();
-    cluster->parent = parent;
+    AtomicStore(&cluster->parent, parent);
+    AtomicStore(&cluster->partner, (Cluster*) NEW_PAR_MARK);
     cluster->for_all_neighbors([&] (auto neighbor) {
-        if (neighbor->get_degree() == 1 && neighbor->parent && neighbor->parent != parent) {
-            neighbor->parent->partner = (Cluster*) 1;
+        if (neighbor->get_degree() == 1 && neighbor->parent) {
+            neighbor->parent->partner = (Cluster*) DEL_MARK;
             del_cluster = neighbor->parent; // Only once in this loop
             neighbor->parent = parent;
         }
@@ -492,7 +502,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::create_new_
     // should be deleted.
     return parlay::map_maybe(root_clusters, [&] (Cluster* cluster) -> std::optional<Cluster*> {
         if (cluster->get_degree() == 0) return std::nullopt;
-        if (cluster->get_degree() >= 3) return cluster->parent;
+        if (cluster->get_degree() >= 3 && cluster->partner == (Cluster*) NEW_PAR_MARK) return cluster->parent;
         Cluster* partner = cluster->partner;
         if (partner) {
             if (partner->partner != cluster) { // Non-root partner or high-degree partner with no partner field set
