@@ -379,6 +379,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
     // don't combine with anything, we leave its partner field empty. For high degree
     // root clusters, we assign its partner field as NEW_PAR_MARK, and we add a parent
     // for it in this part. All other root clusters receive no parent at this point.
+    // This returns the parent of any non-root clusters that were partnered with.
     return parlay::flatten(parlay::tabulate(root_clusters.size(), [&] (size_t i) {
         parlay::sequence<Cluster*> del_clusters;
         Cluster* cluster = root_clusters[i];
