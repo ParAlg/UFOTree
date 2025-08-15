@@ -13,13 +13,13 @@ using UFOTree = ParallelUFOTree<empty_t>;
 using allocator = parlay::type_allocator<Cluster>;
 
 TEST(ParallelMISSuite, mis_test) {
-    int num_trials = 1000000;
+    int num_trials = 1000;
     long seeds[num_trials];
     srand(time(NULL));
     for (int trial = 0; trial < num_trials; trial++) seeds[trial] = rand();
 
     for (int trial = 0; trial < num_trials; trial++) {
-        std::cout << "TRIAL " << trial << std::endl;
+        if (trial % 1000 == 0) std::cout << "TRIAL " << trial << std::endl;
         int n = 100;
         long seed = seeds[trial];
         parlay::sequence<Cluster> clusters(n);

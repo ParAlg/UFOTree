@@ -436,11 +436,13 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
             next = curr->get_other_neighbor(cluster);
         }
         while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
+            if (curr != cluster && is_local_max(curr)) break;
+            if (next->get_degree() == 2 && !next->parent && is_local_max(next)) break;
             if (!CAS(&curr->partner, (Cluster*) nullptr, next)) break;
             if (next->get_degree() == 1) { // If next deg 1 they can definitely combine
                 if (!next->parent) next->partner = curr;
                 else next->partner = (Cluster*) 1; // Mark non-root contracting cluster's partner field
-            } else {
+            } else { // deg 2
                 Cluster* new_partner = next->parent ? (Cluster*) 1 : curr; // Mark non-root contracting cluster's partner field
                 if (!CAS(&next->partner, (Cluster*) nullptr, new_partner)) { // If the CAS fails next was combined from the other side
                     if (AtomicLoad(&next->partner) != curr) // Other side combined with the opposite cluster (you got left hanging)
@@ -458,6 +460,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
             // Get the next two clusters in the chain
             curr = next->get_other_neighbor(curr);
             if (curr) next = curr->get_other_neighbor(next);
+            else break;
         }
     }
     return local_del_clusters;
@@ -492,7 +495,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::create_new_
         if (cluster->get_degree() >= 3) return cluster->parent;
         Cluster* partner = cluster->partner;
         if (partner) {
-            if (partner->partner != cluster) { // Non-root partner
+            if (partner->partner != cluster) { // Non-root partner or high-degree partner with no partner field set
                 cluster->parent = partner->parent;
                 return std::nullopt;
             } else if (cluster < partner) { // Tie-break for two partnered root clusters
@@ -520,10 +523,10 @@ bool ParallelUFOTree<aug_t>::is_local_max(Cluster* c) {
     uint64_t hash = hash64((uintptr_t) c);
     uint64_t hash1 = hash64((uintptr_t) neighbor1);
     uint64_t hash2 = hash64((uintptr_t) neighbor2);
-    if (neighbor1->get_degree() == 2 && (!AtomicLoad(&neighbor1->parent) || AtomicLoad(&neighbor1->partner)))
+    if (neighbor1->get_degree() == 2 && !neighbor1->parent)
         if (hash1 > hash || (hash1 == hash && neighbor1 > c))
             return false;
-    if (neighbor2->get_degree() == 2 && (!AtomicLoad(&neighbor2->parent) || AtomicLoad(&neighbor2->partner)))
+    if (neighbor2->get_degree() == 2 && !neighbor2->parent)
         if (hash2 > hash || (hash2 == hash && neighbor2 > c))
             return false;
     return true;
