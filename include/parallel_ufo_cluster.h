@@ -24,10 +24,13 @@ struct ParallelUFOCluster {
     // Cluster data
     ufo_pam_set neighbors;
     ParallelUFOCluster* parent;
+
+    // Extra fields for parallel updates
     ParallelUFOCluster* partner;
+    int degree;
 
     // Constructor
-    ParallelUFOCluster() : parent(nullptr), partner(nullptr), neighbors() {};
+    ParallelUFOCluster() : neighbors(), parent(nullptr), partner(nullptr), degree(0) {};
 
     // Functions
     std::mutex mtx;
@@ -66,6 +69,7 @@ template <typename aug_t>
 void ParallelUFOCluster<aug_t>::insert_neighbor(ParallelUFOCluster* c) {
     mtx.lock();
     neighbors = ufo_pam_set::insert(std::move(neighbors), c);
+    degree = get_degree();
     mtx.unlock();
 }
 
@@ -73,27 +77,32 @@ template <typename aug_t>
 void ParallelUFOCluster<aug_t>::delete_neighbor(ParallelUFOCluster* c) {
     mtx.lock();
     neighbors = ufo_pam_set::remove(std::move(neighbors), c);
+    degree = get_degree();
     mtx.unlock();
 }
 
 template <typename aug_t>
 void ParallelUFOCluster<aug_t>::insert_neighbors(parlay::sequence<ParallelUFOCluster*>& cs) {
     neighbors = ufo_pam_set::multi_insert(std::move(neighbors), cs);
+    degree = get_degree();
 }
 
 template <typename aug_t>
 void ParallelUFOCluster<aug_t>::delete_neighbors(parlay::sequence<ParallelUFOCluster*>& cs) {
     neighbors = ufo_pam_set::multi_delete(std::move(neighbors), cs);
+    degree = get_degree();
 }
 
 template <typename aug_t>
 void ParallelUFOCluster<aug_t>::insert_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs) {
     neighbors = ufo_pam_set::multi_insert_sorted(std::move(neighbors), cs);
+    degree = get_degree();
 }
 
 template <typename aug_t>
 void ParallelUFOCluster<aug_t>::delete_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs) {
     neighbors = ufo_pam_set::multi_delete_sorted(std::move(neighbors), cs);
+    degree = get_degree();
 }
 
 template <typename aug_t>

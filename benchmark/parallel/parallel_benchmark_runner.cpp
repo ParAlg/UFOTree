@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
             }
         }
         double time;
-        std::cout << "[ RUNNING " << test_case_name << " PARALLEL UPDATE SPEED BENCHMARK WITH n=" << n << " ]" << std::endl;
+        std::cout << "[ RUNNING " << test_case_name << " PARALLEL UPDATE SPEED BENCHMARK WITH n=" << n << ", k=" << k << " ]" << std::endl;
         output_csv << test_case_name << ",";
 
         // Euler Tour Tree
