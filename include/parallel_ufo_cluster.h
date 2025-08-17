@@ -19,14 +19,15 @@ struct UFONeighbor {
 
 template <typename aug_t>
 struct ParallelUFOCluster {
+    using Cluster = ParallelUFOCluster;
     using ufo_pam_set = pam_set<UFONeighbor<aug_t>>;
 
     // Cluster data
     ufo_pam_set neighbors;
-    ParallelUFOCluster* parent;
+    Cluster* parent;
 
     // Extra fields for parallel updates
-    ParallelUFOCluster* partner;
+    Cluster* partner;
     int degree;
 
     // Constructor
@@ -34,20 +35,20 @@ struct ParallelUFOCluster {
 
     // Functions
     std::mutex mtx;
-    void insert_neighbor(ParallelUFOCluster* c);
-    void delete_neighbor(ParallelUFOCluster* c);
-    void insert_neighbors(parlay::sequence<ParallelUFOCluster*>& cs);
-    void delete_neighbors(parlay::sequence<ParallelUFOCluster*>& cs);
-    void insert_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs);
-    void delete_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs);
+    void insert_neighbor(Cluster* c);
+    void delete_neighbor(Cluster* c);
+    void insert_neighbors(parlay::sequence<Cluster*>& cs);
+    void delete_neighbors(parlay::sequence<Cluster*>& cs);
+    void insert_neighbors_sorted(parlay::sequence<Cluster*>& cs);
+    void delete_neighbors_sorted(parlay::sequence<Cluster*>& cs);
 
     int get_degree();
     bool contracts();
     bool atomic_contracts();
-    bool contains_neighbor(ParallelUFOCluster* c);
-    ParallelUFOCluster* get_neighbor();
-    ParallelUFOCluster* get_other_neighbor(ParallelUFOCluster* c);
-    ParallelUFOCluster* get_root();
+    bool contains_neighbor(Cluster* c);
+    Cluster* get_neighbor();
+    Cluster* get_other_neighbor(Cluster* c);
+    Cluster* get_root();
 
 
     template <class F>
@@ -62,11 +63,17 @@ struct ParallelUFOCluster {
         return parlay::filter(ufo_pam_set::entries(neighbors), f);
     }
 
+    parlay::sequence<std::pair<ParallelUFOCluster*, ParallelUFOCluster*>> get_in_edges() {
+        return parlay::map(ufo_pam_set::entries(neighbors), [&] (auto neighbor) {
+            return std::make_pair(neighbor, this);
+        });
+    }
+
     void print_neighbors();
 };
 
 template <typename aug_t>
-void ParallelUFOCluster<aug_t>::insert_neighbor(ParallelUFOCluster* c) {
+void ParallelUFOCluster<aug_t>::insert_neighbor(Cluster* c) {
     mtx.lock();
     neighbors = ufo_pam_set::insert(std::move(neighbors), c);
     degree = get_degree();
@@ -74,7 +81,7 @@ void ParallelUFOCluster<aug_t>::insert_neighbor(ParallelUFOCluster* c) {
 }
 
 template <typename aug_t>
-void ParallelUFOCluster<aug_t>::delete_neighbor(ParallelUFOCluster* c) {
+void ParallelUFOCluster<aug_t>::delete_neighbor(Cluster* c) {
     mtx.lock();
     neighbors = ufo_pam_set::remove(std::move(neighbors), c);
     degree = get_degree();
@@ -82,25 +89,25 @@ void ParallelUFOCluster<aug_t>::delete_neighbor(ParallelUFOCluster* c) {
 }
 
 template <typename aug_t>
-void ParallelUFOCluster<aug_t>::insert_neighbors(parlay::sequence<ParallelUFOCluster*>& cs) {
+void ParallelUFOCluster<aug_t>::insert_neighbors(parlay::sequence<Cluster*>& cs) {
     neighbors = ufo_pam_set::multi_insert(std::move(neighbors), cs);
     degree = get_degree();
 }
 
 template <typename aug_t>
-void ParallelUFOCluster<aug_t>::delete_neighbors(parlay::sequence<ParallelUFOCluster*>& cs) {
+void ParallelUFOCluster<aug_t>::delete_neighbors(parlay::sequence<Cluster*>& cs) {
     neighbors = ufo_pam_set::multi_delete(std::move(neighbors), cs);
     degree = get_degree();
 }
 
 template <typename aug_t>
-void ParallelUFOCluster<aug_t>::insert_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs) {
+void ParallelUFOCluster<aug_t>::insert_neighbors_sorted(parlay::sequence<Cluster*>& cs) {
     neighbors = ufo_pam_set::multi_insert_sorted(std::move(neighbors), cs);
     degree = get_degree();
 }
 
 template <typename aug_t>
-void ParallelUFOCluster<aug_t>::delete_neighbors_sorted(parlay::sequence<ParallelUFOCluster*>& cs) {
+void ParallelUFOCluster<aug_t>::delete_neighbors_sorted(parlay::sequence<Cluster*>& cs) {
     neighbors = ufo_pam_set::multi_delete_sorted(std::move(neighbors), cs);
     degree = get_degree();
 }
@@ -134,7 +141,7 @@ bool ParallelUFOCluster<aug_t>::atomic_contracts() {
 }
 
 template<typename aug_t>
-bool ParallelUFOCluster<aug_t>::contains_neighbor(ParallelUFOCluster* c) {
+bool ParallelUFOCluster<aug_t>::contains_neighbor(Cluster* c) {
     return neighbors.contains(c);
 }
 
@@ -145,17 +152,17 @@ ParallelUFOCluster<aug_t>* ParallelUFOCluster<aug_t>::get_neighbor() {
 }
 
 template <typename aug_t>
-ParallelUFOCluster<aug_t>* ParallelUFOCluster<aug_t>::get_other_neighbor(ParallelUFOCluster* c) {
+ParallelUFOCluster<aug_t>* ParallelUFOCluster<aug_t>::get_other_neighbor(Cluster* c) {
     if (neighbors.size() < 2) return nullptr;
-    ParallelUFOCluster* neighbor1 = *neighbors.select(0);
-    ParallelUFOCluster* neighbor2 = *neighbors.select(1);
+    Cluster* neighbor1 = *neighbors.select(0);
+    Cluster* neighbor2 = *neighbors.select(1);
     if (neighbor1 == c) return neighbor2;
     return neighbor1;
 }
 
 template <typename aug_t>
 ParallelUFOCluster<aug_t>* ParallelUFOCluster<aug_t>::get_root() {
-    ParallelUFOCluster* curr = this;
+    Cluster* curr = this;
     while (curr->parent) curr = curr->parent;
     return curr;
 }

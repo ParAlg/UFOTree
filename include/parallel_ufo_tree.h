@@ -39,13 +39,13 @@ public:
 // private:
     // Class data and parameters
     std::vector<Cluster> leaves;
+
     // Helper functions
     void recluster_tree(parlay::sequence<std::pair<int, int>>& updates, UpdateType update_type);
-
     static parlay::sequence<Cluster*> process_initial_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups);
     static parlay::sequence<Cluster*> process_del_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups);
-    static parlay::sequence<Cluster*> recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters);
-    static Cluster* recluster_degree_one_root(Cluster* root_cluster);
+    static parlay::sequence<Cluster*> recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters, UpdateType update_type);
+    static Cluster* recluster_degree_one_root(Cluster* root_cluster, UpdateType update_type);
     static parlay::sequence<Cluster*> recluster_degree_two_root(Cluster* root_cluster);
     static Cluster* recluster_high_degree_root(Cluster* root_cluster);
     static parlay::sequence<Cluster*> create_new_parents(parlay::sequence<Cluster*>& root_clusters);
@@ -196,7 +196,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         // =======
 
         // Recluster the root clusters.
-        auto additional_del_clusters = recluster_root_clusters(root_clusters);
+        auto additional_del_clusters = recluster_root_clusters(root_clusters, update_type);
         del_clusters.append(additional_del_clusters);
 
         // This returns only the new clusters that were created during the reclustering at this level.
@@ -252,24 +252,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         }
 
         // Determine pointers to level i+1 del clusters that will get deleted.
-        auto del_edges = parlay::flatten(parlay::tabulate(parent_groups.size(), [&] (size_t i) {
-            auto& [parent, children] = parent_groups[i];
-            auto local_edges = parlay::flatten(parlay::tabulate(children.size(), [&] (size_t j) {
-                parlay::sequence<std::pair<Cluster*, Cluster*>> local_local_edges;
-                if (children[j].second->partner) {
-                    local_local_edges = parlay::map(children[j].second->filter_neighbors([&] (auto neighbor) {
-                        return !neighbor->partner;
-                    }), [&] (auto cluster) {
-                        return std::make_pair(cluster, children[j].second);
-                    });
-                }
-                return local_local_edges;
-            }));
-            return local_edges;
+        auto del_edges = parlay::flatten(parlay::map(del_clusters, [&] (auto cluster) {
+            parlay::sequence<std::pair<Cluster*, Cluster*>> local_del_edges;
+            if (cluster->partner) local_del_edges = cluster->get_in_edges();
+            return local_del_edges;
         }));
+        auto del_edge_groups = integer_group_by_key_inplace(del_edges);
 
         // Delete pointers to level i+1 del clusters that will get deleted.
-        auto del_edge_groups = integer_group_by_key_inplace(del_edges);
         parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
             auto& [cluster, edges] = del_edge_groups[i];
             auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
@@ -426,7 +416,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del
 }
 
 template <typename aug_t>
-parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters) {
+parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters, UpdateType update_type) {
     // This function sets the partner fields for all root clusters. For a non-root
     // cluster, we mark its partner field with NON_ROOT_MARK. For root clusters that
     // don't combine with anything, we leave its partner field empty. For high degree
@@ -437,7 +427,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
         parlay::sequence<Cluster*> del_clusters;
         Cluster* cluster = root_clusters[i];
         if (cluster->get_degree() == 1) {
-            Cluster* del_cluster = recluster_degree_one_root(cluster);
+            Cluster* del_cluster = recluster_degree_one_root(cluster, update_type);
             if (del_cluster) del_clusters.push_back(del_cluster);
         }
         else if (cluster->get_degree() == 2) {
@@ -452,7 +442,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
 }
 
 template <typename aug_t>
-ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster) {
+ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster, UpdateType update_type) {
     // Always partner with a degree 1 or 3+ neighbor. For degree 2
     // neighbors, only attempt to partner with it if it is a non-root
     // cluster that does not already contract. Partnering with degree
@@ -476,9 +466,11 @@ ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_degree_one_root(Clu
     }
     else { // Combine deg 1 root cluster with possible deg 3+ non-root clusters
         cluster->partner = neighbor;
-        if (AtomicLoad(&neighbor->parent))
-            if (CAS(&neighbor->partner, (Cluster*) NULL_PTR, (Cluster*) NON_ROOT_MARK))
-                return neighbor->parent;
+        if (update_type == DELETE) {
+            if (AtomicLoad(&neighbor->parent))
+                if (CAS(&neighbor->partner, (Cluster*) NULL_PTR, (Cluster*) NON_ROOT_MARK))
+                    return neighbor->parent;
+        }
     }
     return nullptr;
 }
@@ -498,7 +490,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_d
             curr = next;
             next = curr->get_other_neighbor(cluster);
         }
-        while (curr && !curr->parent && curr->get_degree() == 2 && next && next->get_degree() < 3 && !next->contracts()) {
+        while (curr && curr->get_degree() == 2 && !curr->parent && next && next->get_degree() < 3 && !next->contracts()) {
             if (curr != cluster && is_local_max(curr)) break;
             if (next->get_degree() == 2 && !next->parent && is_local_max(next)) break;
             if (!CAS(&curr->partner, (Cluster*) NULL_PTR, next)) break;
