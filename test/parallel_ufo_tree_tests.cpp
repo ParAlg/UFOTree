@@ -132,6 +132,7 @@ parlay::internal::timer timer5("");
 extern int command_line_n;
 extern int command_line_k;
 extern int command_line_num_trials;
+extern int command_line_seed;
 
 TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
     vertex_t n = command_line_n > 0 ? command_line_n : 256;
@@ -144,7 +145,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
@@ -170,7 +171,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, seed);
@@ -196,7 +197,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, seed);
@@ -223,7 +224,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, seed, fanout);
@@ -249,7 +250,7 @@ TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::random_unbounded_benchmark(n, seed);
@@ -279,7 +280,7 @@ TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
@@ -308,7 +309,7 @@ TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, seed);
@@ -337,7 +338,7 @@ TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, seed);
@@ -367,7 +368,7 @@ TEST(ParallelUFOTreeSuite, batch_decremental_karytree_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, seed, fanout);
@@ -396,7 +397,7 @@ TEST(ParallelUFOTreeSuite, batch_decremental_random_correctness_test) {
 
     for (int trial = 0; trial < num_trials; trial++) {
         ParallelUFOTree<> tree(n, k);
-        long seed = seeds[trial];
+        long seed = command_line_seed != -1 ? command_line_seed : seeds[trial];
         std::cout << "SEED: " << seed << std::endl;
 
         auto update_sequence = dynamic_tree_benchmark::random_unbounded_benchmark(n, seed);
