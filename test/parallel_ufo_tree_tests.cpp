@@ -154,8 +154,10 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            // tree.print_tree();
-            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            if (!tree.is_valid()) {
+                tree.print_tree();
+                FAIL() << "Tree invalid after batch of links.";
+            }
         }
     }
 }
@@ -180,8 +182,10 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            // tree.print_tree();
-            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            if (!tree.is_valid()) {
+                tree.print_tree();
+                FAIL() << "Tree invalid after batch of links.";
+            }
         }
     }
 }
@@ -206,8 +210,10 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            // tree.print_tree();
-            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            if (!tree.is_valid()) {
+                tree.print_tree();
+                FAIL() << "Tree invalid after batch of links.";
+            }
         }
     }
 }
@@ -233,8 +239,10 @@ TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            // tree.print_tree();
-            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            if (!tree.is_valid()) {
+                tree.print_tree();
+                FAIL() << "Tree invalid after batch of links.";
+            }
         }
     }
 }
@@ -259,8 +267,10 @@ TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            // tree.print_tree();
-            ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of links.";
+            if (!tree.is_valid()) {
+                tree.print_tree();
+                FAIL() << "Tree invalid after batch of links.";
+            }
         }
     }
 }
@@ -291,8 +301,10 @@ TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
                 tree.batch_link(batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                // tree.print_tree();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+                if (!tree.is_valid()) {
+                    tree.print_tree();
+                    FAIL() << "Tree invalid after batch of links.";
+                }
             }
         }
     }
@@ -320,8 +332,10 @@ TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
                 tree.batch_link(batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                // tree.print_tree();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+                if (!tree.is_valid()) {
+                    tree.print_tree();
+                    FAIL() << "Tree invalid after batch of links.";
+                }
             }
         }
     }
@@ -349,8 +363,10 @@ TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
                 tree.batch_link(batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                // tree.print_tree();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+                if (!tree.is_valid()) {
+                    tree.print_tree();
+                    FAIL() << "Tree invalid after batch of links.";
+                }
             }
         }
     }
@@ -379,8 +395,10 @@ TEST(ParallelUFOTreeSuite, batch_decremental_karytree_correctness_test) {
                 tree.batch_link(batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                // tree.print_tree();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+                if (!tree.is_valid()) {
+                    tree.print_tree();
+                    FAIL() << "Tree invalid after batch of links.";
+                }
             }
         }
     }
@@ -408,8 +426,10 @@ TEST(ParallelUFOTreeSuite, batch_decremental_random_correctness_test) {
                 tree.batch_link(batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                // tree.print_tree();
-                ASSERT_TRUE(tree.is_valid()) << "Tree invalid after batch of cuts.";
+                if (!tree.is_valid()) {
+                    tree.print_tree();
+                    FAIL() << "Tree invalid after batch of links.";
+                }
             }
         }
     }
