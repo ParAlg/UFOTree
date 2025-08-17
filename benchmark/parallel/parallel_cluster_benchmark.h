@@ -74,36 +74,88 @@ static void benchmark_batch_updates(){
   std::cout << "Batch Deletion Time: " << deletion_time << "\n";
 }
 
-// This is probably useless:
-
-/*
-template <typename par_cluster>
-static void benchmark_single_insert_delete_continuous(){
-  parlay::internal::timer my_timer("");
-  parlay::sequence<par_cluster*> insertions;
-  insertions.resize(100);
-  par_cluster cluster(granularity);
-  my_timer.start();
-  parlay::parallel_for(0, single_size, [&](int i){
-    cluster.insert_neighbor(insertions[i]);
-  });
-  my_timer.stop();
-  auto insertion_time = my_timer.total_time();
-  my_timer.reset();
-
-  std::vector<int> deletions;
-  for(int i = 0; i < single_size; i++){
-    deletions.push_back(i);
+template<typename par_cluster>
+static void benchmark_real_trees(int n, std::function<std::vector<Update>(vertex_t, long)> update_fn,
+                                  bool serial=true, bool batch=true){
+  
+  auto update_sequences = update_fn(n, rand());
+  std::vector<par_cluster> clusters(n);
+  std::vector<Update> insertions, deletions;
+  int delete_idx = -1;
+  for(int i = 0; i < update_sequences.size(); i++){
+    if(update_sequences[i].type == INSERT){
+      insertions.push_back(update_sequences[i]);
+    } else{
+      deletions.push_back(update_sequences[i]);
+    }
   }
-  std::shuffle(deletions.begin(), deletions.end(), std::mt19937());
-  my_timer.start();
-  parlay::parallel_for(0, single_size, [&](int i){
-    cluster.delete_neighbor(insertions[i]);
-  });
-  my_timer.stop();
-  auto deletion_time = my_timer.total_time();
+  
+  parlay::internal::timer my_timer;
+  if(serial){
+    // Serial Insertions
+    my_timer.start();
+    parlay::parallel_for(0, insertions.size(), [&] (int i){
+      auto edge = insertions[i].edge;
+      clusters[edge.src].insert_neighbor(&clusters[edge.dst]);
+    }, granularity);
+    my_timer.stop();
+    auto insertion_time = my_timer.total_time();
+    my_timer.reset();
+    my_timer.start();
+    parlay::parallel_for(0, deletions.size(), [&] (int i ){
+      auto edge = deletions[i].edge;
+      clusters[edge.src].delete_neighbor(&clusters[edge.dst]);
+    }, granularity);
+    my_timer.stop();  
+    auto deletion_time = my_timer.total_time();
+    std::cout << "Serial Insertion Time:" << insertion_time << "\n";
+    std::cout << "Serial Deletion Time: " << deletion_time << "\n";
+    my_timer.reset();
+  }
+  if(batch){
+    my_timer.start();
+    parlay::sort_inplace(insertions, [&](Update a, Update b){
+      return a.edge.src < b.edge.src;
+    });
 
-  std::cout << "Insertion Time: " << insertion_time << "\n" << "Deletion Time: " << deletion_time;
+    auto starts = parlay::delayed_tabulate(insertions.size(), [&] (int i) {
+        if (i == 0 || insertions[i].edge.src != insertions[i-1].edge.src) return true;
+        return false;
+    });
+    auto offsets = parlay::pack_index(starts);
+    auto final_updates = parlay::tabulate(offsets.size(), [&] (size_t i) {
+        size_t start = offsets[i];
+        size_t end = i == offsets.size()-1 ? insertions.size() : offsets[i+1];
+        return std::make_pair(insertions[offsets[i]].edge.src, parlay::make_slice(insertions.begin() + start, insertions.begin() + end));
+    });
+
+    parlay::parallel_for(0, final_updates.size(), [&] (size_t i) {
+            auto& [cluster, edges] = final_updates[i];
+            auto neighbors = parlay::map(edges, [&] (auto x) { return &clusters[x.edge.dst]; });
+            clusters[i].insert_neighbors(neighbors);
+    });
+    my_timer.stop();
+    std::cout << "Parallel Insertion: " << my_timer.total_time() << "\n";
+    my_timer.reset();
+
+    my_timer.start();
+    parlay::sort_inplace(deletions, [&](Update a, Update b)
+                         { return a.edge.src < b.edge.src; });
+
+    auto new_starts = parlay::delayed_tabulate(deletions.size(), [&](int i){
+        if (i == 0 || deletions[i].edge.src != deletions[i-1].edge.src) return true;
+        return false; });
+    offsets = parlay::pack_index(new_starts);
+    final_updates = parlay::tabulate(offsets.size(), [&](size_t i){
+        size_t start = offsets[i];
+        size_t end = i == offsets.size()-1 ? deletions.size() : offsets[i+1];
+        return std::make_pair(deletions[offsets[i]].edge.src, parlay::make_slice(deletions.begin() + start, deletions.begin() + end)); });
+
+    parlay::parallel_for(0, final_updates.size(), [&](size_t i){
+            auto& [cluster, edges] = final_updates[i];
+            auto neighbors = parlay::map(edges, [&] (auto x) { return &clusters[x.edge.dst]; });
+            clusters[i].delete_neighbors(neighbors); });
+    my_timer.stop();
+    std::cout << "Parallel Deletion: " << my_timer.total_time() << "\n";
+  }
 }
-*/
-
