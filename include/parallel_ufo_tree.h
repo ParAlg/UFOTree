@@ -128,6 +128,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         root_clusters[i]->parent = nullptr;
     });
 
+    // The intial del clusters are just all parents of vertices that got an update.
+    del_clusters = parlay::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
+        if (group.first) return group.first;
+        return std::nullopt;
+    });
+
     // For deletion batches, do the deletions at level 0, finish mapping the updates to level 1.
     if (update_type == DELETE) {
         parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
@@ -139,12 +145,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         dir_updates = std::move(temp_dir_updates);
         dir_update_groups = integer_group_by_key_inplace(dir_updates);
     }
-
-    // The intial del clusters are just all parents of vertices that got an update.
-    del_clusters = parlay::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
-        if (group.first) return group.first;
-        return std::nullopt;
-    });
 
 
     /* This is the main loop over all levels of the tree. Before each level i, `root_clusters` contains the
@@ -217,7 +217,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             if (!group.first) return std::nullopt;
             return group.first;
         });
-
         // For deletion batches, compute new degrees of level i+1 del clusters.
         // For deletion batches, map the level i+1 updates to level i+2 before processing level i+1.
         if (update_type == DELETE) {
@@ -252,7 +251,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         }
 
         // Determine pointers to level i+1 del clusters that will get deleted.
-        auto del_edges = parlay::flatten(parlay::map(del_clusters, [&] (auto cluster) {
+        auto del_edges = parlay::flatten(parlay::delayed_map(del_clusters, [&] (auto cluster) {
             parlay::sequence<std::pair<Cluster*, Cluster*>> local_del_edges;
             if (cluster->partner) local_del_edges = cluster->get_in_edges();
             return local_del_edges;
@@ -290,7 +289,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             else if (partner) {
                 Cluster* partner_partner = AtomicLoad(&partner->partner);
                 if (partner_partner != cluster) { // Non-root partner
-                    AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
+                    if (partner_partner != (Cluster*) NULL_PTR) AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
                     AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
                 } else if (cluster < partner) { // Tie-break
                     AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
@@ -321,7 +320,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
 template <typename aug_t>
 parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_initial_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups) {
-    return parlay::flatten(parlay::tabulate(parent_groups.size(), [&] (size_t i) {
+    return parlay::flatten(parlay::delayed_tabulate(parent_groups.size(), [&] (size_t i) {
         auto& [parent, children] = parent_groups[i];
         if (parent == nullptr) return parlay::map(children, [&] (auto child) { return child.second; });
         parlay::sequence<Cluster*> local_root_clusters;
@@ -366,7 +365,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_ini
 
 template <typename aug_t>
 parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups) {
-    return parlay::flatten(parlay::tabulate(parent_groups.size(), [&] (size_t i) {
+    return parlay::flatten(parlay::delayed_tabulate(parent_groups.size(), [&] (size_t i) {
         auto& [parent, children] = parent_groups[i];
         parlay::sequence<Cluster*> local_root_clusters;
         if (parent == nullptr) return parlay::map_maybe(children, [&] (auto child) -> std::optional<Cluster*> {
@@ -423,7 +422,7 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::recluster_r
     // root clusters, we assign its partner field as NEW_PAR_MARK, and we add a parent
     // for it in this part. All other root clusters receive no parent at this point.
     // This returns the parent of any non-root clusters that were partnered with.
-    return parlay::flatten(parlay::tabulate(root_clusters.size(), [&] (size_t i) {
+    return parlay::flatten(parlay::delayed_tabulate(root_clusters.size(), [&] (size_t i) {
         parlay::sequence<Cluster*> del_clusters;
         Cluster* cluster = root_clusters[i];
         if (cluster->get_degree() == 1) {
