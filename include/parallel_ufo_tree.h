@@ -160,9 +160,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     These new parents become the `next_root_clusters` along with those determined phase 3. Any contraction
     with a non-root cluster adds the level i+1 parent to `del_clusters`.
     (PHASE 3) First we take the level i+1 `del_clusters`, and populate `next_del_clusters` by mapping them to their
-    level i+2 parents. We also determine which ones will actually be deleted. During this step we delete the
-    del clusters. We also find any level i+1 non-del children of the level i+2 clusters which will be deleted.
-    These will become `next_root_clusters` at the next level i+1.
+    level i+2 parents. We also determine which level i+2 del clusters will actually be deleted, and mark those, not
+    yet deleting them. For deletion batches we first need to update the `degree` field in each level i+2 del cluster
+    before deciding if it should be deleted. To do this, we keep track of the original cut edges still alive at this
+    level, as well as edges that get deleted incident to lower level deleted clusters. During this phase we delete
+    the level i+1 del clusters that were marked at the previous level. We also find any level i+1 non-del children
+    of the level i+2 clusters which will be deleted. These will become `next_root_clusters` at the next level i+1.
     (PHASE 4) In this phase we insert any edge incident to a level i root cluster into level i+1, if it wasn't
     contracted away. This fills the adjacency lists of our new parent clusters and also updates any level i+1
     clusters that remain from the previous tree. This must happen after phase 3 so that we do not modify the
