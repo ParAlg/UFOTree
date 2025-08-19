@@ -93,7 +93,11 @@ void ParallelUFOTree<aug_t>::print_tree() {
         auto leaf = entry.second;
         auto parent = entry.first;
         std::cout << "VERTEX " << vertex_map[leaf] << "\t " << leaf << " Parent " << parent << " Neighbors: ";
-        leaf->print_neighbors();
+        // leaf->print_neighbors();
+        ParallelUFOCluster<aug_t>::ufo_pam_set::foreach_seq(leaf->neighbors, [&] (auto neighbor) {
+            std::cout << neighbor - &leaves[0] << " ";
+        });
+        std::cout << std::endl;
         bool in_map = false;
         for (auto entry : next_clusters) if (entry.second == parent) in_map = true;
         if (parent && !in_map) next_clusters.insert({parent->parent, parent});

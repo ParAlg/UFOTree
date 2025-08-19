@@ -234,7 +234,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             auto del_update_groups = integer_group_by_key_inplace(del_updates);
             parlay::parallel_for(0, del_update_groups.size(), [&] (size_t i) {
                 auto& [cluster, edges] = del_update_groups[i];
-                cluster->degree = cluster->get_degree() - edges.size();
+                cluster->degree = cluster->get_degree() - parlay::unique(edges).size();
             });
             del_updates = parlay::map_maybe(del_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
                 if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
