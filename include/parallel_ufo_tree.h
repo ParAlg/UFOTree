@@ -8,11 +8,16 @@
 #include "parallel_ufo_cluster.h"
 
 
+extern parlay::internal::timer timer0;
 extern parlay::internal::timer timer1;
 extern parlay::internal::timer timer2;
 extern parlay::internal::timer timer3;
 extern parlay::internal::timer timer4;
 extern parlay::internal::timer timer5;
+
+extern parlay::internal::timer subtimer1;
+extern parlay::internal::timer subtimer2;
+extern parlay::internal::timer subtimer3;
 
 namespace dgbs {
 
@@ -93,9 +98,12 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     // ==============
     // INITIALIZATION
     // ==============
+    timer0.start();
 
+    timer1.start();
     parlay::sequence<Cluster*> root_clusters;
     parlay::sequence<Cluster*> del_clusters;
+    parlay::sequence<parlay::sequence<Cluster*>> all_del_clusters;
     parlay::sequence<std::pair<Cluster*, Cluster*>> dir_updates;
     parlay::sequence<std::pair<Cluster*, Cluster*>> del_updates;
 
@@ -133,15 +141,13 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
     // The initial root clusters are children of level 1 parents that will get deleted, or deg 1 endpoints.
     root_clusters = process_initial_clusters(parent_groups);
-    parlay::parallel_for(0, root_clusters.size(), [&] (size_t i) {
-        root_clusters[i]->parent = nullptr;
-    });
 
     // The intial del clusters are just all parents of vertices that got an update.
     del_clusters = parlay::map_maybe(parent_groups, [&] (auto group) -> std::optional<Cluster*> {
         if (group.first) return group.first;
         return std::nullopt;
     });
+    timer1.stop();
 
 
     /* This is the main loop over all levels of the tree. Before each level i, `root_clusters` contains the
@@ -175,6 +181,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         // PHASE 1
         // =======
 
+        timer2.start();
         // For insertion batches, insert the linked edges at level i, and map to the next level.
         parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
             auto& [cluster, edges] = dir_update_groups[i];
@@ -189,23 +196,28 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             return std::nullopt;
         });
         dir_update_groups = integer_group_by_key_inplace(dir_updates);
+        timer2.stop();
 
         // =======
         // PHASE 2
         // =======
 
+        timer3.start();
         // Recluster the root clusters.
         auto additional_del_clusters = recluster_root_clusters(root_clusters, update_type);
         del_clusters.append(additional_del_clusters);
 
         // This returns only the new clusters that were created during the reclustering at this level.
         auto next_root_clusters_1 = create_new_parents(root_clusters);
+        timer3.stop();
 
         // =======
         // PHASE 3
         // =======
 
+        timer4.start();
         // Group del clusters by parent.
+        subtimer1.start();
         auto parents = parlay::tabulate(del_clusters.size(), [&] (size_t i) {
             return std::make_pair(del_clusters[i]->parent, del_clusters[i]);
         });
@@ -220,37 +232,41 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         // Determine pointers to level i+1 del clusters that will get deleted.
         auto del_edges = parlay::flatten(parlay::delayed_map(del_clusters, [&] (auto cluster) {
             parlay::sequence<std::pair<Cluster*, Cluster*>> local_del_edges;
-            if (cluster->partner) local_del_edges = cluster->get_in_edges();
+            if (cluster->partner) local_del_edges = cluster->get_filtered_in_edges();
             return local_del_edges;
         }));
         auto del_edge_groups = integer_group_by_key_inplace(del_edges);
-
-        // Map deleting edges to level i+2 and add them to the del updates.
-        del_updates = parlay::append(del_updates, parlay::map_maybe(del_edges, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-            if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
-                return std::make_pair(x.first->parent, x.second->parent);
-            return std::nullopt;
-        }));
+        subtimer1.stop();
 
         // For deletion batches, keep a trace of the level i+2 edges to delete and decrement `new degree` at each level.
+        subtimer2.start();
         if (update_type == DELETE) {
+            // Map deleting edges to level i+2 and add them to the del updates.
+            del_updates = parlay::append(del_updates, parlay::map_maybe(del_edges, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
+                if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
+                    return std::make_pair(x.first->parent, x.second->parent);
+                return std::nullopt;
+            }));
+
+            // Update level i+2 cluster temporary degree fields based on del updates
             auto del_update_groups = integer_group_by_key_inplace(del_updates);
             parlay::parallel_for(0, del_update_groups.size(), [&] (size_t i) {
                 auto& [cluster, edges] = del_update_groups[i];
                 cluster->degree = cluster->get_degree() - parlay::unique(edges).size();
             });
+
+            // Map the level i+2 del updates to level i+3
             del_updates = parlay::map_maybe(del_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
                 if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
                     return std::make_pair(x.first->parent, x.second->parent);
                 return std::nullopt;
             });
         }
+        subtimer2.stop();
 
         // Get the next level i+1 root clusters, which are children of a level i+2 del cluster that will be deleted.
+        subtimer3.start();
         auto next_root_clusters_2 = process_del_clusters(parent_groups);
-        parlay::parallel_for(0, next_root_clusters_2.size(), [&] (size_t i) {
-            next_root_clusters_2[i]->parent = nullptr;
-        });
 
         // Delete pointers to level i+1 del clusters that will get deleted.
         parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
@@ -260,14 +276,15 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         });
 
         // Delete level i+1 del clusters that should be deleted.
-        parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
-            if (del_clusters[i]->partner) free_cluster(del_clusters[i]);
-        });
+        all_del_clusters.push_back(std::move(del_clusters));
+        subtimer3.stop();
+        timer4.stop();
 
         // =======
         // PHASE 4
         // =======
 
+        timer5.start();
         // Clear the partner fields of level i root cluster's and any partnered non-root clusters.
         // For all level i root clusters, insert each incident edge into level i+1 if possible.
         // This code uses the fine-grained locking insert and should work well for only low degree cases.
@@ -299,6 +316,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 }
             });
         });
+        timer5.stop();
 
         // ==================
         // PREPARE NEXT LEVEL
@@ -306,6 +324,14 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         root_clusters = parlay::append(next_root_clusters_1, next_root_clusters_2);
         del_clusters = std::move(next_del_clusters);
     }
+
+    // Delete all the del_clusters throughout the entire update.
+    parlay::parallel_for(0, all_del_clusters.size(), [&] (size_t i) {
+        parlay::parallel_for(0, all_del_clusters[i].size(), [&] (size_t j) {
+            if (all_del_clusters[i][j]->partner) free_cluster(all_del_clusters[i][j]);
+        });
+    });
+    timer0.stop();
 }
 
 // ================================================================================================
@@ -324,9 +350,10 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_ini
 
         if (max_degree == 1) {
             center = max->get_neighbor();
-            if (center->parent != max->parent) {
+            if (AtomicLoad(&center->parent) != parent) {
                 parlay::sequence<Cluster*> local_root_clusters;
                 local_root_clusters.push_back(max);
+                AtomicStore(&max->parent, (Cluster*) NULL_PTR);
                 parent->partner = (Cluster*) DEL_MARK;
                 return local_root_clusters;
             }
@@ -338,18 +365,30 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_ini
 
         if (fanout < 4 && degree < 4) {
             auto local_root_clusters = center->filter_neighbors([&] (auto neighbor) {
-                return neighbor->parent == parent;
+                if(AtomicLoad(&neighbor->parent) == parent) {
+                    AtomicStore(&neighbor->parent, (Cluster*) NULL_PTR);
+                    return true;
+                }
+                return false;
             });
             local_root_clusters.push_back(center);
+            AtomicStore(&center->parent, (Cluster*) NULL_PTR);
             parent->partner = (Cluster*) DEL_MARK;
             return local_root_clusters;
         } else {
             if (center == max) {
                 return parlay::map_maybe(children, [&] (auto x) -> std::optional<Cluster*> {
-                    return (x.second != max ? std::optional<Cluster*>(x.second) : std::nullopt);
+                    if (x.second != max) {
+                        AtomicStore(&x.second->parent, (Cluster*) NULL_PTR);
+                        return x.second;
+                    }
+                    return std::nullopt;
                 });
             } else {
-                return parlay::map(children, [&] (auto x) { return x.second; });
+                return parlay::map(children, [&] (auto x) {
+                    AtomicStore(&x.second->parent, (Cluster*) NULL_PTR);
+                    return x.second;
+                });
             }
         }
 
@@ -371,9 +410,12 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del
 
         if (max_degree == 1) {
             center = max->get_neighbor();
-            if (center->parent != max->parent) {
+            if (AtomicLoad(&center->parent) != parent) {
                 parlay::sequence<Cluster*> local_root_clusters;
-                if (!max->partner) local_root_clusters.push_back(max);
+                if (!max->partner) {
+                    local_root_clusters.push_back(max);
+                    AtomicStore(&max->parent, (Cluster*) NULL_PTR);
+                }
                 parent->partner = (Cluster*) DEL_MARK;
                 return local_root_clusters;
             }
@@ -385,19 +427,34 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::process_del
 
         if (fanout < 4 && degree < 4) {
             auto local_root_clusters = center->filter_neighbors([&] (auto neighbor) {
-                return !neighbor->partner && neighbor->parent == parent;
+                if(!neighbor->partner && AtomicLoad(&neighbor->parent) == parent) {
+                    AtomicStore(&neighbor->parent, (Cluster*) NULL_PTR);
+                    return true;
+                }
+                return false;
             });
-            if (!center->partner) local_root_clusters.push_back(center);
+            if (!center->partner) {
+                local_root_clusters.push_back(center);
+                AtomicStore(&center->parent, (Cluster*) NULL_PTR);
+            }
             parent->partner = (Cluster*) DEL_MARK;
             return local_root_clusters;
         } else {
             if (center == max) {
                 return parlay::map_maybe(children, [&] (auto x) -> std::optional<Cluster*> {
-                    return (!x.second->partner && x.second != max ? std::optional<Cluster*>(x.second) : std::nullopt);
+                    if (!x.second->partner && x.second != max) {
+                        AtomicStore(&x.second->parent, (Cluster*) NULL_PTR);
+                        return x.second;
+                    }
+                    return std::nullopt;
                 });
             } else {
                 return parlay::map_maybe(children, [&] (auto x) -> std::optional<Cluster*> {
-                    return (!x.second->partner ? std::optional<Cluster*>(x.second) : std::nullopt);
+                    if (!x.second->partner) {
+                        AtomicStore(&x.second->parent, (Cluster*) NULL_PTR);
+                        return x.second;
+                    }
+                    return std::nullopt;
                 });
             }
         }
