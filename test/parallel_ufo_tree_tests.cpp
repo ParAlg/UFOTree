@@ -137,6 +137,7 @@ parlay::internal::timer timer5("");
 parlay::internal::timer subtimer1("");
 parlay::internal::timer subtimer2("");
 parlay::internal::timer subtimer3("");
+parlay::internal::timer subtimer4("");
 
 extern int command_line_n;
 extern int command_line_k;

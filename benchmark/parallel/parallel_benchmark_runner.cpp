@@ -21,6 +21,7 @@ parlay::internal::timer timer5("");
 parlay::internal::timer subtimer1("");
 parlay::internal::timer subtimer2("");
 parlay::internal::timer subtimer3("");
+parlay::internal::timer subtimer4("");
 
 int main(int argc, char** argv) {
     // List of values of n to loop through and run all test cases
@@ -121,4 +122,5 @@ int main(int argc, char** argv) {
     std::cout << "SUBTIMER 1: " << subtimer1.total_time() << std::endl;
     std::cout << "SUBTIMER 2: " << subtimer2.total_time() << std::endl;
     std::cout << "SUBTIMER 3: " << subtimer3.total_time() << std::endl;
+    std::cout << "SUBTIMER 4: " << subtimer4.total_time() << std::endl;
 }
