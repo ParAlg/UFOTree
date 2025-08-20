@@ -52,11 +52,11 @@ public:
     static parlay::sequence<Cluster*> process_initial_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups);
     static parlay::sequence<Cluster*> process_del_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups);
     static parlay::sequence<std::pair<Cluster*, Cluster*>> recluster_root_clusters(parlay::sequence<Cluster*>& root_clusters, UpdateType update_type);
-    static Cluster* recluster_degree_one_root(Cluster* root_cluster, UpdateType update_type);
-    static parlay::sequence<std::pair<Cluster*, Cluster*>> recluster_degree_two_root(Cluster* root_cluster);
-    static Cluster* recluster_high_degree_root(Cluster* root_cluster);
-    static parlay::sequence<Cluster*> create_new_parents(parlay::sequence<Cluster*>& root_clusters);
+    static inline Cluster* recluster_degree_one_root(Cluster* root_cluster, UpdateType update_type);
+    static inline parlay::sequence<std::pair<Cluster*, Cluster*>> recluster_degree_two_root(Cluster* root_cluster);
+    static inline Cluster* recluster_high_degree_root(Cluster* root_cluster);
     static inline bool is_local_max(Cluster* c);
+    static parlay::sequence<Cluster*> create_new_parents(parlay::sequence<Cluster*>& root_clusters);
 
     static Cluster* allocate_cluster();
     static void free_cluster(Cluster* c);
@@ -613,6 +613,23 @@ ParallelUFOCluster<aug_t>* ParallelUFOTree<aug_t>::recluster_high_degree_root(Cl
 }
 
 template <typename aug_t>
+bool ParallelUFOTree<aug_t>::is_local_max(Cluster* c) {
+    // Assumes the input is a degree 2 cluster
+    Cluster* neighbor1 = c->get_neighbor();
+    Cluster* neighbor2 = c->get_other_neighbor(neighbor1);
+    uint64_t hash = hash64((uintptr_t) c);
+    uint64_t hash1 = hash64((uintptr_t) neighbor1);
+    uint64_t hash2 = hash64((uintptr_t) neighbor2);
+    if (neighbor1->get_degree() == 2 && !neighbor1->parent)
+        if (hash1 > hash || (hash1 == hash && neighbor1 > c))
+            return false;
+    if (neighbor2->get_degree() == 2 && !neighbor2->parent)
+        if (hash2 > hash || (hash2 == hash && neighbor2 > c))
+            return false;
+    return true;
+}
+
+template <typename aug_t>
 parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::create_new_parents(parlay::sequence<Cluster*>& root_clusters) {
     // Only returns the brand new clusters to be root clusters at the next level,
     // not the parents of non-root clusters. Those may become root clusters also,
@@ -641,23 +658,6 @@ parlay::sequence<ParallelUFOCluster<aug_t>*> ParallelUFOTree<aug_t>::create_new_
             return parent;
         }
     });
-}
-
-template <typename aug_t>
-bool ParallelUFOTree<aug_t>::is_local_max(Cluster* c) {
-    // Assumes the input is a degree 2 cluster
-    Cluster* neighbor1 = c->get_neighbor();
-    Cluster* neighbor2 = c->get_other_neighbor(neighbor1);
-    uint64_t hash = hash64((uintptr_t) c);
-    uint64_t hash1 = hash64((uintptr_t) neighbor1);
-    uint64_t hash2 = hash64((uintptr_t) neighbor2);
-    if (neighbor1->get_degree() == 2 && !neighbor1->parent)
-        if (hash1 > hash || (hash1 == hash && neighbor1 > c))
-            return false;
-    if (neighbor2->get_degree() == 2 && !neighbor2->parent)
-        if (hash2 > hash || (hash2 == hash && neighbor2 > c))
-            return false;
-    return true;
 }
 
 template <typename aug_t>
