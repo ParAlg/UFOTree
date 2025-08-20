@@ -37,10 +37,14 @@ TEST(ParallelMISSuite, mis_test) {
         parlay::sequence<Cluster*> root_clusters = parlay::tabulate(n, [&] (size_t i) {
             return &clusters[permutation[i]];
         });
+        ParallelUFOTree<> tree(n, 1);
+        parlay::parallel_for(0, n, [&] (size_t i) {
+            tree.thread_local_root_clusters->push_back(root_clusters[i]);
+        });
 
         // Call the parallel MIS algorithm to recluster the root clusters
-        UFOTree::recluster_root_clusters(root_clusters, INSERT);
-        UFOTree::create_new_parents(root_clusters);
+        tree.recluster_root_clusters(INSERT);
+        tree.create_new_parents();
 
         // Check that all clusters have a parent
         std::atomic<Cluster*> parentless_cluster = nullptr;

@@ -58,17 +58,6 @@ struct ParallelUFOCluster {
         });
     }
 
-    template <class F>
-    parlay::sequence<ParallelUFOCluster*> filter_neighbors(const F& f) {
-        return parlay::filter(ufo_pam_set::entries(neighbors), f);
-    }
-
-    parlay::sequence<std::pair<ParallelUFOCluster*, ParallelUFOCluster*>> get_in_edges() {
-        return parlay::map(ufo_pam_set::entries(neighbors), [&] (auto neighbor) {
-            return std::make_pair(neighbor, this);
-        });
-    }
-
     parlay::sequence<std::pair<ParallelUFOCluster*, ParallelUFOCluster*>> get_filtered_in_edges() {
         return parlay::map_maybe(ufo_pam_set::entries(neighbors), [&] (auto neighbor) -> std::optional<std::pair<Cluster*, Cluster*>> {
             if (partner && !neighbor->partner) return std::make_pair(neighbor, this);
