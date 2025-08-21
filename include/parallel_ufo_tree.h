@@ -41,7 +41,7 @@ public:
     void batch_cut(parlay::sequence<std::pair<int, int>>& cuts);
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
-    bool is_valid();
+    bool is_valid(parlay::sequence<std::pair<int, int>>& edges);
     int get_height(vertex_t v);
     void print_tree();
 // private:

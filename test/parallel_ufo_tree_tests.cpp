@@ -10,7 +10,36 @@
 using namespace dgbs;
 
 template <typename aug_t>
-bool ParallelUFOTree<aug_t>::is_valid() {
+bool ParallelUFOTree<aug_t>::is_valid(parlay::sequence<std::pair<int, int>>& edges) {
+    // Ensure that the level 0 forest matches the input edge list
+    auto dir_edges = parlay::tabulate(2*edges.size(), [&] (size_t i) {
+        if (i % 2 == 0) return std::make_pair(edges[i/2].first, edges[i/2].second);
+        return std::make_pair(edges[i/2].second, edges[i/2].first);
+    });
+    std::atomic<bool> all_edges_in_tree = true;
+    parlay::parallel_for(0, dir_edges.size(), [&] (size_t i) {
+        if (!leaves[dir_edges[i].first].contains_neighbor(&leaves[dir_edges[i].second]))
+            all_edges_in_tree = false;
+    });
+    if (!all_edges_in_tree) {
+        std::cerr << "NOT ALL EDGES ARE PRESENT IN THE TREE." << std::endl;
+        return false;
+    }
+    std::set<std::pair<int, int>> edge_set;
+    for (auto edge : dir_edges) edge_set.insert(edge);
+    std::atomic<bool> no_extra_edges_in_tree = true;
+    parlay::parallel_for(0, leaves.size(), [&] (size_t i) {
+        leaves[i].for_all_neighbors([&] (auto neighbor) {
+            int index = neighbor - &leaves[0];
+            if (!edge_set.contains(std::make_pair(i, index)))
+                no_extra_edges_in_tree = false;
+        });
+    });
+    if (!no_extra_edges_in_tree) {
+        std::cerr << "THERE ARE EXTRA EDGES PRESENT IN THE TREE." << std::endl;
+        return false;
+    }
+    // Validate the tree based on its level 0 contents
     std::unordered_set<Cluster*> clusters;
     std::unordered_set<Cluster*> next_clusters;
     for (int i = 0; i < leaves.size(); i++) { // Ensure that every pair of incident vertices are in the same component
@@ -160,11 +189,13 @@ TEST(ParallelUFOTreeSuite, batch_incremental_linkedlist_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            if (!tree.is_valid()) {
+            edges = parlay::append(edges, batch.edges);
+            if (!tree.is_valid(edges)) {
                 tree.print_tree();
                 FAIL() << "Tree invalid after batch of links.";
             }
@@ -188,11 +219,13 @@ TEST(ParallelUFOTreeSuite, batch_incremental_star_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            if (!tree.is_valid()) {
+            edges = parlay::append(edges, batch.edges);
+            if (!tree.is_valid(edges)) {
                 tree.print_tree();
                 FAIL() << "Tree invalid after batch of links.";
             }
@@ -216,11 +249,13 @@ TEST(ParallelUFOTreeSuite, batch_incremental_binarytree_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            if (!tree.is_valid()) {
+            edges = parlay::append(edges, batch.edges);
+            if (!tree.is_valid(edges)) {
                 tree.print_tree();
                 FAIL() << "Tree invalid after batch of links.";
             }
@@ -245,11 +280,13 @@ TEST(ParallelUFOTreeSuite, batch_incremental_karytree_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, seed, fanout);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            if (!tree.is_valid()) {
+            edges = parlay::append(edges, batch.edges);
+            if (!tree.is_valid(edges)) {
                 tree.print_tree();
                 FAIL() << "Tree invalid after batch of links.";
             }
@@ -273,11 +310,13 @@ TEST(ParallelUFOTreeSuite, batch_incremental_random_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::random_unbounded_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type != INSERT) break;
             tree.batch_link(batch.edges);
-            if (!tree.is_valid()) {
+            edges = parlay::append(edges, batch.edges);
+            if (!tree.is_valid(edges)) {
                 tree.print_tree();
                 FAIL() << "Tree invalid after batch of links.";
             }
@@ -305,13 +344,17 @@ TEST(ParallelUFOTreeSuite, batch_decremental_linkedlist_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::linked_list_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type == INSERT) {
                 tree.batch_link(batch.edges);
+                edges = parlay::append(edges, batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                if (!tree.is_valid()) {
+                for (auto edge : batch.edges)
+                    edges = parlay::remove(edges, edge);
+                if (!tree.is_valid(edges)) {
                     tree.print_tree();
                     FAIL() << "Tree invalid after batch of links.";
                 }
@@ -336,13 +379,17 @@ TEST(ParallelUFOTreeSuite, batch_decremental_star_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::star_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type == INSERT) {
                 tree.batch_link(batch.edges);
+                edges = parlay::append(edges, batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                if (!tree.is_valid()) {
+                for (auto edge : batch.edges)
+                    edges = parlay::remove(edges, edge);
+                if (!tree.is_valid(edges)) {
                     tree.print_tree();
                     FAIL() << "Tree invalid after batch of links.";
                 }
@@ -367,13 +414,17 @@ TEST(ParallelUFOTreeSuite, batch_decremental_binarytree_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::binary_tree_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type == INSERT) {
                 tree.batch_link(batch.edges);
+                edges = parlay::append(edges, batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                if (!tree.is_valid()) {
+                for (auto edge : batch.edges)
+                    edges = parlay::remove(edges, edge);
+                if (!tree.is_valid(edges)) {
                     tree.print_tree();
                     FAIL() << "Tree invalid after batch of links.";
                 }
@@ -399,13 +450,17 @@ TEST(ParallelUFOTreeSuite, batch_decremental_karytree_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::k_ary_tree_benchmark_helper(n, seed, fanout);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type == INSERT) {
                 tree.batch_link(batch.edges);
+                edges = parlay::append(edges, batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                if (!tree.is_valid()) {
+                for (auto edge : batch.edges)
+                    edges = parlay::remove(edges, edge);
+                if (!tree.is_valid(edges)) {
                     tree.print_tree();
                     FAIL() << "Tree invalid after batch of links.";
                 }
@@ -430,13 +485,17 @@ TEST(ParallelUFOTreeSuite, batch_decremental_random_correctness_test) {
 
         auto update_sequence = dynamic_tree_benchmark::random_unbounded_benchmark(n, seed);
         auto batches = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
+        parlay::sequence<std::pair<int, int>> edges;
 
         for (auto batch : batches) {
             if (batch.type == INSERT) {
                 tree.batch_link(batch.edges);
+                edges = parlay::append(edges, batch.edges);
             } else {
                 tree.batch_cut(batch.edges);
-                if (!tree.is_valid()) {
+                for (auto edge : batch.edges)
+                    edges = parlay::remove(edges, edge);
+                if (!tree.is_valid(edges)) {
                     tree.print_tree();
                     FAIL() << "Tree invalid after batch of links.";
                 }
