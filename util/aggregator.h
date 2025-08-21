@@ -69,7 +69,10 @@ struct Aggregator {
     }
 
     parlay::sequence<T> to_sequence() {
-        return parlay::flatten(lists);
+        auto non_padding_lists = parlay::delayed_tabulate(num_workers, [&] (size_t i) {
+            return lists[padding*i];
+        });
+        return parlay::flatten(non_padding_lists);
     }
 };
 
