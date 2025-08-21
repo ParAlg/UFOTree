@@ -52,6 +52,8 @@ public:
     Aggregator<Cluster*>* thread_local_root_clusters;
     Aggregator<Cluster*>* thread_local_next_root_clusters;
     Aggregator<std::pair<Cluster*, Cluster*>> thread_local_del_clusters;
+    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_del_edges;
+    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_new_del_edges;
 
     // Helper functions
     void recluster_tree(parlay::sequence<std::pair<int, int>>& updates, UpdateType update_type);
@@ -71,7 +73,7 @@ public:
 
 template <typename aug_t>
 ParallelUFOTree<aug_t>::ParallelUFOTree(vertex_t n, vertex_t k) : leaves(n), thread_local_root_clusters(new Aggregator<Cluster*>()),
-    thread_local_next_root_clusters(new Aggregator<Cluster*>()), thread_local_del_clusters() {}
+    thread_local_next_root_clusters(new Aggregator<Cluster*>()), thread_local_del_clusters(), thread_local_del_edges(), thread_local_new_del_edges() {}
 
 template <typename aug_t>
 ParallelUFOTree<aug_t>::~ParallelUFOTree() {
@@ -116,14 +118,21 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     parlay::sequence<std::pair<Cluster*, Cluster*>> next_del_clusters;
     parlay::sequence<parlay::sequence<std::pair<Cluster*, Cluster*>>> all_del_clusters;
     parlay::sequence<std::pair<Cluster*, Cluster*>> dir_updates;
-    parlay::sequence<std::pair<Cluster*, Cluster*>> del_updates;
-    parlay::sequence<std::pair<Cluster*, Cluster*>> del_edges;
 
     timer1.start();
     // The intial dir updates are just the batch of links or cuts in both directions.
+    // For deletion batches, the initial level 1 del edges are initial cuts one level up.
     dir_updates = parlay::tabulate(2*updates.size(), [&] (size_t i) {
-        if (i % 2 == 0) return std::make_pair(&leaves[updates[i/2].first], &leaves[updates[i/2].second]);
-        return std::make_pair(&leaves[updates[i/2].second], &leaves[updates[i/2].first]);
+        Cluster* c1 = &leaves[updates[i/2].first];
+        Cluster* c2 = &leaves[updates[i/2].second];
+        if (update_type == DELETE) {
+            if (i % 2 == 0 && c1->parent && c2->parent && c1->parent != c2->parent) {
+                thread_local_del_edges.push_back(std::make_pair(c1->parent, c2->parent));
+                thread_local_del_edges.push_back(std::make_pair(c2->parent, c1->parent));
+            }
+        }
+        if (i % 2 == 0) return std::make_pair(c1, c2);
+        return std::make_pair(c2, c1);
     });
     auto dir_update_groups = integer_group_by_key_inplace(dir_updates);
 
@@ -133,22 +142,18 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     });
     auto parent_groups = integer_group_by_key_inplace(parents);
 
-    // For deletion batches, keep a trace of the level i+2 edges to delete and decrement `new degree` at each level.
+    // For deletion batches, keep a trace of the level i+2 del edges to delete and decrement `degree` at each level.
     if (update_type == DELETE) {
-        del_updates = parlay::map_maybe(dir_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-            if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
-                return std::make_pair(x.first->parent, x.second->parent);
-            return std::nullopt;
-        });
-        auto del_update_groups = integer_group_by_key_inplace(del_updates);
-        parlay::parallel_for(0, del_update_groups.size(), [&] (size_t i) {
-            auto& [cluster, edges] = del_update_groups[i];
+        auto del_edges = thread_local_del_edges.to_sequence();
+        thread_local_del_edges.clear();
+        auto del_edge_groups = integer_group_by_key_inplace(del_edges);
+        parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
+            auto& [cluster, edges] = del_edge_groups[i];
             cluster->degree = cluster->get_degree() - edges.size();
-        });
-        del_updates = parlay::map_maybe(del_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-            if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
-                return std::make_pair(x.first->parent, x.second->parent);
-            return std::nullopt;
+            parlay::parallel_for(0, edges.size(), [&] (size_t j) {
+                if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
+                    thread_local_del_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+            });
         });
     }
 
@@ -228,29 +233,30 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         timer4.start();
         subtimer1.start();
         // Determine pointers to level i+1 del clusters that will get deleted.
-        del_edges = parlay::flatten(parlay::delayed_map(del_clusters, [&] (auto cluster) {
-            parlay::sequence<std::pair<Cluster*, Cluster*>> local_del_edges;
-            if (cluster.first != (Cluster*) NULL_PTR && cluster.first != (Cluster*) NULL_PAR)
-                if (cluster.second->partner) local_del_edges = cluster.second->get_filtered_in_edges();
-            return local_del_edges;
-        }));
-        parlay::sequence<std::pair<Cluster*, EdgeSlice>> del_edge_groups;
-
-        // For deletion batches, map deleting edges to level i+2 and add them to the del updates.
-        if (update_type == DELETE) {
-            del_updates = parlay::append(del_updates, parlay::map_maybe(del_edges, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-                if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
-                    return std::make_pair(x.first->parent, x.second->parent);
-                return std::nullopt;
-            }));
-        }
+        // For deletion batches, map deleting edges to level i+2 and add them to the del edges.
+        parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
+            auto [parent, cluster] = del_clusters[i];
+            if (parent != (Cluster*) NULL_PTR && parent != (Cluster*) NULL_PAR && cluster->partner == (Cluster*) DEL_MARK) {
+                cluster->for_all_neighbors([&] (Cluster* neighbor) {
+                    if (!neighbor->partner) {
+                        thread_local_new_del_edges.push_back(std::make_pair(neighbor, cluster));
+                        if (update_type == DELETE)
+                            if (neighbor->parent && cluster->parent && neighbor->parent != cluster->parent)
+                                thread_local_del_edges.push_back(std::make_pair(neighbor->parent, cluster->parent));
+                    }
+                });
+            }
+        });
+        auto new_del_edges = thread_local_new_del_edges.to_sequence();
+        thread_local_new_del_edges.clear();
+        parlay::sequence<std::pair<Cluster*, EdgeSlice>> new_del_edge_groups;
         subtimer1.stop();
 
         subtimer2.start();
         parlay::parallel_do(
         [&] () {
             // Group edges to delete by endpoint.
-            del_edge_groups = integer_group_by_key_inplace(del_edges);
+            new_del_edge_groups = integer_group_by_key_inplace(new_del_edges);
         },
         [&] () {
             parlay::parallel_do(
@@ -259,23 +265,22 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                 parent_groups = integer_group_by_key_inplace(del_clusters);
             },
             [&] () {
-                // For deletion batches, keep a trace of the level i+2 edges to delete and decrement `new degree` at each level.
+                // For deletion batches, keep a trace of the level i+2 del edges to delete and decrement `degree` at each level.
                 if (update_type == DELETE) {
-                    // Update level i+2 cluster temporary degree fields based on del updates
-                    auto del_update_groups = integer_group_by_key_inplace(del_updates);
-                    parlay::parallel_for(0, del_update_groups.size(), [&] (size_t i) {
-                        auto& [cluster, edges] = del_update_groups[i];
+                    // Group the level i+2 updates by endpoint.
+                    auto del_edges = thread_local_del_edges.to_sequence();
+                    thread_local_del_edges.clear();
+                    auto del_edge_groups = integer_group_by_key_inplace(del_edges);
+                    // Update the degree fields and map the level i+2 del edges to level i+3.
+                    parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
+                        auto& [cluster, edges] = del_edge_groups[i];
                         cluster->degree = cluster->get_degree() - parlay::unique(edges).size();
-                    });
-
-                    // Map the level i+2 del updates to level i+3
-                    del_updates = parlay::map_maybe(del_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-                        if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
-                            return std::make_pair(x.first->parent, x.second->parent);
-                        return std::nullopt;
+                        parlay::parallel_for(0, edges.size(), [&] (size_t j) {
+                            if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
+                                thread_local_del_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+                        });
                     });
                 }
-
             });
         });
         subtimer2.stop();
@@ -289,8 +294,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 
         // Delete pointers to level i+1 del clusters that will get deleted.
         subtimer4.start();
-        parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
-            auto& [cluster, edges] = del_edge_groups[i];
+        parlay::parallel_for(0, new_del_edge_groups.size(), [&] (size_t i) {
+            auto& [cluster, edges] = new_del_edge_groups[i];
             auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
             cluster->delete_neighbors_sorted(neighbors);
         });
