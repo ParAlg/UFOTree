@@ -137,26 +137,32 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     });
     auto dir_update_groups = integer_group_by_key_inplace(dir_updates);
 
-    // Group the affected vertices by parent.
-    auto parents = parlay::map(dir_update_groups, [&] (auto group) {
-        return std::make_pair(group.first->parent, group.first);
-    });
-    auto parent_groups = integer_group_by_key_inplace(parents);
-
-    // For deletion batches, keep a trace of the level i+2 del edges to delete and decrement `degree` at each level.
-    if (update_type == DELETE) {
-        auto del_edges = thread_local_del_edges.to_sequence();
-        thread_local_del_edges.clear();
-        auto del_edge_groups = integer_group_by_key_inplace(del_edges);
-        parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
-            auto& [cluster, edges] = del_edge_groups[i];
-            cluster->degree = cluster->get_degree() - edges.size();
-            parlay::parallel_for(0, edges.size(), [&] (size_t j) {
-                if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
-                    thread_local_del_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
-            });
+    parlay::sequence<std::pair<Cluster*, Cluster*>> parents;
+    parlay::sequence<std::pair<Cluster*, EdgeSlice>> parent_groups;
+    parlay::parallel_do(
+    [&] () {
+        // Group the affected vertices by parent.
+        parents = parlay::map(dir_update_groups, [&] (auto group) {
+            return std::make_pair(group.first->parent, group.first);
         });
-    }
+        parent_groups = integer_group_by_key_inplace(parents);
+    },
+    [&] () {
+        // For deletion batches, keep a trace of the level i+2 del edges to delete and decrement `degree` at each level.
+        if (update_type == DELETE) {
+            auto del_edges = thread_local_del_edges.to_sequence();
+            thread_local_del_edges.clear();
+            auto del_edge_groups = integer_group_by_key_inplace(del_edges);
+            parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
+                auto& [cluster, edges] = del_edge_groups[i];
+                cluster->degree = cluster->get_degree() - edges.size();
+                parlay::parallel_for(0, edges.size(), [&] (size_t j) {
+                    if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
+                        thread_local_del_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+                });
+            });
+        }
+    });
 
     // The initial root clusters are children of level 1 parents that will get deleted, or deg 1 endpoints.
     // The intial del clusters are just all parents of vertices that got an update.
