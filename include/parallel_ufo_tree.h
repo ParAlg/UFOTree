@@ -52,6 +52,7 @@ public:
     Aggregator<Cluster*>* thread_local_root_clusters;
     Aggregator<Cluster*>* thread_local_next_root_clusters;
     Aggregator<std::pair<Cluster*, Cluster*>> thread_local_del_clusters;
+    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_dir_edges;
     Aggregator<std::pair<Cluster*, Cluster*>> thread_local_del_edges;
     Aggregator<std::pair<Cluster*, Cluster*>> thread_local_new_del_edges;
 
@@ -73,7 +74,8 @@ public:
 
 template <typename aug_t>
 ParallelUFOTree<aug_t>::ParallelUFOTree(vertex_t n, vertex_t k) : leaves(n), thread_local_root_clusters(new Aggregator<Cluster*>()),
-    thread_local_next_root_clusters(new Aggregator<Cluster*>()), thread_local_del_clusters(), thread_local_del_edges(), thread_local_new_del_edges() {}
+    thread_local_next_root_clusters(new Aggregator<Cluster*>()), thread_local_del_clusters(), thread_local_dir_edges(),
+    thread_local_del_edges(), thread_local_new_del_edges() {}
 
 template <typename aug_t>
 ParallelUFOTree<aug_t>::~ParallelUFOTree() {
@@ -117,12 +119,11 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     parlay::sequence<std::pair<Cluster*, Cluster*>> del_clusters;
     parlay::sequence<std::pair<Cluster*, Cluster*>> next_del_clusters;
     parlay::sequence<parlay::sequence<std::pair<Cluster*, Cluster*>>> all_del_clusters;
-    parlay::sequence<std::pair<Cluster*, Cluster*>> dir_updates;
 
     timer1.start();
     // The intial dir updates are just the batch of links or cuts in both directions.
     // For deletion batches, the initial level 1 del edges are initial cuts one level up.
-    dir_updates = parlay::tabulate(2*updates.size(), [&] (size_t i) {
+    auto dir_updates = parlay::tabulate(2*updates.size(), [&] (size_t i) {
         Cluster* c1 = &leaves[updates[i/2].first];
         Cluster* c2 = &leaves[updates[i/2].second];
         if (update_type == DELETE) {
@@ -202,13 +203,13 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
             if (update_type == INSERT) cluster->insert_neighbors_sorted(neighbors);
             else cluster->delete_neighbors_sorted(neighbors);
+            parlay::parallel_for(0, edges.size(), [&] (size_t j) {
+                if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
+                    thread_local_dir_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+            });
         });
-
-        dir_updates = parlay::map_maybe(dir_updates, [&] (std::pair<Cluster*, Cluster*> x) -> std::optional<std::pair<Cluster*, Cluster*>> {
-            if (x.first->parent && x.second->parent && x.first->parent != x.second->parent)
-                return std::make_pair(x.first->parent, x.second->parent);
-            return std::nullopt;
-        });
+        dir_updates = thread_local_dir_edges.to_sequence();
+        thread_local_dir_edges.clear();
         dir_update_groups = integer_group_by_key_inplace(dir_updates);
         timer2.stop();
 
