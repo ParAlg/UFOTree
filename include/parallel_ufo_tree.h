@@ -6,6 +6,7 @@
 #include "bridge.h"
 #include "hash_bag.h"
 #include "aggregator.h"
+#include "group.h"
 #include "parallel_ufo_cluster.h"
 
 
@@ -32,7 +33,7 @@ class ParallelUFOTree {
     static constexpr uintptr_t NON_ROOT_MARK = 3;
     static constexpr uintptr_t NEW_PAR_MARK = 4;
     using allocator = parlay::type_allocator<Cluster>;
-    using EdgeSlice = parlay::slice<std::pair<Cluster*, Cluster*>*, std::pair<Cluster*, Cluster*>*>;
+    using EdgeSlice = parlay::slice<hwy::uint128_t*, hwy::uint128_t*>;
 public:
     // UFO tree interface
     ParallelUFOTree(vertex_t n, vertex_t k);
@@ -51,15 +52,15 @@ public:
     // Thread local root cluster aggregator
     Aggregator<Cluster*>* thread_local_root_clusters;
     Aggregator<Cluster*>* thread_local_next_root_clusters;
-    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_del_clusters;
-    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_dir_edges;
-    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_del_edges;
-    Aggregator<std::pair<Cluster*, Cluster*>> thread_local_new_del_edges;
+    Aggregator<hwy::uint128_t> thread_local_del_clusters;
+    Aggregator<hwy::uint128_t> thread_local_dir_edges;
+    Aggregator<hwy::uint128_t> thread_local_del_edges;
+    Aggregator<hwy::uint128_t> thread_local_new_del_edges;
 
     // Helper functions
     void recluster_tree(parlay::sequence<std::pair<int, int>>& updates, UpdateType update_type);
-    parlay::sequence<std::pair<Cluster*, Cluster*>> process_initial_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups);
-    parlay::sequence<std::pair<Cluster*, Cluster*>> process_del_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups);
+    parlay::sequence<hwy::uint128_t> process_initial_clusters(parlay::sequence<std::pair<uintptr_t, EdgeSlice>>& parent_groups);
+    parlay::sequence<hwy::uint128_t> process_del_clusters(parlay::sequence<std::pair<uintptr_t, EdgeSlice>>& parent_groups);
     void recluster_root_clusters(UpdateType update_type);
     inline void recluster_degree_one_root(Cluster* root_cluster, UpdateType update_type);
     inline void recluster_degree_two_root(Cluster* root_cluster);
@@ -116,9 +117,9 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     // ==============
     timer0.start();
 
-    parlay::sequence<std::pair<Cluster*, Cluster*>> del_clusters;
-    parlay::sequence<std::pair<Cluster*, Cluster*>> next_del_clusters;
-    parlay::sequence<parlay::sequence<std::pair<Cluster*, Cluster*>>> all_del_clusters;
+    parlay::sequence<hwy::uint128_t> del_clusters;
+    parlay::sequence<hwy::uint128_t> next_del_clusters;
+    parlay::sequence<parlay::sequence<hwy::uint128_t>> all_del_clusters;
 
     timer1.start();
     // The intial dir updates are just the batch of links or cuts in both directions.
@@ -128,22 +129,23 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         Cluster* c2 = &leaves[updates[i/2].second];
         if (update_type == DELETE) {
             if (i % 2 == 0 && c1->parent && c2->parent && c1->parent != c2->parent) {
-                thread_local_del_edges.push_back(std::make_pair(c1->parent, c2->parent));
-                thread_local_del_edges.push_back(std::make_pair(c2->parent, c1->parent));
+                thread_local_del_edges.push_back(make_hwy(c1->parent, c2->parent));
+                thread_local_del_edges.push_back(make_hwy(c2->parent, c1->parent));
             }
         }
-        if (i % 2 == 0) return std::make_pair(c1, c2);
-        return std::make_pair(c2, c1);
+        if (i % 2 == 0) return make_hwy(c1, c2);
+        return make_hwy(c2, c1);
     });
     auto dir_update_groups = group_by_key_inplace(dir_updates);
 
-    parlay::sequence<std::pair<Cluster*, Cluster*>> parents;
-    parlay::sequence<std::pair<Cluster*, EdgeSlice>> parent_groups;
+    parlay::sequence<hwy::uint128_t> parents;
+    parlay::sequence<std::pair<uintptr_t, EdgeSlice>> parent_groups;
     parlay::parallel_do(
     [&] () {
         // Group the affected vertices by parent.
         parents = parlay::map(dir_update_groups, [&] (auto group) {
-            return std::make_pair(group.first->parent, group.first);
+            Cluster* cluster = (Cluster*) group.first;
+            return make_hwy(cluster->parent, cluster);
         });
         parent_groups = group_by_key_inplace(parents);
     },
@@ -154,11 +156,13 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             thread_local_del_edges.clear();
             auto del_edge_groups = group_by_key_inplace(del_edges);
             parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
-                auto& [cluster, edges] = del_edge_groups[i];
+                Cluster* cluster = (Cluster*) del_edge_groups[i].first;
+                auto edges = del_edge_groups[i].second;
                 cluster->degree = cluster->get_degree() - edges.size();
                 parlay::parallel_for(0, edges.size(), [&] (size_t j) {
-                    if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
-                        thread_local_del_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+                    auto edge = unpack_hwy<Cluster*>(edges[j]);
+                    if (edge.first->parent && edge.second->parent && edge.first->parent != edge.second->parent)
+                        thread_local_del_edges.push_back(make_hwy(edge.first->parent, edge.second->parent));
                 });
             });
         }
@@ -197,7 +201,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     contracted away. This fills the adjacency lists of our new parent clusters and also updates any level i+1
     clusters that remain from the previous tree. This must happen after phase 3 so that we do not modify the
     structure of the old tree before processing the del clusters. */
-    while (!thread_local_root_clusters->empty() || (del_clusters.size() > 0 && del_clusters[0].first != (Cluster*) NULL_PAR)) {
+    while (!thread_local_root_clusters->empty() || (del_clusters.size() > 0 && del_clusters[0].hi != (uint64_t) NULL_PAR)) {
         // =======
         // PHASE 1
         // =======
@@ -205,13 +209,15 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         timer2.start();
         // For insertion batches, insert the linked edges at level i, and map to the next level.
         parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
-            auto& [cluster, edges] = dir_update_groups[i];
-            auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
+            Cluster* cluster = (Cluster*) dir_update_groups[i].first;
+            auto edges = dir_update_groups[i].second;
+            auto neighbors = parlay::map(edges, [&] (auto x) { return (Cluster*) x.lo; });
             if (update_type == INSERT) cluster->insert_neighbors_sorted(neighbors);
             else cluster->delete_neighbors_sorted(neighbors);
             parlay::parallel_for(0, edges.size(), [&] (size_t j) {
-                if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
-                    thread_local_dir_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+                auto edge = unpack_hwy<Cluster*>(edges[j]);
+                if (edge.first->parent && edge.second->parent && edge.first->parent != edge.second->parent)
+                    thread_local_dir_edges.push_back(make_hwy(edge.first->parent, edge.second->parent));
             });
         });
         dir_updates = thread_local_dir_edges.to_sequence();
@@ -245,21 +251,21 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             // Determine pointers to level i+1 del clusters that will get deleted.
             // For deletion batches, map deleting edges to level i+2 and add them to the del edges.
             parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
-                auto [parent, cluster] = del_clusters[i];
+                auto [parent, cluster] = unpack_hwy<Cluster*>(del_clusters[i]);
                 if (parent != (Cluster*) NULL_PTR && parent != (Cluster*) NULL_PAR && cluster->partner == (Cluster*) DEL_MARK) {
                     cluster->for_all_neighbors([&] (Cluster* neighbor) {
                         if (!neighbor->partner) {
-                            thread_local_new_del_edges.push_back(std::make_pair(neighbor, cluster));
+                            thread_local_new_del_edges.push_back(make_hwy(neighbor, cluster));
                             if (update_type == DELETE)
                                 if (neighbor->parent && cluster->parent && neighbor->parent != cluster->parent)
-                                    thread_local_del_edges.push_back(std::make_pair(neighbor->parent, cluster->parent));
+                                    thread_local_del_edges.push_back(make_hwy(neighbor->parent, cluster->parent));
                         }
                     });
                 }
             });
             auto new_del_edges = thread_local_new_del_edges.to_sequence();
             thread_local_new_del_edges.clear();
-            parlay::sequence<std::pair<Cluster*, EdgeSlice>> new_del_edge_groups;
+            parlay::sequence<std::pair<uintptr_t, EdgeSlice>> new_del_edge_groups;
             subtimer1.stop();
 
             subtimer2.start();
@@ -283,11 +289,13 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                         auto del_edge_groups = group_by_key_inplace(del_edges);
                         // Update the degree fields and map the level i+2 del edges to level i+3.
                         parlay::parallel_for(0, del_edge_groups.size(), [&] (size_t i) {
-                            auto& [cluster, edges] = del_edge_groups[i];
+                            Cluster* cluster = (Cluster*) del_edge_groups[i].first;
+                            auto edges = del_edge_groups[i].second;
                             cluster->degree = cluster->get_degree() - parlay::unique(edges).size();
                             parlay::parallel_for(0, edges.size(), [&] (size_t j) {
-                                if (edges[j].first->parent && edges[j].second->parent && edges[j].first->parent != edges[j].second->parent)
-                                    thread_local_del_edges.push_back(std::make_pair(edges[j].first->parent, edges[j].second->parent));
+                                auto edge = unpack_hwy<Cluster*>(edges[j]);
+                                if (edge.first->parent && edge.second->parent && edge.first->parent != edge.second->parent)
+                                    thread_local_del_edges.push_back(make_hwy(edge.first->parent, edge.second->parent));
                             });
                         });
                     }
@@ -306,8 +314,8 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             subtimer4.start();
             parlay::parallel_for(0, new_del_edge_groups.size(), [&] (size_t i) {
                 auto& [cluster, edges] = new_del_edge_groups[i];
-                auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
-                cluster->delete_neighbors_sorted(neighbors);
+                auto neighbors = parlay::map(edges, [&] (auto x) { return (Cluster*) x.lo; });
+                ((Cluster*)cluster)->delete_neighbors_sorted(neighbors);
             });
             subtimer4.stop();
 
@@ -336,9 +344,9 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     // Delete all the del_clusters throughout the entire update.
     parlay::parallel_for(0, all_del_clusters.size(), [&] (size_t i) {
         parlay::parallel_for(0, all_del_clusters[i].size(), [&] (size_t j) {
-            if (all_del_clusters[i][j].second)
-                if (all_del_clusters[i][j].second->partner)
-                    free_cluster(all_del_clusters[i][j].second);
+            Cluster* del_cluster = (Cluster*) all_del_clusters[i][j].lo;
+            if (del_cluster && del_cluster->partner)
+                    free_cluster(del_cluster);
         });
     });
     timer0.stop();
@@ -349,31 +357,21 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
 // ================================================================================================
 
 template <typename aug_t>
-parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>*>> ParallelUFOTree<aug_t>::process_initial_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups) {
+parlay::sequence<hwy::uint128_t> ParallelUFOTree<aug_t>::process_initial_clusters(parlay::sequence<std::pair<uintptr_t, EdgeSlice>>& parent_groups) {
     return parlay::tabulate(parent_groups.size(), [&] (size_t i) {
-        auto& [parent, children] = parent_groups[i];
+        Cluster* parent = (Cluster*) parent_groups[i].first;
+        auto children = parent_groups[i].second;
         if (parent == (Cluster*) NULL_PTR) {
             parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                thread_local_root_clusters->push_back(children[i].second);
+                thread_local_root_clusters->push_back((Cluster*) children[i].lo);
             });
-            return std::make_pair((Cluster*) NULL_PAR, (Cluster*) NULL_PTR);
+            return make_hwy(NULL_PAR, NULL_PTR);
         }
 
-        Cluster* max;
-        int max_degree;
-        if (children.size() > 500) {
-            max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
-            max_degree = max->get_degree();
-        } else {
-            max = children[0].second;
-            max_degree = max->get_degree();
-            for (size_t j = 1; j < children.size(); ++j) {
-                if (children[j].second->get_degree() > max_degree) {
-                    max = children[j].second;
-                    max_degree = max->get_degree();
-                }
-            }
-        }
+        Cluster* max = (Cluster*) (*parlay::max_element(children, [&] (auto x, auto y) {
+            return ((Cluster*) x.lo)->get_degree() < ((Cluster*) y.lo)->get_degree();
+        })).lo;
+        int max_degree = max->get_degree();
         Cluster* center = max;
 
         if (max_degree == 1) {
@@ -382,7 +380,7 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
                 thread_local_root_clusters->push_back(max);
                 AtomicStore(&max->parent, (Cluster*) NULL_PTR);
                 parent->partner = (Cluster*) DEL_MARK;
-                return std::make_pair(parent->parent, parent);
+                return make_hwy(parent->parent, parent);
             }
         }
 
@@ -404,65 +402,55 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
             if (center == max) {
                 if (children.size() > 500) {
                     parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                        if (children[i].second != max) {
-                            thread_local_root_clusters->push_back(children[i].second);
-                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        if (((Cluster*) children[i].lo) != max) {
+                            thread_local_root_clusters->push_back(((Cluster*) children[i].lo));
+                            AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                         }
                     });
                 } else {
                     for (size_t i = 0; i < children.size(); ++i) {
-                        if (children[i].second != max) {
-                            thread_local_root_clusters->push_back(children[i].second);
-                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        if (((Cluster*) children[i].lo) != max) {
+                            thread_local_root_clusters->push_back(((Cluster*) children[i].lo));
+                            AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                         }
                     }
                 }
             } else {
                 if (children.size() > 500) {
                     parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                        thread_local_root_clusters->push_back(children[i].second);
-                        AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        thread_local_root_clusters->push_back(((Cluster*) children[i].lo));
+                        AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                     });
                 } else {
                     for (size_t i = 0; i < children.size(); ++i) {
-                        thread_local_root_clusters->push_back(children[i].second);
-                        AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        thread_local_root_clusters->push_back(((Cluster*) children[i].lo));
+                        AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                     }
                 }
             }
         }
 
-        return std::make_pair(parent->parent, parent);
+        return make_hwy(parent->parent, parent);
     });
 }
 
 template <typename aug_t>
-parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>*>> ParallelUFOTree<aug_t>::process_del_clusters(parlay::sequence<std::pair<Cluster*, EdgeSlice>>& parent_groups) {
+parlay::sequence<hwy::uint128_t> ParallelUFOTree<aug_t>::process_del_clusters(parlay::sequence<std::pair<uintptr_t, EdgeSlice>>& parent_groups) {
     return parlay::tabulate(parent_groups.size(), [&] (size_t i) {
-        auto& [parent, children] = parent_groups[i];
-        if (parent == (Cluster*) NULL_PAR) return std::make_pair((Cluster*) NULL_PAR, (Cluster*) NULL_PTR);
+        Cluster* parent = (Cluster*) parent_groups[i].first;
+        auto children = parent_groups[i].second;
+        if (parent == (Cluster*) NULL_PAR) return make_hwy(NULL_PAR, NULL_PTR);
         if (parent == (Cluster*) NULL_PTR) {
             parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                if (!children[i].second->partner) thread_local_next_root_clusters->push_back(children[i].second);
+                if (!((Cluster*) children[i].lo)->partner) thread_local_next_root_clusters->push_back((Cluster*) children[i].lo);
             });
-            return std::make_pair((Cluster*) NULL_PAR, (Cluster*) NULL_PTR);
+            return make_hwy(NULL_PAR, NULL_PTR);
         }
 
-        Cluster* max;
-        int max_degree;
-        if (children.size() > 500) {
-            max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
-            max_degree = max->get_degree();
-        } else {
-            max = children[0].second;
-            max_degree = max->get_degree();
-            for (size_t j = 1; j < children.size(); ++j) {
-                if (children[j].second->get_degree() > max_degree) {
-                    max = children[j].second;
-                    max_degree = max->get_degree();
-                }
-            }
-        }
+        Cluster* max = (Cluster*) (*parlay::max_element(children, [&] (auto x, auto y) {
+            return ((Cluster*) x.lo)->get_degree() < ((Cluster*) y.lo)->get_degree();
+        })).lo;
+        int max_degree = max->get_degree();
         Cluster* center = max;
 
         if (max_degree == 1) {
@@ -473,7 +461,7 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
                     AtomicStore(&max->parent, (Cluster*) NULL_PTR);
                 }
                 parent->partner = (Cluster*) DEL_MARK;
-                return std::make_pair(parent->parent, parent);
+                return make_hwy(parent->parent, parent);
             }
         }
 
@@ -497,39 +485,39 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
             if (center == max) {
                 if (children.size() > 500) {
                     parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                        if (!children[i].second->partner && children[i].second != max) {
-                            thread_local_next_root_clusters->push_back(children[i].second);
-                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        if (!((Cluster*) children[i].lo)->partner && ((Cluster*) children[i].lo) != max) {
+                            thread_local_next_root_clusters->push_back(((Cluster*) children[i].lo));
+                            AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                         }
                     });
                 } else {
                     for (size_t i = 0; i < children.size(); ++i) {
-                        if (!children[i].second->partner && children[i].second != max) {
-                            thread_local_next_root_clusters->push_back(children[i].second);
-                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        if (!((Cluster*) children[i].lo)->partner && ((Cluster*) children[i].lo) != max) {
+                            thread_local_next_root_clusters->push_back(((Cluster*) children[i].lo));
+                            AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                         }
                     }
                 }
             } else {
                 if (children.size() > 500) {
                     parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                        if (!children[i].second->partner) {
-                            thread_local_next_root_clusters->push_back(children[i].second);
-                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        if (!((Cluster*) children[i].lo)->partner) {
+                            thread_local_next_root_clusters->push_back(((Cluster*) children[i].lo));
+                            AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                         }
                     });
                 } else {
                     for (size_t i = 0; i < children.size(); ++i) {
-                        if (!children[i].second->partner) {
-                            thread_local_next_root_clusters->push_back(children[i].second);
-                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        if (!((Cluster*) children[i].lo)->partner) {
+                            thread_local_next_root_clusters->push_back(((Cluster*) children[i].lo));
+                            AtomicStore(&((Cluster*) children[i].lo)->parent, (Cluster*) NULL_PTR);
                         }
                     }
                 }
             }
         }
 
-        return std::make_pair(parent->parent, parent);
+        return make_hwy(parent->parent, parent);
     });
 }
 
@@ -566,14 +554,14 @@ void ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster, UpdateT
         cluster->partner = neighbor;
         if (neighbor->parent) {
             neighbor->partner = (Cluster*) NON_ROOT_MARK;
-            thread_local_del_clusters.push_back(std::make_pair(neighbor->parent->parent, neighbor->parent));
+            thread_local_del_clusters.push_back(make_hwy(neighbor->parent->parent, neighbor->parent));
         }
     }
     else if (neighbor->get_degree() == 2) { // Combine deg 1 root cluster with deg 2 non-root clusters that don't contract
         if (neighbor->parent && !neighbor->contracts()) {
             if (CAS(&neighbor->partner, (Cluster*) NULL_PTR, (Cluster*) NON_ROOT_MARK)) {
                 cluster->partner = neighbor;
-                thread_local_del_clusters.push_back(std::make_pair(neighbor->parent->parent, neighbor->parent));
+                thread_local_del_clusters.push_back(make_hwy(neighbor->parent->parent, neighbor->parent));
             }
         }
     }
@@ -582,7 +570,7 @@ void ParallelUFOTree<aug_t>::recluster_degree_one_root(Cluster* cluster, UpdateT
         if (update_type == DELETE) {
             if (AtomicLoad(&neighbor->parent))
                 if (CAS(&neighbor->partner, (Cluster*) NULL_PTR, (Cluster*) NON_ROOT_MARK))
-                    thread_local_del_clusters.push_back(std::make_pair(neighbor->parent->parent, neighbor->parent));
+                    thread_local_del_clusters.push_back(make_hwy(neighbor->parent->parent, neighbor->parent));
         }
     }
 }
@@ -618,7 +606,7 @@ void ParallelUFOTree<aug_t>::recluster_degree_two_root(Cluster* cluster) {
             }
             // Both CAS's succeeded or next was degree 1
             if (next->parent) { // Stop traversing at a non-root cluster
-                thread_local_del_clusters.push_back(std::make_pair(next->parent->parent, next->parent));
+                thread_local_del_clusters.push_back(make_hwy(next->parent->parent, next->parent));
                 break;
             }
             if (next->get_degree() == 1) // Stop traversing at deg 1 cluster
@@ -642,7 +630,7 @@ void ParallelUFOTree<aug_t>::recluster_high_degree_root(Cluster* cluster) {
     cluster->for_all_neighbors([&] (auto neighbor) {
         if (neighbor->get_degree() == 1 && neighbor->parent) {
             neighbor->parent->partner = (Cluster*) DEL_MARK;
-            thread_local_del_clusters.push_back(std::make_pair(neighbor->parent->parent, neighbor->parent));
+            thread_local_del_clusters.push_back(make_hwy(neighbor->parent->parent, neighbor->parent));
             neighbor->parent = parent;
         }
     });

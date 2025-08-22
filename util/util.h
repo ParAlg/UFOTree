@@ -4,46 +4,9 @@
 #include <parlay/primitives.h>
 #include <parlay/sequence.h>
 #include "types.h"
-#include "semisort.h"
 
 
 namespace dgbs {
-
-template <typename K, typename V>
-auto group_by_key_inplace(parlay::sequence<std::pair<K, V>>& seq) {
-    seq = parlay::sort(seq);
-    auto starts = parlay::delayed_tabulate(seq.size(), [&] (int i) {
-        if (i == 0 || seq[i].first != seq[i-1].first) return true;
-        return false;
-    });
-    auto offsets = parlay::pack_index(starts);
-    return parlay::tabulate(offsets.size(), [&] (size_t i) {
-        size_t start = offsets[i];
-        size_t end = i == offsets.size()-1 ? seq.size() : offsets[i+1];
-        return std::make_pair(seq[offsets[i]].first, parlay::make_slice(seq.begin() + start, seq.begin() + end));
-    });
-}
-
-template <typename K, typename V>
-auto integer_group_by_key_inplace(parlay::sequence<std::pair<K, V>>& seq) {
-    // parlay::integer_sort_inplace(seq, [&] (auto pair) { return (uintptr_t) pair.first; });
-    auto seq_slice = parlay::make_slice(seq.begin(), seq.end());
-    parlay::semisort_equal_inplace(seq_slice,
-        [&] (auto x) { return x.first; },
-        [&] (auto x) { return (uintptr_t) x; },
-        [&] (auto x, auto y) { return x == y; }
-    );
-    auto starts = parlay::delayed_tabulate(seq.size(), [&] (int i) {
-        if (i == 0 || seq[i].first != seq[i-1].first) return true;
-        return false;
-    });
-    auto offsets = parlay::pack_index(starts);
-    return parlay::tabulate(offsets.size(), [&] (size_t i) {
-        size_t start = offsets[i];
-        size_t end = i == offsets.size()-1 ? seq.size() : offsets[i+1];
-        return std::make_pair(seq[offsets[i]].first, parlay::make_slice(seq.begin() + start, seq.begin() + end));
-    });
-}
 
 template <class ET>
 inline bool CAS(ET *ptr, ET oldv, ET newv) {

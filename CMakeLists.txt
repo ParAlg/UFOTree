@@ -46,9 +46,17 @@ FetchContent_MakeAvailable(parallel-ett)
 FetchContent_Declare(pam
     GIT_REPOSITORY  git@github.com:happyrogue2307/PAM.git
     GIT_TAG         master
-    EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(pam)
+
+set(GTEST_ROOT ${CMAKE_CURRENT_BINARY_DIR}/_deps/googletest-src)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(highway
+  GIT_REPOSITORY  https://github.com/google/highway/
+  GIT_TAG         master
+)
+FetchContent_MakeAvailable(highway)
 
 add_library(dgbs INTERFACE)
 include(GNUInstallDirs)
@@ -115,13 +123,13 @@ add_executable(parallel_dynamic_tree_tests
   test/parallel_ufo_tree_tests.cpp
   test/par_rc_tests.cpp
 )
-target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main pam)
+target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main pam hwy hwy_contrib)
 target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/forest_structures util)
 
 add_executable(parallel_benchmark
   benchmark/parallel/parallel_benchmark_runner.cpp
 )
-target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett pam)
+target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett pam hwy hwy_contrib)
 target_include_directories(parallel_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
 
 # add_executable(incremental_MST
