@@ -131,6 +131,7 @@ add_executable(parallel_benchmark
 )
 target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett pam hwy hwy_contrib)
 target_include_directories(parallel_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
+target_compile_options(parallel_benchmark PRIVATE -O3 -march=native)
 
 # add_executable(incremental_MST
 #   test/incremental_mst_test.cpp
