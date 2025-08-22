@@ -30,7 +30,7 @@ auto integer_group_by_key_inplace(parlay::sequence<std::pair<K, V>>& seq) {
     auto seq_slice = parlay::make_slice(seq.begin(), seq.end());
     parlay::semisort_equal_inplace(seq_slice,
         [&] (auto x) { return x.first; },
-        [&] (auto x) { return (uint64_t) x; },
+        [&] (auto x) { return (uintptr_t) x; },
         [&] (auto x, auto y) { return x == y; }
     );
     auto starts = parlay::delayed_tabulate(seq.size(), [&] (int i) {

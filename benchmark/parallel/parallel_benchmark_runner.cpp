@@ -86,14 +86,14 @@ int main(int argc, char** argv) {
         std::cout << "[ RUNNING " << test_case_name << " PARALLEL UPDATE SPEED BENCHMARK WITH n=" << n << ", k=" << k << " ]" << std::endl;
         output_csv << test_case_name << ",";
 
-        // Euler Tour Tree
-        // time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
-        // std::cout << "EulerTourTree : " << time << std::endl;
-        // output_csv << time << ",";
         // UFO Tree
         time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<>>(n, k, update_sequences);
         std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
+        // Euler Tour Tree
+        // time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
+        // std::cout << "EulerTourTree : " << time << std::endl;
+        // output_csv << time << ",";
         // Topology Tree
         // if (!ternarize) {
         //     time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);

@@ -36,6 +36,13 @@ struct Aggregator {
         return true;
     }
 
+    size_t size() {
+        size_t size = 0;
+        for (size_t i = 0; i < num_workers; ++i)
+            size += lists[padding*i].size();
+        return size;
+    }
+
     template <class F>
     void for_all(F f) {
         parlay::parallel_for(0, num_workers, [&] (size_t i) {
@@ -51,15 +58,24 @@ struct Aggregator {
             //   }
             // });
             if (lists[padding*i].size() < 64) {
-              for (size_t j = 0; j < lists[padding*i].size(); j++) {
-                f(lists[padding*i][j]);
-              }
+                for (size_t j = 0; j < lists[padding*i].size(); ++j) {
+                    f(lists[padding*i][j]);
+                }
             } else {
-              parlay::parallel_for(0, lists[padding*i].size(), [&] (size_t j) {
-                f(lists[padding*i][j]);
-              });
+                parlay::parallel_for(0, lists[padding*i].size(), [&] (size_t j) {
+                    f(lists[padding*i][j]);
+                });
             }
         }, 1);
+    }
+
+    template <class F>
+    void for_all_seq(F f) {
+        for (size_t i = 0; i < num_workers; ++i) {
+            for (size_t j = 0; j < lists[padding*i].size(); ++j) {
+                f(lists[padding*i][j]);
+            }
+        }
     }
 
     void clear() {

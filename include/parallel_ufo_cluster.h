@@ -50,10 +50,16 @@ struct ParallelUFOCluster {
     Cluster* get_other_neighbor(Cluster* c);
     Cluster* get_root();
 
-
     template <class F>
     void for_all_neighbors(const F& f) {
         ufo_pam_set::foreach_index(neighbors, [&] (auto cluster, size_t i) {
+            f(cluster);
+        });
+    }
+
+    template <class F>
+    void for_all_neighbors_seq(const F& f) {
+        ufo_pam_set::foreach_seq(neighbors, [&] (auto cluster) {
             f(cluster);
         });
     }

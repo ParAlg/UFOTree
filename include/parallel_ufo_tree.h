@@ -641,33 +641,50 @@ void ParallelUFOTree<aug_t>::finish_reclustering() {
     // Clear the partner fields of level i root cluster's and any partnered non-root clusters.
     // For all level i root clusters, insert each incident edge into level i+1 if possible.
     // This code uses the fine-grained locking insert and should work well for only low degree cases.
-    thread_local_root_clusters->for_all([&] (auto cluster) {
-        if (!cluster->parent) return; // Only deg 0
+    if (thread_local_root_clusters->size() > 500) {
+        thread_local_root_clusters->for_all([&] (auto cluster) {
+            if (!cluster->parent) return; // Only deg 0
 
-        // Clear partner pointers
-        Cluster* partner = AtomicLoad(&cluster->partner);
-        if (partner == (Cluster*) NEW_PAR_MARK) {
-            AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
-        }
-        else if (partner) {
-            Cluster* partner_partner = AtomicLoad(&partner->partner);
-            if (partner_partner != cluster) { // Non-root partner
-                if (partner_partner != (Cluster*) NULL_PTR) AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
-                AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
-            } else if (cluster < partner) { // Tie-break
-                AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
+            // Clear partner pointers
+            Cluster* partner = AtomicLoad(&cluster->partner);
+            if (partner == (Cluster*) NEW_PAR_MARK) {
                 AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
             }
-        }
-
-        // Fill adjacency lists at the next level up
-        cluster->for_all_neighbors([&] (auto neighbor) {
-            if (neighbor->parent != cluster->parent) {
-                cluster->parent->insert_neighbor(neighbor->parent);
-                neighbor->parent->insert_neighbor(cluster->parent);
+            else if (partner) {
+                Cluster* partner_partner = AtomicLoad(&partner->partner);
+                if (partner_partner != cluster) { // Non-root partner
+                    if (partner_partner != (Cluster*) NULL_PTR) AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
+                    AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
+                } else if (cluster < partner) { // Tie-break
+                    AtomicStore(&partner->partner, (Cluster*) NULL_PTR);
+                    AtomicStore(&cluster->partner, (Cluster*) NULL_PTR);
+                }
             }
+
+            // Fill adjacency lists at the next level up
+            cluster->for_all_neighbors([&] (auto neighbor) {
+                if (neighbor->parent != cluster->parent) {
+                    cluster->parent->insert_neighbor(neighbor->parent);
+                    neighbor->parent->insert_neighbor(cluster->parent);
+                }
+            });
         });
-    });
+    } else {
+        thread_local_root_clusters->for_all_seq([&] (auto cluster) {
+            if (!cluster->parent) return; // Only deg 0
+            // Clear partner pointers
+            if (cluster->partner != (Cluster*) NULL_PTR && cluster->partner != (Cluster*) NEW_PAR_MARK)
+                cluster->partner->partner = (Cluster*) NULL_PTR;
+            cluster->partner = (Cluster*) NULL_PTR;
+            // Fill adjacency lists at the next level up
+            cluster->for_all_neighbors_seq([&] (auto neighbor) {
+                if (neighbor->parent != cluster->parent) {
+                    cluster->parent->insert_neighbor(neighbor->parent);
+                    neighbor->parent->insert_neighbor(cluster->parent);
+                }
+            });
+        });
+    }
 }
 
 template <typename aug_t>
