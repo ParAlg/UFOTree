@@ -11,18 +11,6 @@
 using namespace dgbs;
 
 
-parlay::internal::timer timer0("");
-parlay::internal::timer timer1("");
-parlay::internal::timer timer2("");
-parlay::internal::timer timer3("");
-parlay::internal::timer timer4("");
-parlay::internal::timer timer5("");
-
-parlay::internal::timer subtimer1("");
-parlay::internal::timer subtimer2("");
-parlay::internal::timer subtimer3("");
-parlay::internal::timer subtimer4("");
-
 int main(int argc, char** argv) {
     // List of values of n to loop through and run all test cases
     vertex_t n = 100000;
@@ -91,36 +79,24 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
         // Euler Tour Tree
-        // time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
-        // std::cout << "EulerTourTree : " << time << std::endl;
-        // output_csv << time << ",";
+        time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
+        std::cout << "EulerTourTree : " << time << std::endl;
+        output_csv << time << ",";
         // Topology Tree
-        // if (!ternarize) {
-        //     time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);
-        //     std::cout << "TopologyTree  : " << time << std::endl;
-        //     output_csv << time << ",";
-        // }
+        if (!ternarize) {
+            time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);
+            std::cout << "TopologyTree  : " << time << std::endl;
+            output_csv << time << ",";
+        }
         // RC Tree
-        // if (!ternarize) {
-        //     time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n,k,weighted_update_sequences);
-        //     std::cout << "RCTree        : " << time << std::endl;
-        //     output_csv << time << ",";
-        // }
+        if (!ternarize) {
+            time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n,k,weighted_update_sequences);
+            std::cout << "RCTree        : " << time << std::endl;
+            output_csv << time << ",";
+        }
         std::cout << std::endl;
         output_csv << "\n";
     }
 
     output_csv.close();
-
-    std::cout << "TIMER 0: " << timer0.total_time() << std::endl;
-    std::cout << "TIMER 1: " << timer1.total_time() << std::endl;
-    std::cout << "TIMER 2: " << timer2.total_time() << std::endl;
-    std::cout << "TIMER 3: " << timer3.total_time() << std::endl;
-    std::cout << "TIMER 4: " << timer4.total_time() << std::endl;
-    std::cout << "TIMER 5: " << timer5.total_time() << std::endl;
-
-    std::cout << "SUBTIMER 1: " << subtimer1.total_time() << std::endl;
-    std::cout << "SUBTIMER 2: " << subtimer2.total_time() << std::endl;
-    std::cout << "SUBTIMER 3: " << subtimer3.total_time() << std::endl;
-    std::cout << "SUBTIMER 4: " << subtimer4.total_time() << std::endl;
 }

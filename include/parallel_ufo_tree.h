@@ -9,18 +9,6 @@
 #include "parallel_ufo_cluster.h"
 
 
-extern parlay::internal::timer timer0;
-extern parlay::internal::timer timer1;
-extern parlay::internal::timer timer2;
-extern parlay::internal::timer timer3;
-extern parlay::internal::timer timer4;
-extern parlay::internal::timer timer5;
-
-extern parlay::internal::timer subtimer1;
-extern parlay::internal::timer subtimer2;
-extern parlay::internal::timer subtimer3;
-extern parlay::internal::timer subtimer4;
-
 namespace dgbs {
 
 template <typename aug_t = empty_t>
@@ -114,13 +102,10 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     // ==============
     // INITIALIZATION
     // ==============
-    timer0.start();
-
     parlay::sequence<std::pair<Cluster*, Cluster*>> del_clusters;
     parlay::sequence<std::pair<Cluster*, Cluster*>> next_del_clusters;
     parlay::sequence<parlay::sequence<std::pair<Cluster*, Cluster*>>> all_del_clusters;
 
-    timer1.start();
     // The intial dir updates are just the batch of links or cuts in both directions.
     // For deletion batches, the initial level 1 del edges are initial cuts one level up.
     auto dir_updates = parlay::tabulate(2*updates.size(), [&] (size_t i) {
@@ -168,7 +153,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
     // The intial del clusters are just all parents of vertices that got an update.
     // This function adds level 0 root clusters to `thread_local_root_clusters`, and returns the level 1 del clusters.
     del_clusters = process_initial_clusters(parent_groups);
-    timer1.stop();
 
 
     /* This is the main loop over all levels of the tree. Before each level i, `root_clusters` contains the
@@ -202,7 +186,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         // PHASE 1
         // =======
 
-        timer2.start();
         // For insertion batches, insert the linked edges at level i, and map to the next level.
         parlay::parallel_for(0, dir_update_groups.size(), [&] (size_t i) {
             auto& [cluster, edges] = dir_update_groups[i];
@@ -217,20 +200,16 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
         dir_updates = thread_local_dir_edges.to_sequence();
         thread_local_dir_edges.clear();
         dir_update_groups = group_by_key_inplace(dir_updates);
-        timer2.stop();
 
         // =======
         // PHASE 2
         // =======
 
-        timer3.start();
         // Recluster the root clusters.
         recluster_root_clusters(update_type);
         del_clusters = parlay::append(del_clusters, thread_local_del_clusters.to_sequence());
         thread_local_del_clusters.clear();
-        timer3.stop();
 
-        timer4.start();
         parlay::parallel_do(
         [&] () {
             // This returns only the new clusters that were created during the reclustering at this level.
@@ -241,7 +220,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             // PHASE 3
             // =======
 
-            subtimer1.start();
             // Determine pointers to level i+1 del clusters that will get deleted.
             // For deletion batches, map deleting edges to level i+2 and add them to the del edges.
             parlay::parallel_for(0, del_clusters.size(), [&] (size_t i) {
@@ -260,9 +238,7 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
             auto new_del_edges = thread_local_new_del_edges.to_sequence();
             thread_local_new_del_edges.clear();
             parlay::sequence<std::pair<Cluster*, EdgeSlice>> new_del_edge_groups;
-            subtimer1.stop();
 
-            subtimer2.start();
             parlay::parallel_do(
             [&] () {
                 // Group edges to delete by endpoint.
@@ -293,37 +269,29 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     }
                 });
             });
-            subtimer2.stop();
 
             // The next level i+1 root clusters, which are children of a level i+2 del cluster that will be deleted.
             // This function populates `thread_local_next_root_clusters` with the next level i+1 root clusters.
             // This function returns the next level i+2 del clusters and we store it in `next_del_clusters`.
-            subtimer3.start();
             next_del_clusters = process_del_clusters(parent_groups);
-            subtimer3.stop();
 
             // Delete pointers to level i+1 del clusters that will get deleted.
-            subtimer4.start();
             parlay::parallel_for(0, new_del_edge_groups.size(), [&] (size_t i) {
                 auto& [cluster, edges] = new_del_edge_groups[i];
                 auto neighbors = parlay::map(edges, [&] (auto x) { return x.second; });
                 cluster->delete_neighbors_sorted(neighbors);
             });
-            subtimer4.stop();
 
             // Delete level i+1 del clusters that should be deleted.
             all_del_clusters.push_back(std::move(del_clusters));
         });
-        timer4.stop();
 
         // =======
         // PHASE 4
         // =======
 
         // Clear the partner fields and populate neighbors of level i+1 clusters.
-        timer5.start();
         finish_reclustering();
-        timer5.stop();
 
         // ==================
         // PREPARE NEXT LEVEL
@@ -341,7 +309,6 @@ void ParallelUFOTree<aug_t>::recluster_tree(parlay::sequence<std::pair<int, int>
                     free_cluster(all_del_clusters[i][j].second);
         });
     });
-    timer0.stop();
 }
 
 // ================================================================================================
