@@ -359,8 +359,21 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
             return std::make_pair((Cluster*) NULL_PAR, (Cluster*) NULL_PTR);
         }
 
-        Cluster* max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
-        int max_degree = max->get_degree();
+        Cluster* max;
+        int max_degree;
+        if (children.size() > 500) {
+            max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
+            max_degree = max->get_degree();
+        } else {
+            max = children[0].second;
+            max_degree = max->get_degree();
+            for (size_t j = 1; j < children.size(); ++j) {
+                if (children[j].second->get_degree() > max_degree) {
+                    max = children[j].second;
+                    max_degree = max->get_degree();
+                }
+            }
+        }
         Cluster* center = max;
 
         if (max_degree == 1) {
@@ -389,17 +402,33 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
             parent->partner = (Cluster*) DEL_MARK;
         } else {
             if (center == max) {
-                parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                    if (children[i].second != max) {
+                if (children.size() > 500) {
+                    parlay::parallel_for(0, children.size(), [&] (size_t i) {
+                        if (children[i].second != max) {
+                            thread_local_root_clusters->push_back(children[i].second);
+                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        }
+                    });
+                } else {
+                    for (size_t i = 0; i < children.size(); ++i) {
+                        if (children[i].second != max) {
+                            thread_local_root_clusters->push_back(children[i].second);
+                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        }
+                    }
+                }
+            } else {
+                if (children.size() > 500) {
+                    parlay::parallel_for(0, children.size(), [&] (size_t i) {
+                        thread_local_root_clusters->push_back(children[i].second);
+                        AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                    });
+                } else {
+                    for (size_t i = 0; i < children.size(); ++i) {
                         thread_local_root_clusters->push_back(children[i].second);
                         AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
                     }
-                });
-            } else {
-                parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                    thread_local_root_clusters->push_back(children[i].second);
-                    AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
-                });
+                }
             }
         }
 
@@ -419,8 +448,21 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
             return std::make_pair((Cluster*) NULL_PAR, (Cluster*) NULL_PTR);
         }
 
-        Cluster* max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
-        int max_degree = max->get_degree();
+        Cluster* max;
+        int max_degree;
+        if (children.size() > 500) {
+            max = (*parlay::max_element(children, [&] (auto x, auto y) { return x.second->get_degree() < y.second->get_degree(); })).second;
+            max_degree = max->get_degree();
+        } else {
+            max = children[0].second;
+            max_degree = max->get_degree();
+            for (size_t j = 1; j < children.size(); ++j) {
+                if (children[j].second->get_degree() > max_degree) {
+                    max = children[j].second;
+                    max_degree = max->get_degree();
+                }
+            }
+        }
         Cluster* center = max;
 
         if (max_degree == 1) {
@@ -453,19 +495,37 @@ parlay::sequence<std::pair<ParallelUFOCluster<aug_t>*, ParallelUFOCluster<aug_t>
             parent->partner = (Cluster*) DEL_MARK;
         } else {
             if (center == max) {
-                parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                    if (!children[i].second->partner && children[i].second != max) {
-                        thread_local_next_root_clusters->push_back(children[i].second);
-                        AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                if (children.size() > 500) {
+                    parlay::parallel_for(0, children.size(), [&] (size_t i) {
+                        if (!children[i].second->partner && children[i].second != max) {
+                            thread_local_next_root_clusters->push_back(children[i].second);
+                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        }
+                    });
+                } else {
+                    for (size_t i = 0; i < children.size(); ++i) {
+                        if (!children[i].second->partner && children[i].second != max) {
+                            thread_local_next_root_clusters->push_back(children[i].second);
+                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        }
                     }
-                });
+                }
             } else {
-                parlay::parallel_for(0, children.size(), [&] (size_t i) {
-                    if (!children[i].second->partner) {
-                        thread_local_next_root_clusters->push_back(children[i].second);
-                        AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                if (children.size() > 500) {
+                    parlay::parallel_for(0, children.size(), [&] (size_t i) {
+                        if (!children[i].second->partner) {
+                            thread_local_next_root_clusters->push_back(children[i].second);
+                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        }
+                    });
+                } else {
+                    for (size_t i = 0; i < children.size(); ++i) {
+                        if (!children[i].second->partner) {
+                            thread_local_next_root_clusters->push_back(children[i].second);
+                            AtomicStore(&children[i].second->parent, (Cluster*) NULL_PTR);
+                        }
                     }
-                });
+                }
             }
         }
 
