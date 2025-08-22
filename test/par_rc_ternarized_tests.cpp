@@ -4,17 +4,17 @@
 #include <limits>
 #include <stdexcept>
 #include <unordered_set>
-#include "../include/spaa_rc_tree.h"
+#include "../include/spaa_rc_tree_ternarized.h"
 
-TEST(ParallelRCTreeSuite, test_constructor){
-  ParallelRCTree<int> t(3);
+TEST(ParallelRCTreeTernarizedSuite, test_constructor){
+  ParallelRCTreeTernarized<int> t(3);
   /*for(int i = 0; i < t.clusters.size(); i++){
     t.clusters[i].print();
   }*/
-  ASSERT_EQ(t.clusters.size(), 3);
+  ASSERT_EQ(t.clusters.size(), 6);
 }
 
-TEST(ParallelRCTreeSuite, test_batch_insert){
+TEST(ParallelRCTreeTernarizedSuite, test_batch_insert_linked_list){
     int num_trials = 1;
     int seeds[num_trials];
     srand(time(NULL));
@@ -24,7 +24,7 @@ TEST(ParallelRCTreeSuite, test_batch_insert){
         vertex_t k = 16;
         QueryType qt = PATH;
         auto f = [](int x, int y)->int {return x + y;};
-        ParallelRCTree<int> tree(n,k); 
+        ParallelRCTreeTernarized<int> tree(n,k); 
 
         std::vector<Update> updates;
         parlay::sequence<Edge> edges;

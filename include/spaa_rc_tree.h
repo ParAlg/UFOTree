@@ -17,14 +17,15 @@ class ParallelRCTree{
   // Query code in path_query and subtree_query
   //
   // Ternarizer stores a simpler smaller version of the original tree to determine what nodes to ternarize
-  // Insertion edges are first passed into the ternarizer which mends then outputs a list of ternarized insertion edges
-  // these are then inserted into the actual RC tree
+  // Insertion/Deletion edges are first passed into the ternarizer which mends then outputs a list of ternarized and deletion edges (i.e. 
+  // what edges need to be inserted/deleted in the underlying ternarized tree)
+  // these are then inserted into the actual RC tree via the batchInsertEdge method 
   //
   // Space - Things in RC, RCDynamic, and ternarizer file.
  
 public:
   parlay::sequence<cluster<int,aug_t> > clusters;
-  ternarizer<int, int> tr = ternarizer(200, std::numeric_limits<int>::min()); // NOTE: tern_node uses -1 as default edge array index - need to fix that before converting this to int
+  //ternarizer<int, int> tr = ternarizer(200, std::numeric_limits<int>::min()); // NOTE: tern_node uses -1 as default edge array index - need to fix that before converting this to int
   int n;
   int k; 
   void batch_link(parlay::sequence<std::tuple<int, int, aug_t>>& links);
@@ -35,6 +36,7 @@ public:
   ParallelRCTree(int _n, int _k = 1, std::function<aug_t(aug_t,aug_t)> _func = [] (int A, int B) {return std::max(A,B);}){
     n = _n;
     k = _k;
+    //tr = ternarizer(_n * extra_tern_node_factor, std::numeric_limits<int>::min());
     parlay::sequence<std::tuple<int,int, int>> initial_edges;
     create_base_clusters(clusters, initial_edges, static_cast<int>(3), n);
     create_RC_tree(clusters, n, 0, _func); 
@@ -44,7 +46,8 @@ public:
 
 template<typename aug_t>
 void ParallelRCTree<aug_t>::batch_link(parlay::sequence<std::tuple<int,int, aug_t>>& links){ 
-  parlay::sequence<std::pair<int,int>> delete_edges;
+  parlay::sequence<std::pair<int,int>> delete_edges; // Created for a valid call to batchInsertEdge, does not modify the tree at all.
+  //auto ternarizedEdges = tr.add_edges(links);
   batchInsertEdge(delete_edges, links, clusters, 0, func); 
 }
 

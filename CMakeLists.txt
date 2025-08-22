@@ -119,14 +119,15 @@ add_executable(benchmark_graph_algorithms
 target_link_libraries(benchmark_graph_algorithms PRIVATE parlay absl::flat_hash_map)
 target_include_directories(benchmark_graph_algorithms PRIVATE include util baselines)
 
-#add_executable(parallel_dynamic_tree_tests
-#  test/test_runner.cpp
-#  test/parallel_topology_tree_tests.cpp
-#  test/parallel_ufo_tree_tests.cpp
-#  test/par_rc_tests.cpp
-#)
-#target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
-#target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/forest_structures util)
+add_executable(parallel_dynamic_tree_tests
+  test/test_runner.cpp
+  #test/parallel_topology_tree_tests.cpp
+  #test/parallel_ufo_tree_tests.cpp
+  #test/par_rc_tests.cpp
+  test/par_rc_ternarized_tests.cpp
+)
+target_link_libraries(parallel_dynamic_tree_tests PRIVATE parlay GTest::gtest_main)
+target_include_directories(parallel_dynamic_tree_tests PRIVATE include include/forest_structures util)
 
 #add_executable(parallel_benchmark
 #benchmark/parallel/parallel_benchmark_runner.cpp
