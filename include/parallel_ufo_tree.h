@@ -611,29 +611,55 @@ void ParallelUFOTree<aug_t>::create_new_parents() {
     // not the parents of non-root clusters. Those may become root clusters also,
     // but it will be determined by the later step which checks if the grandparent
     // should be deleted.
-    thread_local_root_clusters->for_all([&] (Cluster* cluster) {
-        if (cluster->get_degree() == 0) return;
-        if (cluster->get_degree() >= 3 && cluster->partner == (Cluster*) NEW_PAR_MARK) {
-            thread_local_next_root_clusters->push_back(cluster->parent);
-            return;
-        }
-        Cluster* partner = cluster->partner;
-        if (partner) {
-            if (partner->partner != cluster) { // Non-root partner or high-degree partner with no partner field set
-                cluster->parent = partner->parent;
-            } else if (cluster < partner) { // Tie-break for two partnered root clusters
+    if (thread_local_root_clusters->size() > 500) {
+        thread_local_root_clusters->for_all([&] (Cluster* cluster) {
+            if (cluster->get_degree() == 0) return;
+            if (cluster->get_degree() >= 3 && cluster->partner == (Cluster*) NEW_PAR_MARK) {
+                thread_local_next_root_clusters->push_back(cluster->parent);
+                return;
+            }
+            Cluster* partner = cluster->partner;
+            if (partner) {
+                if (partner->partner != cluster) { // Non-root partner or high-degree partner with no partner field set
+                    cluster->parent = partner->parent;
+                } else if (cluster < partner) { // Tie-break for two partnered root clusters
+                    Cluster* parent = allocate_cluster();
+                    cluster->parent = parent;
+                    partner->parent = parent;
+                    thread_local_next_root_clusters->push_back(parent);
+                }
+            }
+            else { // Non-combining root cluster gets its own parent
                 Cluster* parent = allocate_cluster();
                 cluster->parent = parent;
-                partner->parent = parent;
                 thread_local_next_root_clusters->push_back(parent);
             }
-        }
-        else { // Non-combining root cluster gets its own parent
-            Cluster* parent = allocate_cluster();
-            cluster->parent = parent;
-            thread_local_next_root_clusters->push_back(parent);
-        }
-    });
+        });
+    } else {
+        thread_local_root_clusters->for_all_seq([&] (Cluster* cluster) {
+            if (cluster->get_degree() == 0) return;
+            if (cluster->get_degree() >= 3 && cluster->partner == (Cluster*) NEW_PAR_MARK) {
+                thread_local_next_root_clusters->push_back(cluster->parent);
+                return;
+            }
+            Cluster* partner = cluster->partner;
+            if (partner) {
+                if (partner->partner != cluster) { // Non-root partner or high-degree partner with no partner field set
+                    cluster->parent = partner->parent;
+                } else if (cluster < partner) {
+                    Cluster* parent = allocate_cluster();
+                    cluster->parent = parent;
+                    partner->parent = parent;
+                    thread_local_next_root_clusters->push_back(parent);
+                }
+            }
+            else { // Non-combining root cluster gets its own parent
+                Cluster* parent = allocate_cluster();
+                cluster->parent = parent;
+                thread_local_next_root_clusters->push_back(parent);
+            }
+        });
+    }
 }
 
 template<typename aug_t>
