@@ -414,7 +414,9 @@ void TopologyTree<v_t, e_t>::recluster_tree() {
             // Add remaining uncombined clusters to the next level
             if (!cluster->parent && cluster->get_degree() > 0) {
                 auto parent = new Cluster();
-                parent->value = cluster->value;
+                if constexpr (!std::is_same<v_t, empty_t>::value) {
+                    parent->value = cluster->value;
+                }
                 cluster->parent = parent;
                 recompute_parent_value(cluster, cluster);
                 root_clusters[level+1].push_back(parent);
