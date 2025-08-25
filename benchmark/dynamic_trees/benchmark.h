@@ -6,6 +6,9 @@
 #include <parlay/internal/get_time.h>
 #include "types.h"
 
+#include "absl/random/random.h"
+#include "absl/random/seed_sequences.h"
+#include "absl/random/zipf_distribution.h"
 
 namespace dgbs {
 
@@ -261,6 +264,35 @@ static std::vector<Update> preferential_attachment_benchmark(vertex_t n, long se
     for (int i = 0; i < edges.size(); i++) {
         auto edge = edges[i];
         edges[i] = {ids[edge.src],ids[edge.dst]};
+    }
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({INSERT,edge});
+    edges = parlay::random_shuffle(edges, parlay::random(rand()));
+    for (auto edge : edges) updates.push_back({DELETE,edge});
+
+    return updates;
+}
+
+template <double theta=2.0>
+inline std::vector<Update> zipf_tree_benchmark(vertex_t n, long seed) {
+    std::vector<Update> updates;
+    parlay::sequence<Edge> edges;
+    srand(seed);
+    parlay::sequence<vertex_t> ids = parlay::tabulate(n, [&] (vertex_t i) { return i; });
+    ids = parlay::random_shuffle(ids, parlay::random(rand()));
+
+    absl::SeedSeq seed_seq = {seed};
+    absl::BitGen bit_gen(seed_seq);
+
+    edges.reserve(n-1);
+    while (edges.size() < n-1) {
+        vertex_t u = edges.size()+1;
+        vertex_t v = 0;
+        if (edges.size() > 0) {
+            absl::zipf_distribution<int> zipf_dist(edges.size(), kTheta);
+            v = zipf_dist(bit_gen);
+        }
+        edges.push_back({ids[u],ids[v]});
     }
     edges = parlay::random_shuffle(edges, parlay::random(rand()));
     for (auto edge : edges) updates.push_back({INSERT,edge});
