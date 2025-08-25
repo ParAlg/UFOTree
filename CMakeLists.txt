@@ -78,6 +78,12 @@ add_executable(benchmark_update_speed
 target_link_libraries(benchmark_update_speed PRIVATE parlay absl::flat_hash_map absl::random_random)
 target_include_directories(benchmark_update_speed PRIVATE include util baselines)
 
+add_executable(benchmark_updates_diameter_sweep
+  benchmark/dynamic_trees/benchmark_updates_diameter_sweep.cpp
+)
+target_link_libraries(benchmark_updates_diameter_sweep PRIVATE parlay absl::flat_hash_map absl::random_random)
+target_include_directories(benchmark_updates_diameter_sweep PRIVATE include util baselines)
+
 add_executable(benchmark_query_speed
   benchmark/dynamic_trees/benchmark_query_speed.cpp
 )

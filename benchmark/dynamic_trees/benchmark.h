@@ -273,7 +273,7 @@ static std::vector<Update> preferential_attachment_benchmark(vertex_t n, long se
     return updates;
 }
 
-template <double theta=2.0>
+template <double kTheta=2.0>
 inline std::vector<Update> zipf_tree_benchmark(vertex_t n, long seed) {
     std::vector<Update> updates;
     parlay::sequence<Edge> edges;
