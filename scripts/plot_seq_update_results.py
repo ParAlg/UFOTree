@@ -76,10 +76,10 @@ def plot_multi_bar_chart(data: dict, categories: list, title: str, xlabel: str, 
     colors = [
         '#000000',
         '#b6f486',
-        '#8769b6',
-        '#400e63',
-        '#4169E1',
         '#006400',
+        '#4169E1',
+        '#400e63',
+        '#8769b6',
         '#88d4c3',
         '#FF609A'
     ]

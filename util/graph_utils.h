@@ -40,10 +40,10 @@ struct graph_utils {
   static edges BFS_forest(const graph& G, long seed = -1) {
     if (seed == -1) seed = time(NULL);
     srand(seed);
-    int n = G.size();
+    vertex_t n = G.size();
     std::vector<bool> visited(n, false);
     edges bfsForest;
-    auto vertex_order = parlay::random_permutation(n, parlay::random(rand()));
+    auto vertex_permutation = parlay::random_permutation(n, parlay::random(rand()));
     for (vertex start = 0; start < n; ++start) {
         if (!visited[start]) {
             std::queue<vertex> q;
@@ -55,7 +55,7 @@ struct graph_utils {
                 for (vertex neighbor : G[v]) {
                     if (!visited[neighbor]) {
                         visited[neighbor] = true;
-                        bfsForest.push_back({v, neighbor});
+                        bfsForest.push_back({vertex_permutation[v], vertex_permutation[neighbor]});
                         q.push(neighbor);
                     }
                 }
@@ -68,13 +68,15 @@ struct graph_utils {
   static edges RIS_forest(const graph& G, long seed = -1) {
     if (seed == -1) seed = time(NULL);
     srand(seed);
+    vertex_t n = G.size();
     edges graphEdges = parlay::random_shuffle(to_edges(G), parlay::random(rand()));
-    skip_list_ett::EulerTourTree tree(G.size());
+    skip_list_ett::EulerTourTree tree(n);
     edges risForest;
+    auto vertex_permutation = parlay::random_permutation(n, parlay::random(rand()));
     for (auto edge : graphEdges) {
       if (!tree.IsConnected(edge.src, edge.dst)) {
         tree.link(edge.src, edge.dst);
-        risForest.push_back(edge);
+        risForest.push_back({vertex_permutation[edge.src], vertex_permutation[edge.dst]});
       }
     }
     return risForest;
