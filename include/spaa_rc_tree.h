@@ -4,6 +4,7 @@
 #include "../spaa_rc_tree/RCtrees/ternarizer.h"
 #include "types.h"
 #include "../spaa_rc_tree/RCtrees/RC_test.h"
+#include "../spaa_rc_tree/RCtrees/path_query.h"
 #include <limits>
 #include <tuple>
 
@@ -29,19 +30,42 @@ public:
   int k; 
   void batch_link(parlay::sequence<std::tuple<int, int, aug_t>>& links);
   void batch_cut(parlay::sequence<std::pair<int,int>> & cuts);
+  void link(int u, int v, aug_t w=std::numeric_limits<aug_t>::min());
+  void cut(int u, int v);
+  aug_t identity;
   aug_t path_query(int u, int v);
   std::function<aug_t(aug_t,aug_t)> func;
   void verify_tree_correctness();
-  ParallelRCTree(int _n, int _k = 1, std::function<aug_t(aug_t,aug_t)> _func = [] (int A, int B) {return std::max(A,B);}){
+
+  ParallelRCTree(int _n, int _k = 1, aug_t id = std::numeric_limits<int>::min(), std::function<aug_t(aug_t,aug_t)> _func = [] (int A, int B) {return std::max(A,B);}){
     n = _n;
     k = _k;
-    parlay::sequence<std::tuple<int,int, int>> initial_edges;
+    identity = id;
+    parlay::sequence<std::tuple<int,int, int> > initial_edges;
     create_base_clusters(clusters, initial_edges, static_cast<int>(3), n);
     create_RC_tree(clusters, n, 0, _func); 
     func = _func;
   }
+  ~ParallelRCTree(){
+    deleteRCtree(clusters);
+  }
 };
 
+template<typename aug_t>
+void ParallelRCTree<aug_t>::link(int u, int v, aug_t w){
+  w = identity;
+  parlay::sequence<std::tuple<int,int,aug_t> > insert_edges; 
+  insert_edges.push_back({u,v,w});
+  parlay::sequence<std::pair<int,int>> delete_edges;
+  batchInsertEdge(delete_edges, insert_edges, clusters, 0, func); 
+}
+
+template<typename aug_t>
+void ParallelRCTree<aug_t>::cut(int u, int v){
+  parlay::sequence<std::tuple<int,int,aug_t> > insert_edges; 
+  parlay::sequence<std::pair<int,int>> delete_edges; delete_edges.push_back({u,v});
+  batchInsertEdge(delete_edges, insert_edges, clusters, 0, func); 
+}
 template<typename aug_t>
 void ParallelRCTree<aug_t>::batch_link(parlay::sequence<std::tuple<int,int, aug_t>>& links){ 
   parlay::sequence<std::pair<int,int>> delete_edges;
@@ -56,7 +80,7 @@ void ParallelRCTree<aug_t>::batch_cut(parlay::sequence<std::pair<int,int>>& cuts
 
 template<typename aug_t>
 aug_t ParallelRCTree<aug_t>::path_query(int u, int v){
-  
+  return pathQuery<int,aug_t, std::function<aug_t(aug_t,aug_t)> >(u,v,clusters,identity, func) ;
 }
 
 template<typename aug_t>

@@ -5,6 +5,8 @@
 #include "topology_tree.h"
 #include "rc_tree.h"
 #include "top_tree.h"
+#include "spaa_rc_tree.h"
+#include "spaa_rc_tree_ternarized.h"
 #include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
@@ -137,10 +139,15 @@ int main(int argc, char** argv) {
       else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences, query_sequences);
       std::cout << "TopologyTree  : " << time << std::endl;
       output_csv << "," << time;
-      // RC Tree
+      // RC Tree - Sequential Version
       if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<RCTree<int>>(n, update_sequences, query_sequences);
       else time = dynamic_tree_benchmark::get_path_query_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences, query_sequences);
       std::cout << "RCTree        : " << time << std::endl;
+      output_csv << "," << time;
+      
+      if (!ternarize) time = dynamic_tree_benchmark::get_path_query_speed<ParallelRCTree<int> >(n, update_sequences, query_sequences);
+      else time = dynamic_tree_benchmark::get_path_query_speed<ParallelRCTreeTernarized<int> >(n, update_sequences, query_sequences);
+      std::cout << "RCTree(CMU)        : " << time << std::endl;
       output_csv << "," << time;
 
       std::cout << std::endl;
