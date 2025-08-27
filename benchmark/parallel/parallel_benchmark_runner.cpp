@@ -5,7 +5,6 @@
 #include "parallel_topology_tree.h"
 #include "ParETT/euler_tour_tree.hpp"
 #include "spaa_rc_tree.h"
-#include "spaa_rc_tree_ternarized.h"
 #include <fstream>
 
 
@@ -15,7 +14,7 @@ using namespace dgbs;
 int main(int argc, char** argv) {
     // List of values of n to loop through and run all test cases
     vertex_t n = 100000;
-    vertex_t k = 1000;
+    vertex_t k = 10000;
     if (argc < 2) {
         std::cout << "Using default hard-coded list for values of n and k." << std::endl;
     } else if (argc == 3) {
@@ -25,18 +24,16 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "Usage: ./parallel_benchmark [n] [k]" << std::endl;
     }
-    srand(time(NULL));
-    /* Each test case has a name for output, the update generator function, and
-    a bool indicating if ternarization may be necessary for this input */
-    std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
-        //{"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
-        //{"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
-        //{"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
-        {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
-        {"Dandelion", dynamic_tree_benchmark::dandelion_benchmark, true, 1},
-        {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
-        {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
-        {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1},
+    long seed = 0;
+    srand(seed);
+    std::tuple<std::string, int> test_cases[] = {
+        {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 3},
+        {"/ssd1/quinten/graphdata/enwiki_sym.bin", 3},
+        {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 3},
+        {"/ssd1/quinten/graphdata/twitter_sym.bin", 3},
+        // {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
+        // {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
+        // {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
     };
 
     std::string filename = "../results/parellel_update_speed_" + std::to_string(n) + "_" + std::to_string(k) + ".csv";
@@ -63,9 +60,9 @@ int main(int argc, char** argv) {
                 auto edges = updateBatch.edges;
                 weighted_update_sequences[i][j].type = updateBatch.type;
                 if (updateBatch.type == INSERT){
-                    for (int k = 0; k < edges.size(); k++){
-                        weighted_update_sequences[i][j].insert_edges.push_back(make_tuple(edges[k].first, edges[k].second, 0));
-                    }
+                for (int k = 0; k < edges.size(); k++){
+                    weighted_update_sequences[i][j].insert_edges.push_back(make_tuple(edges[k].first, edges[k].second, 0));
+                }
                 } else {
                     weighted_update_sequences[i][j].delete_edges = edges;
                 }
@@ -77,11 +74,11 @@ int main(int argc, char** argv) {
 
         // UFO Tree
         time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<>>(n, k, update_sequences);
-        //std::cout << "UFOTree       : " << time << std::endl;
+        std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
         // Euler Tour Tree
         time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
-        //std::cout << "EulerTourTree : " << time << std::endl;
+        std::cout << "EulerTourTree : " << time << std::endl;
         output_csv << time << ",";
         // Topology Tree
         if (!ternarize) {
@@ -93,10 +90,6 @@ int main(int argc, char** argv) {
         if (!ternarize) {
             time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n,k,weighted_update_sequences);
             std::cout << "RCTree        : " << time << std::endl;
-            output_csv << time << ",";
-        } else{
-            time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTreeTernarized<int>>(n,k,weighted_update_sequences);
-            std::cout << "RCTree(Ternarized) : " << time << std::endl;
             output_csv << time << ",";
         }
         std::cout << std::endl;

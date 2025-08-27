@@ -32,6 +32,7 @@ public:
   void batch_cut(parlay::sequence<std::pair<int,int>> & cuts);
   void link(int u, int v, aug_t w=std::numeric_limits<aug_t>::min());
   void cut(int u, int v);
+  size_t space();
   aug_t identity;
   aug_t path_query(int u, int v);
   std::function<aug_t(aug_t,aug_t)> func;
@@ -89,3 +90,7 @@ void ParallelRCTree<aug_t>::verify_tree_correctness(){
   check_parents_children(clusters);
 }
 
+template<typename aug_t>
+size_t ParallelRCTree<aug_t>::space(){
+  return parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes();
+}

@@ -90,7 +90,7 @@ size_t get_peak_space(vertex_t n, std::vector<std::vector<Update>> update_sequen
                 tree.link(update.edge.src, update.edge.dst);
             } else if (update.type == DELETE) {
                 if (first_delete) {
-                    total_space += tree.space();
+                    total_space = tree.space();
                     first_delete = false;
                 }
                 tree.cut(update.edge.src, update.edge.dst);

@@ -4,6 +4,7 @@
 #include "../spaa_rc_tree/RCtrees/ternarizer.h"
 #include "types.h"
 #include "../spaa_rc_tree/RCtrees/RC_test.h"
+#include <parlay/alloc.h>
 #include <limits>
 #include <tuple>
 
@@ -33,6 +34,7 @@ public:
   void link(int u, int v, aug_t w=std::numeric_limits<aug_t>::min());
   void cut(int u, int v);
   aug_t path_query(int u, int v);
+  size_t space(); // For space benchmarks
   std::function<aug_t(aug_t,aug_t)> func;
   void verify_tree_correctness();
   ParallelRCTreeTernarized(int _n, int _k = 1, aug_t id = std::numeric_limits<int>::min(), std::function<aug_t(aug_t,aug_t)> _func = [] (int A, int B) {return std::max(A,B);}){
@@ -137,3 +139,7 @@ void ParallelRCTreeTernarized<aug_t>::verify_tree_correctness(){
   check_parents_children(clusters);
 }
 
+template<typename aug_t>
+size_t ParallelRCTreeTernarized<aug_t>::space(){
+  return parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes();
+}

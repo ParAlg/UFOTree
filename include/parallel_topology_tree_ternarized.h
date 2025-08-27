@@ -7,6 +7,8 @@
 #include "types.h"
 #include "util.h"
 #include "parallel_topology_cluster.h"
+#include "../spaa_rc_tree/RCtrees/ternarizer.h"
+
 
 using namespace parlay;
 
@@ -19,30 +21,30 @@ std::map<int, int> root_clusters_histogram;
 int max_height = 0;
 #endif
 
-static long parallel_topology_remove_ancestor_time = 0;
+/*static long parallel_topology_remove_ancestor_time = 0;
 static long parallel_topology_remove_ancestor_time_2 = 0;
 static long parallel_topology_recluster_tree_time = 0;
-static long test_time = 0;
+static long test_time = 0;*/
 
 namespace dgbs {
 
 
 template <typename aug_t>
-class ParallelTopologyTree {
+class ParallelTopologyTreeTernarized{
  public:
 
   using Cluster = ParallelTopologyCluster<aug_t>;
   using ClusterSubset = parlay::sequence<Cluster*>;
 
   // Topology tree interface
-  ParallelTopologyTree(vertex_t n, vertex_t k, QueryType q = PATH,
+  ParallelTopologyTreeTernarized(vertex_t n, vertex_t k, QueryType q = PATH,
     std::function<aug_t(aug_t, aug_t)> f = [](aug_t x, aug_t y) -> aug_t {
       return x + y;
     },
     aug_t id = 0, aug_t dval = 0);
-  ~ParallelTopologyTree();
-  void batch_link(sequence<std::pair<int, int>>& links);
-  void batch_cut(sequence<std::pair<int, int>>& cuts);
+  ~ParallelTopologyTreeTernarized();
+  void batch_link(sequence<std::tuple<int, int,aug_t>>& links);
+  void batch_cut(sequence<std::pair<int, int>>& cuts); 
   bool connected(vertex_t u, vertex_t v);
   aug_t subtree_query(vertex_t v, vertex_t p = MAX_VERTEX_T);
   aug_t path_query(vertex_t u, vertex_t v);
@@ -54,6 +56,7 @@ class ParallelTopologyTree {
  private:
   // Class data and parameters
   vertex_t n;
+  ternarizer<int,int>* tr;
   ParallelTopologyCluster<aug_t>* leaves;
   QueryType query_type;
   std::function<aug_t(aug_t, aug_t)> f;
@@ -68,21 +71,27 @@ class ParallelTopologyTree {
                               ParallelTopologyCluster<aug_t>* c2);
 
   // Initializes the tree at the leaves.
-  void initialize_from_leaves(sequence<std::pair<int, int>>& edges);
+  // NOTE: PRESENTLY DOES NOTHING WITH THE EDGE WEIGHTS. ADDED TO SUPPORT BATCH DYNAMIC TERNARIZATION VIA SPAA RC TREE PAPER
+  void initialize_from_leaves_links(sequence<std::tuple<int, int, aug_t>>& edges);
+  void initialize_from_leaves_cuts(sequence<std::pair<int, int>>& edges); 
+  // Added for ternarization, they do exactly what the original batch link and batch cut would do.
+  void batch_link_helper(sequence<std::tuple<int, int, aug_t>>& links);
+  void batch_cut_helper(sequence<std::pair<int, int>>& cuts);
 };
 
 template <typename aug_t>
-ParallelTopologyTree<aug_t>::ParallelTopologyTree(
+ParallelTopologyTreeTernarized<aug_t>::ParallelTopologyTreeTernarized(
    vertex_t n, vertex_t k, QueryType q, std::function<aug_t(aug_t, aug_t)> f,
    aug_t id, aug_t d)
-    : n(n), query_type(q), f(f), identity(id), default_value(d) {
-  leaves = new ParallelTopologyCluster<aug_t>[n];
-  for (int i = 0; i < n; ++i)
+    : n(n * extra_tern_node_factor), query_type(q), f(f), identity(id), default_value(d) {
+  tr = new ternarizer<int,int>{n, id};
+  leaves = new ParallelTopologyCluster<aug_t>[n*extra_tern_node_factor];
+  for (int i = 0; i < (n*extra_tern_node_factor); ++i)
     leaves[i] = ParallelTopologyCluster<aug_t>((uint32_t)i);
 }
 
 template <typename aug_t>
-ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
+ParallelTopologyTreeTernarized<aug_t>::~ParallelTopologyTreeTernarized() {
   // Clear all memory
   std::unordered_set<ParallelTopologyCluster<aug_t>*> clusters;
   for (int i = 0; i < n; ++i) {
@@ -95,6 +104,7 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
   for (auto cluster : clusters)
     type_allocator<ParallelTopologyCluster<aug_t>>::destroy(cluster);
   delete[] leaves;
+  delete tr;
 #ifdef COLLECT_ROOT_CLUSTER_STATS
   std::cout << "Number of root clusters: Frequency" << std::endl;
   for (auto entry : root_clusters_histogram)
@@ -111,7 +121,70 @@ ParallelTopologyTree<aug_t>::~ParallelTopologyTree() {
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<std::pair<int, int>>& edges) {
+void ParallelTopologyTreeTernarized<aug_t>::initialize_from_leaves_links(sequence<std::tuple<int, int, aug_t>>& edges) {
+  START_TIMER(ra_timer);
+  // Serial elision.
+  if (edges.size() < 5000) {
+    root_clusters.clear();
+    del_clusters.clear();
+    for (size_t i=0; i <2*edges.size(); ++i) {
+      auto cluster = (i % 2 == 0) ? &leaves[std::get<0>(edges[i / 2])] : &leaves[std::get<1>(edges[i / 2])];
+      for (size_t j=0; j < 3; ++j) {
+        auto neighbor = cluster->neighbors[j];
+        if (neighbor && neighbor->parent == cluster->parent && !neighbor->del) {
+          neighbor->del = true;
+          root_clusters.push_back(neighbor);
+          if (neighbor->parent && !neighbor->parent->del) {
+            neighbor->parent->del = true;
+            del_clusters.push_back(neighbor->parent);
+          }
+        }
+      }
+      if (!cluster->del) {
+        cluster->del = true;
+        root_clusters.push_back(cluster);
+        if (cluster->parent && !cluster->parent->del) {
+          cluster->parent->del = true;
+          del_clusters.push_back(cluster->parent);
+        }
+      }
+    }
+  } else {
+    auto all_clusters = parlay::delayed::tabulate(2*edges.size(), [&] (size_t i) {
+      auto cluster = (i % 2 == 0) ? &leaves[std::get<0>(edges[i / 2])] : &leaves[std::get<1>(edges[i / 2])];
+      auto ds = parlay::delayed::tabulate(4, [cluster] (size_t j) {
+        if (j < 3) {
+          auto neighbor = cluster->neighbors[j];
+          if (neighbor && neighbor->parent == cluster->parent) {
+            return neighbor;
+          }
+          return (Cluster*)nullptr;
+        } else {
+          return cluster;
+        }
+      });
+      return parlay::delayed::map_maybe(ds, [&] (auto cluster) -> std::optional<Cluster*>{
+        if (cluster && cluster->try_del_atomic()) {
+          return cluster;
+        }
+        return std::nullopt;
+      });
+    });
+    root_clusters = parlay::delayed::to_sequence(parlay::delayed::flatten(all_clusters));
+
+    del_clusters = map_maybe(
+       root_clusters,
+       [&](auto cluster) -> std::optional<ParallelTopologyCluster<aug_t>*> {
+         if (cluster->parent && cluster->parent->try_del_atomic())
+           return cluster->parent;
+         return std::nullopt;
+       });
+  }
+  STOP_TIMER(ra_timer, parallel_topology_remove_ancestor_time);
+}
+
+template <typename aug_t>
+void ParallelTopologyTreeTernarized<aug_t>::initialize_from_leaves_cuts(sequence<std::pair<int, int>>& edges) {
   START_TIMER(ra_timer);
   // Serial elision.
   if (edges.size() < 5000) {
@@ -173,21 +246,34 @@ void ParallelTopologyTree<aug_t>::initialize_from_leaves(sequence<std::pair<int,
   STOP_TIMER(ra_timer, parallel_topology_remove_ancestor_time);
 }
 
+template <typename aug_t>
+void ParallelTopologyTreeTernarized<aug_t>::batch_link(sequence<std::tuple<int, int,aug_t>>& links) {
+    auto ternarizededges = tr->add_edges(links);
+    batch_cut_helper(ternarizededges.first);
+    batch_link_helper(ternarizededges.second);
+}
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::batch_link(sequence<std::pair<int, int>>& links) {
+void ParallelTopologyTreeTernarized<aug_t>::batch_cut(sequence<std::pair<int, int>>& cuts) {
+    auto ternarizededges = tr->delete_edges(cuts);
+    batch_cut_helper(ternarizededges.first);
+    batch_link_helper(ternarizededges.second);
+}
+
+template <typename aug_t>
+void ParallelTopologyTreeTernarized<aug_t>::batch_link_helper(sequence<std::tuple<int, int, aug_t>>& links) {
   // Generate root clusters.
-  initialize_from_leaves(links);
+  initialize_from_leaves_links(links);
   parallel_for(0, links.size(), [&](size_t i) {
-    leaves[links[i].first].insert_neighbor(&leaves[links[i].second], default_value);
-    leaves[links[i].second].insert_neighbor(&leaves[links[i].first], default_value);
+    leaves[std::get<0>(links[i])].insert_neighbor(&leaves[std::get<1>(links[i])], default_value);
+    leaves[std::get<1>(links[i])].insert_neighbor(&leaves[std::get<0>(links[i])], default_value);
   });
   recluster_tree();
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::batch_cut(sequence<std::pair<int, int>>& cuts) {
-  initialize_from_leaves(cuts);
+void ParallelTopologyTreeTernarized<aug_t>::batch_cut_helper(sequence<std::pair<int, int>>& cuts) {
+  initialize_from_leaves_cuts(cuts);
   parallel_for(0, cuts.size(), [&](size_t i) {
     leaves[cuts[i].first].remove_neighbor(&leaves[cuts[i].second]);
     leaves[cuts[i].second].remove_neighbor(&leaves[cuts[i].first]);
@@ -196,7 +282,7 @@ void ParallelTopologyTree<aug_t>::batch_cut(sequence<std::pair<int, int>>& cuts)
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::recluster_tree() {
+void ParallelTopologyTreeTernarized<aug_t>::recluster_tree() {
   while (root_clusters.size() > 0 || del_clusters.size() > 0) {
 // Update root cluster stats if we are collecting them
 #ifdef COLLECT_ROOT_CLUSTER_STATS
@@ -453,7 +539,7 @@ void ParallelTopologyTree<aug_t>::recluster_tree() {
 }
 
 template <typename aug_t>
-bool ParallelTopologyTree<aug_t>::is_local_max(Cluster* c) {
+bool ParallelTopologyTreeTernarized<aug_t>::is_local_max(Cluster* c) {
   // Assumes the input is a degree 2 cluster
   for (auto neighbor : c->neighbors)
     if (neighbor && !neighbor->parent && neighbor->get_degree() == 2)
@@ -463,7 +549,7 @@ bool ParallelTopologyTree<aug_t>::is_local_max(Cluster* c) {
 }
 
 template <typename aug_t>
-void ParallelTopologyTree<aug_t>::recompute_parent_value(
+void ParallelTopologyTreeTernarized<aug_t>::recompute_parent_value(
    ParallelTopologyCluster<aug_t>* c1, ParallelTopologyCluster<aug_t>* c2) {
   assert(c1->parent == c2->parent);
   auto parent = c1->parent;
@@ -482,7 +568,7 @@ void ParallelTopologyTree<aug_t>::recompute_parent_value(
 /* Return true if and only if there is a path from vertex u to
 vertex v in the tree. */
 template <typename aug_t>
-bool ParallelTopologyTree<aug_t>::connected(vertex_t u, vertex_t v) {
+bool ParallelTopologyTreeTernarized<aug_t>::connected(vertex_t u, vertex_t v) {
   return leaves[u].get_root() == leaves[v].get_root();
 }
 
@@ -491,7 +577,7 @@ the augmented values for all the vertices in the subtree rooted
 at v with respect to its parent p. If p = -1 (MAX_VERTEX_T) then
 return the sum over the entire tree containing v. */
 template <typename aug_t>
-aug_t ParallelTopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
+aug_t ParallelTopologyTreeTernarized<aug_t>::subtree_query(vertex_t v, vertex_t p) {
   assert(v >= 0 && v < n && p >= 0 && (p < n || p == MAX_VERTEX_T));
   if (p == MAX_VERTEX_T)
     return leaves[v].get_root()->value;
@@ -564,7 +650,7 @@ aug_t ParallelTopologyTree<aug_t>::subtree_query(vertex_t v, vertex_t p) {
 the augmented values for all the edges on the unique path from
 vertex u to vertex v. */
 template <typename aug_t>
-aug_t ParallelTopologyTree<aug_t>::path_query(vertex_t u, vertex_t v) {
+aug_t ParallelTopologyTreeTernarized<aug_t>::path_query(vertex_t u, vertex_t v) {
   assert(u >= 0 && u < n && v >= 0 && v < n);
   assert(u != v && connected(u, v));
   // Compute the path on both sides for both vertices until they combine
