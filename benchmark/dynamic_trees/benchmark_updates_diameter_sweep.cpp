@@ -5,8 +5,6 @@
 #include "topology_tree.h"
 #include "rc_tree.h"
 #include "top_tree.h"
-#include "spaa_rc_tree.h"
-#include "spaa_rc_tree_ternarized.h"
 #include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
@@ -18,7 +16,7 @@ using namespace dgbs;
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
-  std::vector<vertex_t> n_list = {1000000};
+  std::vector<vertex_t> n_list = {1000};
   if (argc < 2) {
     std::cout << "Using default hard-coded list for values of n." << std::endl;
   } else {
@@ -30,27 +28,26 @@ int main(int argc, char** argv) {
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
-    {"Path", dynamic_tree_benchmark::linked_list_benchmark, false, 3},
-    {"Binary", dynamic_tree_benchmark::binary_tree_benchmark, false, 3},
-    {"64-ary", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 3},
-    {"Star", dynamic_tree_benchmark::star_benchmark, true, 3},
-    {"Dand", dynamic_tree_benchmark::dandelion_benchmark, true, 3},
-    {"Random3", dynamic_tree_benchmark::random_degree3_benchmark, false, 3},
-    {"Random", dynamic_tree_benchmark::random_unbounded_benchmark, true, 3},
-    {"P-Attach", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 3},
+    {"1.01", dynamic_tree_benchmark::zipf_tree_benchmark<1.01>, true, 3},
+    {"1.10", dynamic_tree_benchmark::zipf_tree_benchmark<1.10>, true, 3},
+    {"1.25", dynamic_tree_benchmark::zipf_tree_benchmark<1.25>, true, 3},
+    {"1.50", dynamic_tree_benchmark::zipf_tree_benchmark<1.5>, true, 3},
+    {"1.75", dynamic_tree_benchmark::zipf_tree_benchmark<1.75>, true, 3},
+    {"2.00", dynamic_tree_benchmark::zipf_tree_benchmark<2.0>, true, 3},
+    {"4.00", dynamic_tree_benchmark::zipf_tree_benchmark<4.0>, true, 3},
   };
 
   for (vertex_t n : n_list) {
     // Update speed while supporting queries benchmark
-    // std::string filename = "../results/update_speed_" + std::to_string(n) + ".csv";
+    // std::string filename = "../results/diameter_sweep_update_speed_" + std::to_string(n) + ".csv";
     // std::ofstream output_csv;
     // output_csv.open(filename);
     // output_csv << "Test Case,"
     //             << "Link-Cut Tree,"
     //             << "UFO Tree,"
     //             << "Splay Top Tree,"
-    //             << "ETT (Splay Tree),"
     //             << "ETT (Treap),"
+    //             << "ETT (Splay Tree),"
     //             << "ETT (Skip List),"
     //             << "Topology Tree,"
     //             << "Rake-Compress Tree";
@@ -104,16 +101,16 @@ int main(int argc, char** argv) {
     //   else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
     //   std::cout << "RCTree        : " << time << std::endl;
     //   output_csv << "," << time;
-      
+
     //   std::cout << std::endl;
     // }
     // output_csv.close();
 
     // Empty dynamic tree update speed benchmark
-    std::string filename_empty = "../results/update_speed_empty_" + std::to_string(n) + ".csv";
+    std::string filename_empty = "../results/diameter_sweep_update_" + std::to_string(n) + ".csv";
     std::ofstream output_csv_empty;
     output_csv_empty.open(filename_empty);
-    output_csv_empty << "Test Case,"
+    output_csv_empty << "Alpha,"
                 << "Link-Cut Tree,"
                 << "UFO Tree,"
                 << "Splay Top Tree,"
@@ -171,7 +168,7 @@ int main(int argc, char** argv) {
       else time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
       std::cout << "RCTree        : " << time << std::endl;
       output_csv_empty << "," << time;
-      
+
       std::cout << std::endl;
     }
     output_csv_empty.close();

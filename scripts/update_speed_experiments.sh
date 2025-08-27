@@ -8,11 +8,11 @@ mkdir -p results
 
 cd ${base_dir}/build
 set -e
-cmake ..
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j
 set +e
 
-n_list=(100000000)
+n_list=(100000)
 ./benchmark_update_speed "${n_list[@]}"
 
 cd ${base_dir}/scripts

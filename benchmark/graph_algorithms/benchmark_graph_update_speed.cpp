@@ -9,21 +9,23 @@
 #include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
+#include "parett/dynamic_trees/euler_tour_tree/treap_ett.hpp"
 #include <fstream>
 
 using namespace dgbs;
 
 
 int main(int argc, char** argv) {
-    srand(time(NULL));
+    long seed = 0;
+    srand(seed);
     std::tuple<std::string, int> test_cases[] = {
-        {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/enwiki_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
-        {"/ssd1/quinten/graphdata/twitter_sym.bin", 1},
+        {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 3},
+        {"/ssd1/quinten/graphdata/enwiki_sym.bin", 3},
+        {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 3},
+        {"/ssd1/quinten/graphdata/twitter_sym.bin", 3},
+        // {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
+        // {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
+        // {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
     };
 
     std::string filename = "../results/update_speed_graph.csv";
@@ -31,7 +33,16 @@ int main(int argc, char** argv) {
     output_csv.open(filename);
 
     // BFS trees
-    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Euler Tour Tree (Skip List),Euler Tour Tree (Splay Tree),Topology Tree,RC Tree";
+    output_csv << "Test Case,"
+                << "Link-Cut Tree,"
+                << "UFO Tree,"
+                << "Splay Top Tree,"
+                << "ETT (Treap),"
+                << "ETT (Splay Tree),"
+                << "ETT (Skip List),"
+                << "Topology Tree,"
+                << "Rake-Compress Tree";
+
     for (auto test_case: test_cases) {
         std::string file_name = std::get<0>(test_case);
         int num_trials = std::get<1>(test_case);
@@ -48,28 +59,32 @@ int main(int argc, char** argv) {
         std::cout << "[ RUNNING " << graph_name << " BFS TREE UPDATE SPEED BENCHMARK ]" << std::endl;
         output_csv << "\n" << graph_name << "_bfs";
 
-        // UFO Tree
-        time = dynamic_tree_benchmark::get_update_speed<UFOTree<int, int>>(n, update_sequences);
-        std::cout << "UFOTree       : " << time << std::endl;
-        output_csv << "," << time;
         // Link Cut Tree
         time = dynamic_tree_benchmark::get_update_speed<link_cut_tree::LinkCutTreeInt>(n, update_sequences);
         std::cout << "LinkCutTree   : " << time << std::endl;
         output_csv << "," << time;
+        // UFO Tree
+        time = dynamic_tree_benchmark::get_update_speed<UFOTree<empty_t, empty_t>>(n, update_sequences);
+        std::cout << "UFOTree       : " << time << std::endl;
+        output_csv << "," << time;
         // Top Tree
-        time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
+        time = dynamic_tree_benchmark::get_update_speed<TopTree<empty_t>>(n, update_sequences);
         std::cout << "SplayTopTree  : " << time << std::endl;
         output_csv << "," << time;
-        // Euler Tour Tree (Skip List)
-        time = dynamic_tree_benchmark::get_update_speed<skip_list_ett::EulerTourTree>(n, update_sequences);
-        std::cout << "SkipListETT   : " << time << std::endl;
+        // Euler Tour Tree (Treap)
+        time = dynamic_tree_benchmark::get_update_speed<treap::EulerTourTree<empty_t>>(n, update_sequences);
+        std::cout << "TreapETT      : " << time << std::endl;
         output_csv << "," << time;
         // Euler Tour Tree (Splay Tree)
         time = dynamic_tree_benchmark::get_update_speed<splay_tree_ett::EulerTourTree>(n, update_sequences);
         std::cout << "SplayTreeETT  : " << time << std::endl;
         output_csv << "," << time;
+        // Euler Tour Tree (Skip List)
+        time = dynamic_tree_benchmark::get_update_speed<skip_list_ett::EulerTourTree>(n, update_sequences);
+        std::cout << "SkipListETT   : " << time << std::endl;
+        output_csv << "," << time;
         // Topology Tree
-        time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences);
+        time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<empty_t, empty_t>, empty_t>>(n, update_sequences);
         std::cout << "TopologyTree  : " << time << std::endl;
         output_csv << "," << time;
         // RC Tree
@@ -81,8 +96,6 @@ int main(int argc, char** argv) {
     }
 
     // Random incremental spanning trees
-    output_csv << "\n";
-    output_csv << "Test Case,UFO Tree,Link Cut Tree,Splay Top Tree,Euler Tour Tree (Skip List),Euler Tour Tree (Splay Tree),Topology Tree,RC Tree";
     for (auto test_case: test_cases) {
         std::string file_name = std::get<0>(test_case);
         int num_trials = std::get<1>(test_case);
@@ -99,28 +112,32 @@ int main(int argc, char** argv) {
         std::cout << "[ RUNNING " << graph_name << " RIS TREE UPDATE SPEED BENCHMARK ]" << std::endl;
         output_csv << "\n" << graph_name << "_ris";
 
-        // UFO Tree
-        time = dynamic_tree_benchmark::get_update_speed<UFOTree<int, int>>(n, update_sequences);
-        std::cout << "UFOTree       : " << time << std::endl;
-        output_csv << "," << time;
         // Link Cut Tree
         time = dynamic_tree_benchmark::get_update_speed<link_cut_tree::LinkCutTreeInt>(n, update_sequences);
         std::cout << "LinkCutTree   : " << time << std::endl;
         output_csv << "," << time;
+        // UFO Tree
+        time = dynamic_tree_benchmark::get_update_speed<UFOTree<empty_t, empty_t>>(n, update_sequences);
+        std::cout << "UFOTree       : " << time << std::endl;
+        output_csv << "," << time;
         // Top Tree
-        time = dynamic_tree_benchmark::get_update_speed<TopTree<int>>(n, update_sequences);
+        time = dynamic_tree_benchmark::get_update_speed<TopTree<empty_t>>(n, update_sequences);
         std::cout << "SplayTopTree  : " << time << std::endl;
         output_csv << "," << time;
-        // Euler Tour Tree (Skip List)
-        time = dynamic_tree_benchmark::get_update_speed<skip_list_ett::EulerTourTree>(n, update_sequences);
-        std::cout << "SkipListETT   : " << time << std::endl;
+        // Euler Tour Tree (Treap)
+        time = dynamic_tree_benchmark::get_update_speed<treap::EulerTourTree<empty_t>>(n, update_sequences);
+        std::cout << "TreapETT      : " << time << std::endl;
         output_csv << "," << time;
         // Euler Tour Tree (Splay Tree)
         time = dynamic_tree_benchmark::get_update_speed<splay_tree_ett::EulerTourTree>(n, update_sequences);
         std::cout << "SplayTreeETT  : " << time << std::endl;
         output_csv << "," << time;
+        // Euler Tour Tree (Skip List)
+        time = dynamic_tree_benchmark::get_update_speed<skip_list_ett::EulerTourTree>(n, update_sequences);
+        std::cout << "SkipListETT   : " << time << std::endl;
+        output_csv << "," << time;
         // Topology Tree
-        time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<int, int>, int>>(n, update_sequences);
+        time = dynamic_tree_benchmark::get_update_speed<TernarizedTree<TopologyTree<empty_t, empty_t>, empty_t>>(n, update_sequences);
         std::cout << "TopologyTree  : " << time << std::endl;
         output_csv << "," << time;
         // RC Tree
