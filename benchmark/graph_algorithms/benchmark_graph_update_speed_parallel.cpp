@@ -13,16 +13,14 @@
 
 int main(int argc, char** argv) {
     // List of values of n to loop through and run all test cases
-    vertex_t n = 100000;
     vertex_t k = 10000;
     if (argc < 2) {
-        std::cout << "Using default hard-coded list for values of n and k." << std::endl;
-    } else if (argc == 3) {
-        std::cout << "Using command line arguments for values of n and k." << std::endl;
-        n = std::stoi(argv[1]);
-        k = std::stoi(argv[2]);
+        std::cout << "Using default hard-coded value for k." << std::endl;
+    } else if (argc == 2) {
+        std::cout << "Using command line arguments for values of k." << std::endl;
+        k = std::stoi(argv[1]);
     } else {
-        std::cout << "Usage: ./parallel_benchmark [n] [k]" << std::endl;
+        std::cout << "Usage: ./parallel_graph_benchmark [k]" << std::endl;
     }
     long seed = 0;
     srand(seed);
