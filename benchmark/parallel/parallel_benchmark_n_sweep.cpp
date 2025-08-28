@@ -24,13 +24,13 @@ int main(int argc, char** argv) {
     a bool indicating if ternarization may be necessary for this input */
     std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
         {"path", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
-        // {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
-        // {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
         {"star", dynamic_tree_benchmark::star_benchmark, true, 1},
-        // {"Dandelion", dynamic_tree_benchmark::dandelion_benchmark, true, 1},
-        // {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
-        // {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
-        // {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1},
+        {"binary", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
+        {"64ary", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
+        {"dand", dynamic_tree_benchmark::dandelion_benchmark, true, 1},
+        {"random3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
+        {"random", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
+        {"p-attach", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1},
     };
 
     for (auto test_case : test_cases) {
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
         std::ofstream output_csv;
         output_csv.open(filename);
         output_csv << "n,"
-                    << "ETT (Skip List),"
+                    // << "ETT (Skip List),"
                     << "UFO Tree,"
                     // << "Topology Tree,"
                     // << "Rake-Compress Tree,"
@@ -76,10 +76,10 @@ int main(int argc, char** argv) {
             std::cout << "[ RUNNING " << test_case_name << " PARALLEL UPDATE SPEED BENCHMARK WITH n=" << n << ", k=" << k << " ]" << std::endl;
             output_csv << n << ",";
 
-            // Euler Tour Tree
-            time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
-            std::cout << "EulerTourTree : " << time << std::endl;
-            output_csv << time << ",";
+            // // Euler Tour Tree
+            // time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
+            // std::cout << "EulerTourTree : " << time << std::endl;
+            // output_csv << time << ",";
             // UFO Tree
             time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelUFOTree<>>(n, k, update_sequences);
             std::cout << "UFOTree       : " << time << std::endl;
