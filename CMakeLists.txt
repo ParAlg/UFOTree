@@ -143,6 +143,18 @@ add_executable(parallel_graph_benchmark
 target_link_libraries(parallel_graph_benchmark PRIVATE parlay GTest::gtest_main par-ett pam absl::flat_hash_map absl::random_random)
 target_include_directories(parallel_graph_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
 
+add_executable(parallel_benchmark_diameter_sweep
+  benchmark/parallel/parallel_benchmark_diameter_sweep.cpp
+)
+target_link_libraries(parallel_benchmark_diameter_sweep PRIVATE parlay GTest::gtest_main par-ett pam absl::random_random)
+target_include_directories(parallel_benchmark_diameter_sweep PRIVATE benchmark/parallel include include/forest_structures util)
+
+add_executable(parallel_benchmark_n_sweep
+  benchmark/parallel/parallel_benchmark_n_sweep.cpp
+)
+target_link_libraries(parallel_benchmark_n_sweep PRIVATE parlay GTest::gtest_main par-ett pam absl::random_random)
+target_include_directories(parallel_benchmark_n_sweep PRIVATE benchmark/parallel include include/forest_structures util)
+
 # add_executable(incremental_MST
 #   test/incremental_mst_test.cpp
 # )
