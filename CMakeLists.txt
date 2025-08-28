@@ -90,6 +90,12 @@ add_executable(benchmark_query_speed
 target_link_libraries(benchmark_query_speed PRIVATE parlay absl::flat_hash_map absl::random_random)
 target_include_directories(benchmark_query_speed PRIVATE include util baselines)
 
+add_executable(benchmark_queries_diameter_sweep
+  benchmark/dynamic_trees/benchmark_queries_diameter_sweep.cpp
+)
+target_link_libraries(benchmark_queries_diameter_sweep PRIVATE parlay absl::flat_hash_map absl::random_random)
+target_include_directories(benchmark_queries_diameter_sweep PRIVATE include util baselines)
+
 add_executable(benchmark_peak_space
   benchmark/dynamic_trees/benchmark_peak_space.cpp
 )
@@ -130,6 +136,13 @@ add_executable(parallel_benchmark
 )
 target_link_libraries(parallel_benchmark PRIVATE parlay GTest::gtest_main par-ett pam absl::random_random)
 target_include_directories(parallel_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
+
+add_executable(parallel_graph_benchmark
+  benchmark/graph_algorithms/benchmark_graph_update_speed_parallel.cpp
+)
+target_link_libraries(parallel_graph_benchmark PRIVATE parlay GTest::gtest_main par-ett pam absl::flat_hash_map absl::random_random)
+target_include_directories(parallel_graph_benchmark PRIVATE benchmark/parallel include include/forest_structures util)
+
 # add_executable(incremental_MST
 #   test/incremental_mst_test.cpp
 # )
