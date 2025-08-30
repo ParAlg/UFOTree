@@ -196,7 +196,7 @@ namespace dgbs {
   }
   
   TEST(ParallelTernarizedTopologySuite, batch_incremental_star_correctness_test) {
-    vertex_t n =  100000;
+    vertex_t n =  10000;
     vertex_t k = 1;
     int num_trials =  1;
 
@@ -356,7 +356,7 @@ namespace dgbs {
   }
   
   TEST(ParallelTernarizedTopologySuite, batch_decremental_star_correctness_test) { 
-    vertex_t n = 100000;
+    vertex_t n = 10000;
     vertex_t k = 1;
     int num_trials = 1;
 

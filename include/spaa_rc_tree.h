@@ -10,6 +10,9 @@
 
 using namespace dgbs;
 
+
+size_t static_space_used = 0;
+
 template<typename aug_t>
 class ParallelRCTree{
   // Summarize how this code is organized?
@@ -36,7 +39,7 @@ public:
   aug_t identity;
   aug_t path_query(int u, int v);
   std::function<aug_t(aug_t,aug_t)> func;
-  void verify_tree_correctness();
+  void verify_tree_correctness(); 
 
   ParallelRCTree(int _n, int _k = 1, aug_t id = std::numeric_limits<int>::min(), std::function<aug_t(aug_t,aug_t)> _func = [] (int A, int B) {return std::max(A,B);}){
     n = _n;
@@ -49,6 +52,7 @@ public:
   }
   ~ParallelRCTree(){
     deleteRCtree(clusters);
+    static_space_used = 0;
   }
 };
 
@@ -92,5 +96,6 @@ void ParallelRCTree<aug_t>::verify_tree_correctness(){
 
 template<typename aug_t>
 size_t ParallelRCTree<aug_t>::space(){
-  return parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes();
+  auto ans = parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes() + parlay::type_allocator<node<int,aug_t>>::num_used_bytes() + static_space_used;
+  return ans; 
 }

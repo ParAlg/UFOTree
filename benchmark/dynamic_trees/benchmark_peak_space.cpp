@@ -6,9 +6,9 @@
 #include "rc_tree.h"
 #include "spaa_rc_tree.h"
 #include "spaa_rc_tree_ternarized.h"
-/*#include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
+#include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
-#include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"*/
+#include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
 #include <fstream>
 
 using namespace dgbs;
@@ -16,7 +16,7 @@ using namespace dgbs;
 
 int main(int argc, char** argv) {
   // List of values of n to loop through and run all test cases
-  std::vector<vertex_t> n_list = {1000};
+  std::vector<vertex_t> n_list = {10000000};
   if (argc < 2) {
     std::cout << "Using default hard-coded list for values of n." << std::endl;
   } else {
@@ -31,8 +31,8 @@ int main(int argc, char** argv) {
     {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 1},
     {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 1},
     {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 1},
-    //{"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
-    //{"Dandelion", dynamic_tree_benchmark::dandelion_benchmark, true, 1},
+    {"Star", dynamic_tree_benchmark::star_benchmark, true, 1},
+    {"Dandelion", dynamic_tree_benchmark::dandelion_benchmark, true, 1},
     {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 1},
     {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 1},
     {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 1}
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     std::string filename = "../results/peak_space_" + std::to_string(n) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,RC Tree,Topology Tree,UFO Tree,Euler Tour Tree,\n";
+    output_csv << "Test Case,RC Tree,Euler Tour Tree,UFO Tree,Topology Tree,\n";
 
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);
@@ -58,14 +58,15 @@ int main(int argc, char** argv) {
       std::cout << "[ RUNNING " << test_case_name << " PEAK SPACE BENCHMARK WITH n=" << n << " ]" << std::endl;
       output_csv << test_case_name << ",";
 
+      
       // UFO Tree
       space = dynamic_tree_benchmark::get_peak_space<UFOTree<int, empty_t>>(n, update_sequences);
       std::cout << "UFOTree       : " << space << std::endl;
       output_csv << space << ",";
       // Euler Tour Tree
-      /*space = dynamic_tree_benchmark::get_peak_space<skip_list_ett::EulerTourTree>(n, update_sequences);
+      space = dynamic_tree_benchmark::get_peak_space<skip_list_ett::EulerTourTree>(n, update_sequences);
       std::cout << "EulerTourTree : " << space << std::endl;
-      output_csv << space << ",";*/
+      output_csv << space << ",";
       // RC Tree
       if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<RCTree<int>>(n, update_sequences);
       else space = dynamic_tree_benchmark::get_peak_space<TernarizedTree<RCTree<int>, int>>(n, update_sequences);
@@ -75,12 +76,12 @@ int main(int argc, char** argv) {
       if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<TopologyTree<int, empty_t>>(n, update_sequences);
       else space = dynamic_tree_benchmark::get_peak_space<TernarizedTree<TopologyTree<int, empty_t>, empty_t>>(n, update_sequences);
       std::cout << "TopologyTree  : " << space << std::endl;
-      output_csv << space << ",";
+      output_csv << space << ","; 
 
-      if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<ParallelRCTree<int>>(n, update_sequences);
+      /*if (!ternarize) space = dynamic_tree_benchmark::get_peak_space<ParallelRCTree<int>>(n, update_sequences);
       else space = dynamic_tree_benchmark::get_peak_space<ParallelRCTreeTernarized<int>>(n, update_sequences);
       std::cout << "RCTree (CMU Version)     : " << space << std::endl;
-      output_csv << space << ",";
+      output_csv << space << ",";*/
 
       std::cout << std::endl;
       output_csv << "\n";

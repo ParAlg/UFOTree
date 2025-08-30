@@ -51,9 +51,11 @@ tt_leaf_node *find_maximum(tt_node *root);
 // Find the root node of the given top tree.
 tt_node *find_root(tt_node *node);
 
+
 // Used for deallocating the top tree.
 void destroy_top_tree_containing_edge(struct edge *edge);
 
 }
+
 
 #endif

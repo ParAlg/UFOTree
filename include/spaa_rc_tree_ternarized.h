@@ -10,6 +10,7 @@
 
 using namespace dgbs;
 
+extern size_t static_space_used;
 template<typename aug_t>
 class ParallelRCTreeTernarized{
   // Summarize how this code is organized?
@@ -51,6 +52,7 @@ public:
   ~ParallelRCTreeTernarized(){
     free(tr);
     deleteRCtree(clusters);
+    static_space_used = 0;
   }
 };
 
@@ -141,5 +143,9 @@ void ParallelRCTreeTernarized<aug_t>::verify_tree_correctness(){
 
 template<typename aug_t>
 size_t ParallelRCTreeTernarized<aug_t>::space(){
-  return parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes();
+  auto ans = parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes() 
+             + parlay::type_allocator<node<int,aug_t>>::num_used_bytes() 
+             + tr->space();
+             + static_space_used;
+  return ans; 
 }

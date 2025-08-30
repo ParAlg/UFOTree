@@ -434,7 +434,7 @@ void remDuplicates(G& get_key, uintE* flags, long m, long n) {
   parallel_for (0, m, [&] (size_t i) {
     uintE key = get_key(i);
     if(key != UINT_E_MAX && flags[key] == UINT_E_MAX) {
-      CAS(&flags[key],(uintE)UINT_E_MAX,static_cast<uintE>(i));
+      dgbs::CAS<uintE>(&flags[key],(uintE)UINT_E_MAX,static_cast<uintE>(i));
     }
   });
   //reset flags

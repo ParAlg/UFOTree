@@ -18,6 +18,7 @@ class TopTree {
         void link(vertex_t u, vertex_t v, aug_t weight = 1);
         bool connected(vertex_t u, vertex_t v);
         void cut(vertex_t u, vertex_t v);
+        size_t space();
         aug_t path_query(vertex_t u, vertex_t v);
 };
 
@@ -68,6 +69,13 @@ void TopTree<aug_t>::cut(vertex_t u, vertex_t v){
     } else{
         throw std::invalid_argument("Edge not found in map");
     }
+}
+
+// Returns the space used by the Top Tree
+template<typename aug_t>
+size_t TopTree<aug_t>::space(){
+    size_t ans = 
+    return ans;
 }
 
 template<typename aug_t>
