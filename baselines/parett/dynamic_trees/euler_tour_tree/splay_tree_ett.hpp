@@ -34,6 +34,7 @@ class EulerTourTree {
   // All edges in [cuts] must be in the graph, and no edges may be repeated.
   void BatchCut(std::pair<int, int>* cuts, int len);
 
+  size_t space();
  private:
   int num_verts;
   splay_tree::Node* verts;
@@ -109,4 +110,11 @@ void EulerTourTree::BatchCut(pair<int, int>* cuts, int len) {
   }
 }
 
+size_t EulerTourTree::space(){
+  size_t max_space = sizeof(EulerTourTree);
+  max_space += num_verts * sizeof(splay_tree::Node);
+  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*)); // Size of key value pairs
+  max_space += num_verts * sizeof(Node);
+  return max_space;
+}
 } //namespace splay_tree_ett

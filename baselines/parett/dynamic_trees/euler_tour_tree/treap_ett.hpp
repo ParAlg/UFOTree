@@ -45,6 +45,7 @@ public:
   Node* GetEdgeNode(vertex_t u, vertex_t v);
   vertex_t NodeToVertex(Node* node);
   std::unordered_map<std::pair<vertex_t, vertex_t>, Node*, HashIntPairStruct>& GetEdgeMap() { return edges; }
+  size_t space();
 
 private:
   vertex_t num_verts;
@@ -204,6 +205,15 @@ treap::Node<T>* EulerTourTree<T>::GetEdgeNode(vertex_t u, vertex_t v) {
 template<typename T>
 vertex_t EulerTourTree<T>::NodeToVertex(Node* node) {
   return node - &verts[0];
+}
+
+template<typename T>
+size_t EulerTourTree<T>::space(){
+  size_t max_space = sizeof(EulerTourTree);
+  max_space += num_verts * sizeof(Node);
+  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Node*)); // Size of key value pairs
+  max_space += (node_pool.size() * sizeof(Node));
+  return max_space;
 }
 
 } //namespace treap

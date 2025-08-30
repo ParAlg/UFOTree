@@ -229,7 +229,7 @@ class LinkCutTreeInt {
   void cut(vertex_t u, vertex_t v);
   bool connected(vertex_t u, vertex_t v);
   std::pair<int,Edge> path_query(vertex_t u, vertex_t v);
-
+  size_t space();
  private:
   NodeInt* verts;
   int num_verts;
@@ -473,6 +473,11 @@ class NodeInt {
    edge.second.src = pointer_edge.second.first-verts;
    edge.second.dst = pointer_edge.second.second-verts;
    return edge;
+ }
+
+ size_t LinkCutTreeInt::space(){
+    size_t max_space = sizeof(LinkCutTreeInt) + (num_verts * (sizeof(NodeInt*) + sizeof(NodeInt)));
+    return max_space;
  }
 
 } // namespace link_cut_tree

@@ -4,8 +4,10 @@
 #include <stdbool.h>
 #include "tree.h"
 
+static size_t top_tree_space_used = 0;
 
 namespace dgbs {
+
 
 typedef struct tt_node_struct tt_node;
 typedef struct tt_int_node_struct tt_int_node;

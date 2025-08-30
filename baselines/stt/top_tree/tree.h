@@ -14,6 +14,7 @@ static long long tt_changes = 0;
 struct tree {
     size_t num_vertices;
     struct vertex* vertices;
+    size_t space_used = sizeof(tree);
 };
 
 struct vertex {
@@ -35,7 +36,6 @@ void add_edge(struct edge *allocation, struct vertex *left, struct vertex *right
 void destroy_edge(struct edge *edge);
 void destroy_tree(struct tree *to_destroy);
 bool has_at_most_one_incident_edge(struct vertex *vertex);
-
 }
 
 #endif

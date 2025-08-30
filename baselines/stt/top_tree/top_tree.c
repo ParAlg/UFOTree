@@ -5,7 +5,7 @@
 #define is_point(n) (((tt_node *) n)->num_boundary < 2)
 #define is_path(n) (((tt_node *) n)->num_boundary == 2)
 
-
+#define MEASURE_SPACE
 namespace dgbs {
 
 static inline int int_max(int a, int b) {
@@ -395,16 +395,28 @@ tt_node *tt_link(struct vertex *u, struct vertex *v, int weight) {
     struct edge *edge = NULL;
 
     T_edge = (tt_leaf_node*) malloc(sizeof(tt_leaf_node));
+    #ifdef MEASURE_SPACE
+    top_tree_space_used +=  sizeof(tt_leaf_node);
+    #endif
     if (!T_edge) return NULL;
     if (u->first_edge) {
         Tu_new = (tt_int_node*) malloc(sizeof(tt_int_node));
+        #ifdef MEASURE_SPACE
+        top_tree_space_used +=  sizeof(tt_int_node);
+        #endif
         if (!Tu_new) fail(T_edge, Tu_new, Tv_new);
     }
     if (v->first_edge) {
         Tv_new = (tt_int_node*) malloc(sizeof(tt_int_node));
+        #ifdef MEASURE_SPACE
+        top_tree_space_used +=  sizeof(tt_int_node);
+        #endif
         if (!Tv_new) fail(T_edge, Tu_new, Tv_new);
     }
     edge = (struct edge*) malloc(sizeof(struct edge));
+    #ifdef MEASURE_SPACE 
+    top_tree_space_used += sizeof(edge);
+    #endif
     if (!edge) fail(T_edge, Tu_new, Tv_new);
 
     tt_node *Tu = expose(u);
@@ -469,6 +481,9 @@ static void delete_all_ancestors(tt_node *node) {
         tt_changes++;
     }
     free(node);
+    #ifdef MEASURE_SPACE
+    top_tree_space_used -= sizeof(tt_node);
+    #endif
 }
 
 void tt_cut(struct edge *edge) {
@@ -480,6 +495,9 @@ void tt_cut(struct edge *edge) {
     // now depth(e)<=2, and if e is a leaf edge, depth(e)<=1
     delete_all_ancestors(node);
     destroy_edge(edge);
+    #ifdef MEASURE_SPACE
+    top_tree_space_used -= sizeof(edge);
+    #endif
     u->is_exposed = true;
     v->is_exposed = true;
 
@@ -496,7 +514,11 @@ static void free_top_tree(tt_node *node) {
         free_top_tree(int_node->children[0]);
         free_top_tree(int_node->children[1]);
     }
+
     free(node);
+    #ifdef MEASURE_SPACE
+    top_tree_space_used -= sizeof(node);
+    #endif
 }
 void destroy_top_tree_containing_edge(struct edge *edge) {
     if (!edge) return;

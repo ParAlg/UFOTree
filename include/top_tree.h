@@ -34,6 +34,7 @@ TopTree<aug_t>::~TopTree(){
     for (struct vertex *vert = t.vertices; vert < end; ++vert)
         destroy_top_tree_containing_edge(vert->first_edge);
     destroy_tree(&t);
+    top_tree_space_used = 0;
     // std::cout << tt_changes << std::endl;
 }
 
@@ -74,7 +75,7 @@ void TopTree<aug_t>::cut(vertex_t u, vertex_t v){
 // Returns the space used by the Top Tree
 template<typename aug_t>
 size_t TopTree<aug_t>::space(){
-    size_t ans = 0; 
+    size_t ans = t.space_used + top_tree_space_used + (edges.size() * sizeof(std::pair<vertex*, vertex*>) + sizeof(edges)); 
     return ans;
 }
 

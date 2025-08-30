@@ -7,7 +7,7 @@ struct tree create_tree(size_t num_vertices) {
     struct tree output;
     output.num_vertices = num_vertices;
     output.vertices = (vertex*) malloc(num_vertices * sizeof(struct vertex));
-
+    output.space_used = num_vertices * sizeof(struct vertex);
     if (output.vertices == NULL)
         output.num_vertices = 0;
 
@@ -52,11 +52,9 @@ void destroy_edge(struct edge *edge) {
     destroy_edge_inner(edge->endpoints[0], edge->prev[0], edge->next[0]);
     destroy_edge_inner(edge->endpoints[1], edge->prev[1], edge->next[1]);
     std::pair<struct vertex*, struct vertex*> pair1(edge->endpoints[0], edge->endpoints[1]);
-    if(edges.count(pair1)){
-       edges.erase(pair1); 
-    } else{
-        throw std::invalid_argument("Edge does not exist in Map");
-    }
+    if(edges.count(pair1)) edges.erase(pair1);
+    else throw std::invalid_argument("Edge does not exist in Map");
+
     free(edge);
 }
 
@@ -98,5 +96,6 @@ bool has_at_most_one_incident_edge(struct vertex *vertex) {
         return true;
     }
 }
+
 
 }
