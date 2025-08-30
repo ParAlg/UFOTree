@@ -28,13 +28,16 @@ int main(int argc, char** argv) {
   /* Each test case has a name for output, the update generator function, and
   a bool indicating if ternarization may be necessary for this input */
   std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
+    {"0.00", dynamic_tree_benchmark::zipf_tree_benchmark<0.00>, true, 3},
+    {"0.25", dynamic_tree_benchmark::zipf_tree_benchmark<0.25>, true, 3},
+    {"0.50", dynamic_tree_benchmark::zipf_tree_benchmark<0.50>, true, 3},
+    {"0.75", dynamic_tree_benchmark::zipf_tree_benchmark<0.75>, true, 3},
     {"1.01", dynamic_tree_benchmark::zipf_tree_benchmark<1.01>, true, 3},
-    {"1.10", dynamic_tree_benchmark::zipf_tree_benchmark<1.10>, true, 3},
     {"1.25", dynamic_tree_benchmark::zipf_tree_benchmark<1.25>, true, 3},
-    {"1.50", dynamic_tree_benchmark::zipf_tree_benchmark<1.5>, true, 3},
+    {"1.50", dynamic_tree_benchmark::zipf_tree_benchmark<1.50>, true, 3},
     {"1.75", dynamic_tree_benchmark::zipf_tree_benchmark<1.75>, true, 3},
-    {"2.00", dynamic_tree_benchmark::zipf_tree_benchmark<2.0>, true, 3},
-    {"4.00", dynamic_tree_benchmark::zipf_tree_benchmark<4.0>, true, 3},
+    {"2.00", dynamic_tree_benchmark::zipf_tree_benchmark<2.00>, true, 3},
+    {"4.00", dynamic_tree_benchmark::zipf_tree_benchmark<4.00>, true, 3},
   };
 
   for (vertex_t n : n_list) {

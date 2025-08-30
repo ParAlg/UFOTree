@@ -4,25 +4,23 @@
 #include "util.h"
 #include "parallel_ufo_tree.h"
 #include "parallel_topology_tree.h"
+#include "parallel_topology_tree_ternarized.h"
 #include "ParETT/euler_tour_tree.hpp"
 #include "spaa_rc_tree.h"
+#include "spaa_rc_tree_ternarized.h"
 #include <fstream>
-
-using namespace dgbs;
 
 
 int main(int argc, char** argv) {
     // List of values of n to loop through and run all test cases
-    vertex_t n = 100000;
     vertex_t k = 10000;
     if (argc < 2) {
-        std::cout << "Using default hard-coded list for values of n and k." << std::endl;
-    } else if (argc == 3) {
-        std::cout << "Using command line arguments for values of n and k." << std::endl;
-        n = std::stoi(argv[1]);
-        k = std::stoi(argv[2]);
+        std::cout << "Using default hard-coded value for k." << std::endl;
+    } else if (argc == 2) {
+        std::cout << "Using command line arguments for values of k." << std::endl;
+        k = std::stoi(argv[1]);
     } else {
-        std::cout << "Usage: ./parallel_benchmark [n] [k]" << std::endl;
+        std::cout << "Usage: ./parallel_graph_benchmark [k]" << std::endl;
     }
     long seed = 0;
     srand(seed);
@@ -39,24 +37,23 @@ int main(int argc, char** argv) {
     std::string filename = "../results/parallel_update_speed_graph.csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,Euler Tour Tree,UFO Tree,Topology Tree,\n";
+    output_csv << "Test Case,Euler Tour Tree,UFO Tree,Topology Tree,Rake-Compress Tree,";
 
     // BFS trees
     for (auto test_case: test_cases) {
         std::string file_name = std::get<0>(test_case);
         int num_trials = std::get<1>(test_case);
-        auto G = graph_utils::break_sym_graph_from_bin(file_name);
+        auto G = dgbs::graph_utils::break_sym_graph_from_bin(file_name);
         auto n = G.size();
-        std::vector<std::vector<Update>> update_sequences;
+        std::vector<std::vector<UpdateBatch>> update_sequences(num_trials);
+        std::vector<std::vector<UpdateBatchWithWeights>> weighted_update_sequences(num_trials);
         for (int i = 0; i < num_trials; i++) {
             std::vector<Update> updates = graph_benchmark::stream_file_BFS_benchmark(G, rand());
-            update_sequences.push_back(updates);
+            update_sequences[i] = parallel_dynamic_tree_benchmark::convert_updates_to_batches(updates, k);
         }
         
         // Convert inputs to have dummy weights to fit Parallel RC-Tree Interface
         for (int i = 0; i < num_trials; i++) {
-            auto update_sequence = update_generator(n, rand());
-            update_sequences[i] = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
             weighted_update_sequences[i].resize(update_sequences[i].size());
             // Initialzing same update sequence with default val edge weights
             for (int j = 0; j < update_sequences[i].size(); j++) {
@@ -77,7 +74,7 @@ int main(int argc, char** argv) {
         std::string graph_name = file_name.substr(file_name.find_last_of('/')+1);
         graph_name = graph_name.substr(0, graph_name.length()-8);
         std::cout << "[ RUNNING " << graph_name << " BFS TREE UPDATE SPEED BENCHMARK ]" << std::endl;
-        output_csv << "\n" << graph_name << "_bfs";
+        output_csv << "\n" << graph_name << "_bfs,";
 
         // Euler Tour Tree
         time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);
@@ -88,20 +85,13 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
         // Topology Tree
-        if (!ternarize) {
-            time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);
-            std::cout << "TopologyTree  : " << time << std::endl;
-            output_csv << time << ",";
-        }
+        time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelTopologyTreeTernarized<int>>(n, k, weighted_update_sequences);
+        std::cout << "TopologyTree  : " << time << std::endl;
+        output_csv << time << ",";
         // RC Tree
-        if (!ternarize) {
-            time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n,k,weighted_update_sequences);
-            std::cout << "RCTree        : " << time << std::endl;
-            output_csv << time << ",";
-        }
-        std::cout << std::endl;
-        output_csv << "\n";
-
+        time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTreeTernarized<int>>(n, k, weighted_update_sequences);
+        std::cout << "RCTree        : " << time << std::endl;
+        output_csv << time << ",";
         std::cout << std::endl;
     }
 
@@ -109,18 +99,17 @@ int main(int argc, char** argv) {
     for (auto test_case: test_cases) {
         std::string file_name = std::get<0>(test_case);
         int num_trials = std::get<1>(test_case);
-        auto G = graph_utils::break_sym_graph_from_bin(file_name);
+        auto G = dgbs::graph_utils::break_sym_graph_from_bin(file_name);
         auto n = G.size();
-        std::vector<std::vector<Update>> update_sequences;
+        std::vector<std::vector<UpdateBatch>> update_sequences(num_trials);
+        std::vector<std::vector<UpdateBatchWithWeights>> weighted_update_sequences(num_trials);
         for (int i = 0; i < num_trials; i++) {
             std::vector<Update> updates = graph_benchmark::stream_file_RIS_benchmark(G, rand());
-            update_sequences.push_back(updates);
+            update_sequences[i] = parallel_dynamic_tree_benchmark::convert_updates_to_batches(updates, k);
         }
         
         // Convert inputs to have dummy weights to fit Parallel RC-Tree Interface
         for (int i = 0; i < num_trials; i++) {
-            auto update_sequence = update_generator(n, rand());
-            update_sequences[i] = parallel_dynamic_tree_benchmark::convert_updates_to_batches(update_sequence, k);
             weighted_update_sequences[i].resize(update_sequences[i].size());
             // Initialzing same update sequence with default val edge weights
             for (int j = 0; j < update_sequences[i].size(); j++) {
@@ -141,7 +130,7 @@ int main(int argc, char** argv) {
         std::string graph_name = file_name.substr(file_name.find_last_of('/')+1);
         graph_name = graph_name.substr(0, graph_name.length()-8);
         std::cout << "[ RUNNING " << graph_name << " RIS TREE UPDATE SPEED BENCHMARK ]" << std::endl;
-        output_csv << "\n" << graph_name << "_ris";
+        output_csv << "\n" << graph_name << "_ris,";
 
         // Euler Tour Tree
         time = parallel_dynamic_tree_benchmark::get_update_speed<parallel_euler_tour_tree::EulerTourTree<int>>(n, k, update_sequences);

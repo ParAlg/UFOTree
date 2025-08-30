@@ -4,10 +4,8 @@
 #include "parallel_ufo_tree.h"
 #include "parallel_topology_tree.h"
 #include "parallel_topology_tree_ternarized.h"
-#include "parallel_topology_tree_ternarized.h"
 #include "ParETT/euler_tour_tree.hpp"
 #include "spaa_rc_tree.h"
-#include "spaa_rc_tree_ternarized.h"
 #include "spaa_rc_tree_ternarized.h"
 #include <fstream>
 
@@ -32,17 +30,19 @@ int main(int argc, char** argv) {
     /* Each test case has a name for output, the update generator function, and
     a bool indicating if ternarization may be necessary for this input */
     std::tuple<std::string, std::function<std::vector<Update>(vertex_t, long)>, bool, int> test_cases[] = {
-        {"Linked List", dynamic_tree_benchmark::linked_list_benchmark, false, 3},
-        {"Binary Tree", dynamic_tree_benchmark::binary_tree_benchmark, false, 3},
-        {"64-ary Tree", dynamic_tree_benchmark::k_ary_tree_benchmark, true, 3},
-        {"Star", dynamic_tree_benchmark::star_benchmark, true, 3},
-        {"Dandelion", dynamic_tree_benchmark::dandelion_benchmark, true, 3},
-        {"Random Degree 3", dynamic_tree_benchmark::random_degree3_benchmark, false, 3},
-        {"Random Unbounded Degree", dynamic_tree_benchmark::random_unbounded_benchmark, true, 3},
-        {"Preferential Attachment", dynamic_tree_benchmark::preferential_attachment_benchmark, true, 3},
+        {"0.00", dynamic_tree_benchmark::zipf_tree_benchmark<0.00>, true, 3},
+        {"0.25", dynamic_tree_benchmark::zipf_tree_benchmark<0.25>, true, 3},
+        {"0.50", dynamic_tree_benchmark::zipf_tree_benchmark<0.50>, true, 3},
+        {"0.75", dynamic_tree_benchmark::zipf_tree_benchmark<0.75>, true, 3},
+        {"1.01", dynamic_tree_benchmark::zipf_tree_benchmark<1.01>, true, 3},
+        {"1.25", dynamic_tree_benchmark::zipf_tree_benchmark<1.25>, true, 3},
+        {"1.50", dynamic_tree_benchmark::zipf_tree_benchmark<1.50>, true, 3},
+        {"1.75", dynamic_tree_benchmark::zipf_tree_benchmark<1.75>, true, 3},
+        {"2.00", dynamic_tree_benchmark::zipf_tree_benchmark<2.00>, true, 3},
+        {"4.00", dynamic_tree_benchmark::zipf_tree_benchmark<4.00>, true, 3},
     };
 
-    std::string filename = "../results/parellel_update_speed_" + std::to_string(n) + "_" + std::to_string(k) + ".csv";
+    std::string filename = "../results/diameter_sweep_parallel_update_" + std::to_string(n) + "_" + std::to_string(k) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
     output_csv << "Test Case,"
@@ -92,25 +92,15 @@ int main(int argc, char** argv) {
         std::cout << "UFOTree       : " << time << std::endl;
         output_csv << time << ",";
         // Topology Tree
-        if (!ternarize) {
-            time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);
-            std::cout << "TopologyTree  : " << time << std::endl;
-            output_csv << time << ",";
-        } else{
-            time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelTopologyTreeTernarized<int>>(n, k, weighted_update_sequences);
-            std::cout << "TopologyTree  : " << time << std::endl;
-            output_csv << time << ",";
-        }
+        if (!ternarize)  time = parallel_dynamic_tree_benchmark::get_update_speed<ParallelTopologyTree<int>>(n, k, update_sequences);
+        else time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelTopologyTreeTernarized<int>>(n, k, weighted_update_sequences);
+        std::cout << "TopologyTree  : " << time << std::endl;
+        output_csv << time << ",";
         // RC Tree
-        if (!ternarize) {
-            time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n,k,weighted_update_sequences);
-            std::cout << "RCTree        : " << time << std::endl;
-            output_csv << time << ",";
-        } else{
-            time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTreeTernarized<int>>(n,k,weighted_update_sequences);
-            std::cout << "RCTree        : " << time << std::endl;
-            output_csv << time << ",";
-        }
+        if (!ternarize) time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTree<int>>(n, k, weighted_update_sequences);
+        else time = parallel_dynamic_tree_benchmark::get_update_speed_with_rand_edge_weights<ParallelRCTreeTernarized<int>>(n, k, weighted_update_sequences);
+        std::cout << "RCTree        : " << time << std::endl;
+        output_csv << time << ",";
         std::cout << std::endl;
         output_csv << "\n";
     }

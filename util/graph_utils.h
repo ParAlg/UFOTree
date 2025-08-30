@@ -7,7 +7,7 @@
 #include <string>
 #include <algorithm>
 #include "types.h"
-#include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
+#include "ufo_tree.h"
 
 using namespace parlay;
 
@@ -70,11 +70,11 @@ struct graph_utils {
     srand(seed);
     vertex_t n = G.size();
     edges graphEdges = parlay::random_shuffle(to_edges(G), parlay::random(rand()));
-    skip_list_ett::EulerTourTree tree(n);
+    UFOTree<empty_t,empty_t> tree(n);
     edges risForest;
     auto vertex_permutation = parlay::random_permutation(n, parlay::random(rand()));
     for (auto edge : graphEdges) {
-      if (!tree.IsConnected(edge.src, edge.dst)) {
+      if (!tree.connected(edge.src, edge.dst)) {
         tree.link(edge.src, edge.dst);
         risForest.push_back({vertex_permutation[edge.src], vertex_permutation[edge.dst]});
       }
