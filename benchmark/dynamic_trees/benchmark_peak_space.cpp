@@ -9,6 +9,7 @@
 #include "parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/skip_list_ett.hpp"
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
+#include "top_tree.h"
 #include <fstream>
 
 using namespace dgbs;
@@ -42,7 +43,7 @@ int main(int argc, char** argv) {
     std::string filename = "../results/peak_space_" + std::to_string(n) + ".csv";
     std::ofstream output_csv;
     output_csv.open(filename);
-    output_csv << "Test Case,RC Tree,Euler Tour Tree,UFO Tree,Topology Tree,\n";
+    output_csv << "Test Case,UFO Tree,Euler Tour Tree,RC Tree,Topology Tree,\n";
 
     for (auto test_case : test_cases) {
       std::string test_case_name = std::get<0>(test_case);

@@ -74,7 +74,7 @@ void TopTree<aug_t>::cut(vertex_t u, vertex_t v){
 // Returns the space used by the Top Tree
 template<typename aug_t>
 size_t TopTree<aug_t>::space(){
-    size_t ans = 
+    size_t ans = 0; 
     return ans;
 }
 
