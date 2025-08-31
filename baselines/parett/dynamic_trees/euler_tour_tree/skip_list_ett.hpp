@@ -86,13 +86,14 @@ EulerTourTree::~EulerTourTree() {
 
 size_t EulerTourTree::space() {
   size_t max_space = sizeof(EulerTourTree);
-  max_space += num_verts * sizeof(skip_list::Element);
-  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*)) // Size of key value pairs
-    + edges.bucket_count() * (sizeof(void*) + sizeof(size_t)); // Space used by linked list
-  for (auto element : edges) {
+  max_space += edges.bucket_count() * (sizeof(std::pair<int, int>) + sizeof(Element*));
+  for (size_t i = 0; i < num_verts; i++) { // Space in skip list vertex elements
+    max_space += verts[i].calculate_size();
+  }
+  for (auto element : edges) { // Space in used skip list edge elements
     max_space += element.second->calculate_size();
   }
-  for (auto curr : node_pool) {
+  for (auto curr : node_pool) { // Space in unused skip list edge elements
     max_space += (sizeof(skip_list::Element*) + curr->calculate_size());
   }
   return max_space;

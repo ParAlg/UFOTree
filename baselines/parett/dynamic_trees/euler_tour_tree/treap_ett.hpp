@@ -208,11 +208,15 @@ vertex_t EulerTourTree<T>::NodeToVertex(Node* node) {
 }
 
 template<typename T>
-size_t EulerTourTree<T>::space(){
+size_t EulerTourTree<T>::space() {
   size_t max_space = sizeof(EulerTourTree);
-  max_space += num_verts * sizeof(Node);
-  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Node*)); // Size of key value pairs
-  max_space += (node_pool.size() * sizeof(Node));
+  // Size of hash map
+  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Node*) + sizeof(void*)) +
+    edges.bucket_count() * (sizeof(void*) + sizeof(size_t));
+
+  max_space += num_verts * sizeof(Node); // Space in skip list vertex elements
+  max_space += edges.size() * sizeof(Node); // Space in used skip list edge elements
+  max_space += (node_pool.size() * (sizeof(Node*) + sizeof(Node))); // Space used in unused skip list edge elements
   return max_space;
 }
 

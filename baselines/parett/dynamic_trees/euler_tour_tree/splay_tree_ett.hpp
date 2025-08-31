@@ -110,11 +110,14 @@ void EulerTourTree::BatchCut(pair<int, int>* cuts, int len) {
   }
 }
 
-size_t EulerTourTree::space(){
+size_t EulerTourTree::space() {
   size_t max_space = sizeof(EulerTourTree);
-  max_space += num_verts * sizeof(splay_tree::Node);
-  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Element*)); // Size of key value pairs
-  max_space += num_verts * sizeof(Node);
+  // Size of hash map
+  max_space += edges.size() * (sizeof(std::pair<int, int>) + sizeof(Node*) + sizeof(void*)) +
+    edges.bucket_count() * (sizeof(void*) + sizeof(size_t));
+
+  max_space += num_verts * sizeof(Node); // Space in skip list vertex elements
+  max_space += edges.size() * sizeof(Node); // Space in used skip list edge elements
   return max_space;
 }
 } //namespace splay_tree_ett
