@@ -12,9 +12,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j
 set +e
 
-N=10000000
-./benchmark_update_speed "$N"
-./benchmark_graph_update_speed
+./parallel_benchmark_n_sweep
 
 cd ${base_dir}/scripts
-python3 plot_results.py ../results/update_speed_$N.csv ../results/update_speed_graph.csv ../results/update_speed.pdf
+python3 plot_n_sweep_parallel_updates.py

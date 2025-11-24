@@ -143,9 +143,10 @@ void ParallelRCTreeTernarized<aug_t>::verify_tree_correctness(){
 
 template<typename aug_t>
 size_t ParallelRCTreeTernarized<aug_t>::space(){
-  auto ans = parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes() 
-             + parlay::type_allocator<node<int,aug_t>>::num_used_bytes() 
-             + tr->space();
-             + static_space_used;
-  return ans; 
+  // auto ans = parlay::type_allocator<cluster<int,aug_t>>::num_used_bytes() 
+  //            + parlay::type_allocator<node<int,aug_t>>::num_used_bytes() 
+  //            + tr->space();
+  //            + static_space_used;
+  // return ans;
+  return 0;
 }

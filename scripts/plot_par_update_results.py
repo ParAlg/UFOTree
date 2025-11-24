@@ -187,7 +187,9 @@ if __name__ == '__main__':
     output_file_path = sys.argv[3]
     
     # Read the data from the two CSV files
+    print("Reading synthetic results: ", input_file_path1)
     data1, labels1, groups1 = read_and_process_csv(input_file_path1)
+    print("Reading real-world results: ", input_file_path2)
     data2, labels2, groups2 = read_and_process_csv(input_file_path2)
 
     # Exit if either file could not be read or if they have different column headers

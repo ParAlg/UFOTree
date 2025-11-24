@@ -1,16 +1,37 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import sys # Import the sys module to handle command-line arguments
 
-# File names
+# --- Argument Parsing ---
+# The script expects 4 arguments: 3 input CSV files and 1 output PDF path
+if len(sys.argv) != 5:
+    print("Usage: python3 plot_diameter_sweep.py <updates_csv> <path_queries_csv> <connectivity_queries_csv> <output_pdf_path>")
+    sys.exit(1)
+
+# Assign command-line arguments to descriptive variables
+updates_path = sys.argv[1]
+path_queries_path = sys.argv[2]
+conn_queries_path = sys.argv[3]
+output_pdf_path = sys.argv[4]
+
+# File names are now taken from command-line arguments
 file_paths = {
-    'Updates': '../results/diameter_sweep_update_10000000_final.csv',
-    'Path Queries': '../results/diameter_sweep_path_query_1000000_final.csv',
-    'Connectivity Queries': '../results/diameter_sweep_conn_query_1000000_final.csv'
+    'Updates': updates_path,
+    'Path Queries': path_queries_path,
+    'Connectivity Queries': conn_queries_path
 }
 
 # Read data from files
-dataframes = {key: pd.read_csv(path) for key, path in file_paths.items()}
+try:
+    dataframes = {key: pd.read_csv(path) for key, path in file_paths.items()}
+except FileNotFoundError as e:
+    print(f"Error: One of the input files was not found: {e}")
+    sys.exit(1)
+except pd.errors.EmptyDataError as e:
+    print(f"Error: One of the input files is empty: {e}")
+    sys.exit(1)
+
 
 # Define custom colors, styles, and markers
 plot_styles = {
@@ -69,5 +90,6 @@ for i, (title, config) in enumerate(plot_configs.items()):
 handles, labels = axes[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.03), ncol=4, frameon=False, columnspacing=1.5)
 
-plt.savefig('../results/diameter_sweep_sequential.pdf')
-print("Plot saved to results/diameter_sweep_sequential.pdf")
+# Use the command-line argument for the output path
+plt.savefig(output_pdf_path)
+print(f"Plot saved to {output_pdf_path}")

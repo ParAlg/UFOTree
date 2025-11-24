@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the data from the CSV file
-df = pd.read_csv("../results/n_sweep_parellel_update_final.csv")
+df = pd.read_csv("../results/n_sweep_parallel_update.csv")
 
 # Use a professional-looking style
 plt.style.use('seaborn-v0_8-notebook')

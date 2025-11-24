@@ -19,13 +19,10 @@ int main(int argc, char** argv) {
     long seed = 0;
     srand(seed);
     std::tuple<std::string, int> test_cases[] = {
-        {"/ssd1/quinten/graphdata/RoadUSA_sym.bin", 3},
-        {"/ssd1/quinten/graphdata/enwiki_sym.bin", 3},
-        {"/ssd1/quinten/graphdata/stackoverflow_sym.bin", 3},
-        {"/ssd1/quinten/graphdata/twitter_sym.bin", 3},
-        // {"/ssd1/quinten/graphdata/com-youtube_sym.bin", 1},
-        // {"/ssd1/quinten/graphdata/as-skitter_sym.bin", 1},
-        // {"/ssd1/quinten/graphdata/com-orkut_sym.bin", 1},
+        {"graphs/RoadUSA_sym.bin", 3},
+        {"graphs/enwiki_sym.bin", 3},
+        {"graphs/stackoverflow_sym.bin", 3},
+        {"graphs/twitter_sym.bin", 3},
     };
 
     std::string filename = "../results/update_speed_graph.csv";

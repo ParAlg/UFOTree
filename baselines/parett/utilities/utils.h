@@ -429,26 +429,26 @@ inline ulong hashInt(ulong a) {
 // Assumes that flags is already allocated and cleared to UINT_E_MAX.
 // Sets all duplicate values in the array to UINT_E_MAX and resets flags to
 // UINT_E_MAX.
-template <class G>
-void remDuplicates(G& get_key, uintE* flags, long m, long n) {
-  parallel_for (0, m, [&] (size_t i) {
-    uintE key = get_key(i);
-    if(key != UINT_E_MAX && flags[key] == UINT_E_MAX) {
-      dgbs::CAS<uintE>(&flags[key],(uintE)UINT_E_MAX,static_cast<uintE>(i));
-    }
-  });
-  //reset flags
-  parallel_for (0, m, [&] (size_t i) {
-    uintE key = get_key(i);
-    if(key != UINT_E_MAX) {
-      if(flags[key] == i) { //win
-        flags[key] = UINT_E_MAX; //reset
-      } else {
-        get_key(i) = UINT_E_MAX; //lost
-      }
-    }
-  });
-}
+// template <class G>
+// void remDuplicates(G& get_key, uintE* flags, long m, long n) {
+//   parallel_for (0, m, [&] (size_t i) {
+//     uintE key = get_key(i);
+//     if(key != UINT_E_MAX && flags[key] == UINT_E_MAX) {
+//       CAS<uintE>(&flags[key],(uintE)UINT_E_MAX,static_cast<uintE>(i));
+//     }
+//   });
+//   //reset flags
+//   parallel_for (0, m, [&] (size_t i) {
+//     uintE key = get_key(i);
+//     if(key != UINT_E_MAX) {
+//       if(flags[key] == i) { //win
+//         flags[key] = UINT_E_MAX; //reset
+//       } else {
+//         get_key(i) = UINT_E_MAX; //lost
+//       }
+//     }
+//   });
+// }
 
 namespace pbbs {
 
