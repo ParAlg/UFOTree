@@ -21,6 +21,14 @@ g++ --version
 python3 --version
 ```
 
+#### Python Packages
+
+Install the necessary Python packages with **pip** (Python Package Manager) or other Python Package Manager:
+
+```bash
+pip install matplotlib numpy pandas
+```
+
 ### Building the Artifact
 
 For running any of the scripts, please build the artifact and the submodules. This can be done with the following commands in your terminal.
