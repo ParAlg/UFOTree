@@ -21,3 +21,4 @@ K=1000000
 
 cd ${base_dir}/scripts
 python3 plot_par_update_results.py ../results/parallel_update_speed_${N}_${K}.csv ../results/parallel_update_speed_graph.csv ../results/par_update_speed.pdf
+# python3 plot_par_update_results.py ../results/parallel_update_speed_${N}_${K}.csv ../results/parallel_update_speed_${N}_${K}.csv ../results/par_update_speed.pdf
