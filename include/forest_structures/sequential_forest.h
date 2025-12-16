@@ -8,7 +8,7 @@
 
 using namespace parlay;
 
-namespace dgbs {
+namespace ufo {
 
 class SequentialNeighborIterator : public NeighborIterator {
 private:

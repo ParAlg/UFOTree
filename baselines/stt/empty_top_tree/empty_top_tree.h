@@ -5,7 +5,7 @@
 #include "empty_tree.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 typedef struct tte_node_struct tte_node;
 typedef struct tte_int_node_struct tte_int_node;

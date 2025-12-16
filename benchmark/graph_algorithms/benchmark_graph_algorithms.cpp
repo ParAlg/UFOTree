@@ -10,7 +10,7 @@
 #include "parett/dynamic_trees/euler_tour_tree/splay_tree_ett.hpp"
 #include <fstream>
 
-using namespace dgbs;
+using namespace ufo;
 
 
 int main(int argc, char** argv) {

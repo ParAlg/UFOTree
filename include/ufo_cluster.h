@@ -16,7 +16,7 @@ function correctly. */
 #endif
 
 
-namespace dgbs {
+namespace ufo {
 
 template<typename v_t, typename e_t>
 class UFOCluster {

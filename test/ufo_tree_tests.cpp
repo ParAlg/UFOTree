@@ -2,7 +2,7 @@
 #include <unordered_set>
 #include "../include/ufo_tree.h"
 
-using namespace dgbs;
+using namespace ufo;
 
 
 template<typename v_t, typename e_t>

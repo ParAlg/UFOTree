@@ -12,7 +12,7 @@
 using namespace parlay;
 
 
-namespace dgbs {
+namespace ufo {
 
 struct graph_utils {
   using vertex = uint32_t;

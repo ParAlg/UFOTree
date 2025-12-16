@@ -6,7 +6,7 @@
 #include "../include/rc_tree.h"
 #include "../include/topology_tree.h"
 
-using namespace dgbs;
+using namespace ufo;
 
 
 template<typename DynamicTree, typename aug_t>

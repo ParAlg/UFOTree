@@ -5,7 +5,7 @@
 #include "ParETT/sequence/parallel_skip_list/augmented_skip_list.hpp"
 #include "ParETT/sequence/splay_tree/splay_tree.hpp"
 
-using namespace dgbs;
+using namespace ufo;
 using key_type = uint32_t;
 
 

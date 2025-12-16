@@ -9,7 +9,7 @@
 #include "util.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 namespace graph_benchmark {
 

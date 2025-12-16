@@ -5,7 +5,7 @@
 #include <unordered_set>
 #include "../include/top_tree.h"
 
-using namespace dgbs;
+using namespace ufo;
 
 
 TEST(TopTreeSuite, constructor_test) {

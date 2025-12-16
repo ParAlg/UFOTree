@@ -50,14 +50,14 @@ FetchContent_Declare(pam
 )
 FetchContent_MakeAvailable(pam)
 
-add_library(dgbs INTERFACE)
+add_library(ufo INTERFACE)
 include(GNUInstallDirs)
-set(DGBS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_include_directories(dgbs INTERFACE
-  $<BUILD_INTERFACE:${DGBS_INCLUDE_DIR}>
+set(UFO_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(ufo INTERFACE
+  $<BUILD_INTERFACE:${UFO_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_include_directories(dgbs INTERFACE include util baselines)
+target_include_directories(ufo INTERFACE include util baselines)
 
 add_executable(dynamic_tree_tests
   test/test_runner.cpp

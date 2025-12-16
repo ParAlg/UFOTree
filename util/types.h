@@ -3,7 +3,7 @@
 #include <parlay/sequence.h>
 
 
-namespace dgbs {
+namespace ufo {
 
 typedef uint32_t vertex_t;
 static vertex_t NONE = -1;

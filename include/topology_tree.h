@@ -10,7 +10,7 @@
 #endif
 
 
-namespace dgbs {
+namespace ufo {
 
 struct TopologyClusterBase {
     // Pointers

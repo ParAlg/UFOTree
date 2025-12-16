@@ -3,7 +3,7 @@
 #include "../baselines/parett/dynamic_trees/euler_tour_tree/treap_ett.hpp"
 #include "ufo_tree.h"
 
-using namespace dgbs;
+using namespace ufo;
 
 
 TEST(EulerTourTreeSuite, incremental_random_correctness_test) {

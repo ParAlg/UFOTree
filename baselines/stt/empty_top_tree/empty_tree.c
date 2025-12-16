@@ -1,7 +1,7 @@
 #include "empty_tree.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 struct empty_tree create_empty_tree(size_t num_vertices) {
     struct empty_tree output;

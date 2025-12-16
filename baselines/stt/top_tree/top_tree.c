@@ -6,7 +6,7 @@
 #define is_path(n) (((tt_node *) n)->num_boundary == 2)
 
 #define MEASURE_SPACE
-namespace dgbs {
+namespace ufo {
 
 static inline int int_max(int a, int b) {
     if (a < b)

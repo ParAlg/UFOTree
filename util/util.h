@@ -7,7 +7,7 @@
 #include "semisort.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 template <typename K, typename V>
 auto group_by_key_inplace(parlay::sequence<std::pair<K, V>>& seq) {

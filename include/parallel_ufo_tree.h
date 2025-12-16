@@ -9,7 +9,7 @@
 #include "parallel_ufo_cluster.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 template <typename aug_t = empty_t>
 class ParallelUFOTree {

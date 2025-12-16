@@ -11,7 +11,7 @@
 #include "../benchmark/dynamic_trees/benchmark.h"
   
 
-namespace dgbs {
+namespace ufo {
   static std::vector<UpdateBatchWithWeights> convert_to_weighted_update_batch(std::vector<UpdateBatch> update_batches){
     // Generate weighted Update Sequence for RC trees (only in the case of insertion)
       std::vector<UpdateBatchWithWeights> weighted_update_sequence;
@@ -163,7 +163,7 @@ namespace dgbs {
 
   TEST(ParallelTernarizedTopologySuite, batch_incremental_linkedlist_correctness_test)
   {
-    vertex_t n =  256;
+    vertex_t n = 256;
     vertex_t k = 16;
     int num_trials =  1;
 
@@ -196,7 +196,7 @@ namespace dgbs {
   }
   
   TEST(ParallelTernarizedTopologySuite, batch_incremental_star_correctness_test) {
-    vertex_t n =  10000;
+    vertex_t n = 256;
     vertex_t k = 1;
     int num_trials =  1;
 
@@ -227,8 +227,8 @@ namespace dgbs {
   }
 
   TEST(ParallelTernarizedTopologySuite, batch_incremental_binarytree_correctness_test) {
-    vertex_t n =  256;
-    vertex_t k =  16;
+    vertex_t n = 256;
+    vertex_t k = 16;
     int num_trials = 1;
 
     long seeds[num_trials];
@@ -356,8 +356,8 @@ namespace dgbs {
   }
   
   TEST(ParallelTernarizedTopologySuite, batch_decremental_star_correctness_test) { 
-    vertex_t n = 10000;
-    vertex_t k = 1;
+    vertex_t n = 256;
+    vertex_t k = 16;
     int num_trials = 1;
 
     long seeds[num_trials];

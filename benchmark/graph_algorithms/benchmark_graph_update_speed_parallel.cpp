@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     for (auto test_case: test_cases) {
         std::string file_name = std::get<0>(test_case);
         int num_trials = std::get<1>(test_case);
-        auto G = dgbs::graph_utils::break_sym_graph_from_bin(file_name);
+        auto G = ufo::graph_utils::break_sym_graph_from_bin(file_name);
         auto n = G.size();
         std::vector<std::vector<UpdateBatch>> update_sequences(num_trials);
         std::vector<std::vector<UpdateBatchWithWeights>> weighted_update_sequences(num_trials);
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
     for (auto test_case: test_cases) {
         std::string file_name = std::get<0>(test_case);
         int num_trials = std::get<1>(test_case);
-        auto G = dgbs::graph_utils::break_sym_graph_from_bin(file_name);
+        auto G = ufo::graph_utils::break_sym_graph_from_bin(file_name);
         auto n = G.size();
         std::vector<std::vector<UpdateBatch>> update_sequences(num_trials);
         std::vector<std::vector<UpdateBatchWithWeights>> weighted_update_sequences(num_trials);

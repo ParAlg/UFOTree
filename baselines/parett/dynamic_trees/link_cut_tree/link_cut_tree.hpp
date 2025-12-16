@@ -4,7 +4,7 @@
 #include "types.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 namespace link_cut_tree {
 

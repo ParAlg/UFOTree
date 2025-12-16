@@ -1,6 +1,6 @@
 #include "graph_benchmark.h"
 
-using namespace dgbs;
+using namespace ufo;
 
 
 int main(int argc, char** argv) {

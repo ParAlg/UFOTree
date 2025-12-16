@@ -7,7 +7,7 @@
 #include "types.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 namespace parallel_dynamic_tree_benchmark {
 

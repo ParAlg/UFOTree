@@ -23,7 +23,7 @@
 #endif
 
 
-namespace dgbs {
+namespace ufo {
 
 template<typename aug_t>
 struct RCCluster {

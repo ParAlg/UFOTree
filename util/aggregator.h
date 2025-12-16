@@ -5,7 +5,7 @@
 #include <parlay/sequence.h>
 
 
-namespace dgbs {
+namespace ufo {
 
 template <class _T>
 struct Aggregator {

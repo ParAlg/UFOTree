@@ -3,7 +3,7 @@
 #include "../baselines/parett/dynamic_trees/link_cut_tree/link_cut_tree.hpp"
 #include "ufo_tree.h"
 
-using namespace dgbs;
+using namespace ufo;
 using namespace link_cut_tree;
 
 

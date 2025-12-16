@@ -3,7 +3,7 @@
 #include <utility>
 
 
-namespace dgbs {
+namespace ufo {
 
 template<typename aug_t>
 class ITernarizable {

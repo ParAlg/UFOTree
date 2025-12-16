@@ -7,7 +7,7 @@
 #include "../benchmark/parallel/parallel_benchmark.h"
 
 
-using namespace dgbs;
+using namespace ufo;
 
 template <typename aug_t>
 bool ParallelUFOTree<aug_t>::is_valid(parlay::sequence<std::pair<int, int>>& edges) {

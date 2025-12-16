@@ -8,7 +8,7 @@
 #include "../benchmark/parallel/parallel_benchmark.h"
 
 
-using namespace dgbs;
+using namespace ufo;
 
 template<typename aug_t>
 bool ParallelTopologyTree<aug_t>::is_valid() {

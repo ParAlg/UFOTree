@@ -11,7 +11,7 @@
 #include "parett/dynamic_trees/euler_tour_tree/treap_ett.hpp"
 #include <fstream>
 
-using namespace dgbs;
+using namespace ufo;
 
 
 int main(int argc, char** argv) {

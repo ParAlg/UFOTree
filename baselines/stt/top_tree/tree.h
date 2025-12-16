@@ -6,7 +6,7 @@
 #include "../../../util/util.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 static absl::flat_hash_map<std::pair<struct vertex*, struct vertex*>, struct edge*> edges;
 static long long tt_changes = 0;

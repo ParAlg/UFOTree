@@ -5,7 +5,7 @@
 #include "pam/pam.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 template <typename aug_t>
 struct ParallelUFOCluster;

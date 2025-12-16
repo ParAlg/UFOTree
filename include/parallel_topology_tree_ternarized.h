@@ -26,7 +26,7 @@ static long parallel_topology_remove_ancestor_time_2 = 0;
 static long parallel_topology_recluster_tree_time = 0;
 static long test_time = 0;*/
 
-namespace dgbs {
+namespace ufo {
 
 
 template <typename aug_t>

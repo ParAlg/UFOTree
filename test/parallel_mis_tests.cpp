@@ -7,7 +7,7 @@
 #include "../benchmark/parallel/parallel_benchmark.h"
 
 
-using namespace dgbs;
+using namespace ufo;
 using Cluster = ParallelUFOCluster<empty_t>;
 using UFOTree = ParallelUFOTree<empty_t>;
 using allocator = parlay::type_allocator<Cluster>;

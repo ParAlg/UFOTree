@@ -14,7 +14,7 @@
 #include <tuple>
 #include <functional>
 
-using namespace dgbs;
+using namespace ufo;
 
 int main(int argc, char** argv) {
     // List of values of n to loop

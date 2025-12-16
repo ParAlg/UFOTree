@@ -8,7 +8,7 @@
 #include <limits>
 #include <tuple>
 
-using namespace dgbs;
+using namespace ufo;
 
 extern size_t static_space_used;
 template<typename aug_t>

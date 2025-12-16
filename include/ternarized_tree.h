@@ -8,7 +8,7 @@
 #include "util.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 struct pair_hash{ 
   template<typename U, typename V>

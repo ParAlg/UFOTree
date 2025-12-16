@@ -5,7 +5,7 @@
 #include <unordered_set>
 #include "../include/rc_tree.h"
 
-using namespace dgbs;
+using namespace ufo;
 
 
 void create_tree1();

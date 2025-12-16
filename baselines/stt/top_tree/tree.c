@@ -1,7 +1,7 @@
 #include "tree.h"
 
 
-namespace dgbs {
+namespace ufo {
 
 struct tree create_tree(size_t num_vertices) {
     struct tree output;

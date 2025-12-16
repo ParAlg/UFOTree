@@ -6,7 +6,7 @@
 
 static size_t top_tree_space_used = 0;
 
-namespace dgbs {
+namespace ufo {
 
 
 typedef struct tt_node_struct tt_node;

@@ -10,7 +10,7 @@
 #include "absl/random/seed_sequences.h"
 #include "absl/random/zipf_distribution.h"
 
-namespace dgbs {
+namespace ufo {
 
 namespace dynamic_tree_benchmark {
 

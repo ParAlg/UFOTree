@@ -7,7 +7,7 @@
 
 using namespace parlay;
 
-namespace dgbs {
+namespace ufo {
 
 enum ClusterStatus {
     NORMAL,
