@@ -122,16 +122,16 @@ Customize This Experiment:
 This experiment uses all of the cores available by default. In our experiments we used 192 hyperthreads (see below for how to customize the number of threads). Run the shell script as follows from the project root directory:
 
 ```bash
-scripts/par_update_experiments.sh
+scripts/par_update_speed_experiments.sh
 ```
 
 * Results written to: `results/parallel_update_speed_10000000_1000000.csv` and `results/parallel_update_speed_graph.csv`.
 * Results plotted in: `results/par_update_speed.pdf`.
 
 Customize This Experiment:
-* To customize the number of threads change the line that sets the environment variable `PARLAY_NUM_THREADS` in `scripts/par_update_experiments.sh`.
+* To customize the number of threads change the line that sets the environment variable `PARLAY_NUM_THREADS` in `scripts/par_update_speed_experiments.sh`.
 * These experiments take the average time over $3$ trials for each case. You can change this value by modifying the $4$-th value in each tuple entry in the `test_cases` lists in `benchmark/parallel/parallel_benchmark_runner.cpp` and `benchmark/graph_algorithms/benchmark_graph_update_speed_parallel.cpp`. To save time we recommend setting this to $1$ for all cases.
-* You can change the values of `N` and `K` in `scripts/par_update_experiments.sh`.
+* You can change the values of `N` and `K` in `scripts/par_update_speed_experiments.sh`.
   * `N` is the size of the synthetic trees for the parallel update speed experiment.
   * `K` is the batch size for both the synthetic and real-world experiments.
 * To not run the graph experiments and only run the synthetic experiments, in `scripts/par_update_speed_experiments.sh` comment out the line `./parallel_graph_benchmark`. Then replace the line that calls the Python plot script with the comment below it.
@@ -150,6 +150,6 @@ scripts/size_sweep_experiments.sh
 * Results plotted in: `results/n_sweep.pdf`.
 
 Customize This Experiment:
-* To customize the number of threads change the line that sets the environment variable `PARLAY_NUM_THREADS` in `scripts/par_update_experiments.sh`.
-* These experiments take the average time over $1$ trials for each case. You can change this value by modifying the $4$-th value in each tuple entry in the `test_cases` lists in `benchmark/parallel/parallel_benchmark_runner.cpp` and `benchmark/graph_algorithms/benchmark_graph_update_speed_parallel.cpp`. To save time we recommend leaving this at $1$ for all cases.
+* To customize the number of threads change the line that sets the environment variable `PARLAY_NUM_THREADS` in `scripts/size_sweep_experiments.sh`.
+* These experiments take the average time over $1$ trials for each case. You can change this value by modifying the $4$-th value in each tuple entry in the `test_cases` lists in `benchmark/parallel/parallel_benchmark_n_sweep.cpp`. To save time we recommend leaving this at $1$ for all cases.
 * To change the values of $n$ used in the sweep, modify the `n_list` variable in `benchmark/parallel/parallel_benchmark_n_sweep.cpp`.
