@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import csv
 import sys
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 def read_and_process_csv(filepath: str) -> tuple:
     try:
@@ -23,14 +23,10 @@ def read_and_process_csv(filepath: str) -> tuple:
         return None, None, None
 
 def format_scientific(x, pos):
-    """
-    Formats the tick values into scientific notation: value \cdot 10^{exponent}
-    """
     if x == 0:
         return "0"
     exponent = int(np.floor(np.log10(abs(x))))
     coeff = x / 10**exponent
-    # Returns LaTeX string: e.g., 1 \cdot 10^5
     return f"${coeff:g} \\cdot 10^{{{exponent}}}$"
 
 def plot_multi_bar_chart(data: dict, categories: list, output_filepath: str):
@@ -42,14 +38,11 @@ def plot_multi_bar_chart(data: dict, categories: list, output_filepath: str):
     colors = ['#000000', '#b6f486', '#006400', '#4169E1', '#400e63', '#8769b6', '#88d4c3', '#FF609A']
     bar_width = 0.11
     
-    # Text and Font scaling
     plt.rc('font', family='serif', size=120)
     plt.rc('axes', titlesize=144, labelsize=120)
     plt.rc('xtick', labelsize=100)
     plt.rc('ytick', labelsize=80)
     plt.rc('legend', fontsize=90)
-    # Enable TeX-style rendering for math labels
-    plt.rc('text', usetex=False) 
 
     fig, ax = plt.subplots(1, 1, figsize=(84, 16))
 
@@ -64,29 +57,28 @@ def plot_multi_bar_chart(data: dict, categories: list, output_filepath: str):
     ax.set_ylabel("Memory(B)") 
     ax.set_yscale('linear') 
     
-    # Visual styling
+    # Bold Spines
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_linewidth(2)
-    ax.spines['left'].set_linewidth(2)
+    ax.spines['bottom'].set_linewidth(5)
+    ax.spines['left'].set_linewidth(5)
+    ax.tick_params(axis='both', which='major', width=4, length=15, pad=20)
 
-    # Padding and Ticks
     if all_values:
         max_val = max(all_values)
-        upper_limit = max_val * 1.15
-        ax.set_ylim(0, upper_limit)
+        # Ensure headroom for legend
+        ax.set_ylim(0, max_val * 1.25)
         
-        # Ticks every 100,000
-        tick_spacing = 100000
-        ticks = np.arange(0, upper_limit, tick_spacing)
-        ax.set_yticks(ticks)
-        
-        # Apply the scientific notation formatter
+        # --- SET TO EXACTLY 4 INTERVALS ---
+        # nbins=4 creates 4 gaps between 5 labels
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=4, steps=[1, 2, 5, 10]))
         ax.yaxis.set_major_formatter(FuncFormatter(format_scientific))
 
     ax.set_xticks(x_positions + bar_width * (num_bar_groups - 1) / 2)
     ax.set_xticklabels(categories, ha="center", rotation=0)
-    ax.grid(axis='y', linestyle='--', alpha=0.7)
+
+    ax.grid(axis='y', linestyle='--', color='#cccccc', linewidth=2, alpha=0.8)
+    ax.set_axisbelow(True)
 
     plt.tight_layout(pad=1.0)
     plt.subplots_adjust(top=0.70, bottom=0.15)
@@ -103,7 +95,7 @@ def plot_multi_bar_chart(data: dict, categories: list, output_filepath: str):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        print("Usage: python script.py <input.csv> <output.png>")
+        print("Usage: python script.py <input.csv> <output_file>")
         sys.exit(1)
     d, l, g = read_and_process_csv(sys.argv[1])
     if d:
