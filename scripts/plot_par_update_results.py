@@ -1,8 +1,13 @@
 # Import the necessary libraries
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import csv
 import sys
+
+# Force TrueType fonts (Type 42) instead of Type 3
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 # A complete, self-contained script to create a multi-bar plot.
 

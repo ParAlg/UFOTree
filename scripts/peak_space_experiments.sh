@@ -17,5 +17,5 @@ n_list=(10000000)
 
 cd ${base_dir}/scripts
 for n in "${n_list[@]}"; do
-    python3 plot_results.py ../results/peak_space_$n.csv ../results/peak_space_$n.pdf
+    python3 plot_space_results.py ../results/peak_space_$n.csv ../results/peak_space.pdf
 done

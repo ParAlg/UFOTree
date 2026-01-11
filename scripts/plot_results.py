@@ -2,8 +2,13 @@ import os
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import textwrap
+
+# Force TrueType fonts (Type 42) instead of Type 3
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 # Set default font size and font family for all text elements
 # Removed specific 'Times New Roman' as it's not found, will use Matplotlib's default serif font

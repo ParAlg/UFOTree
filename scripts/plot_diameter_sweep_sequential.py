@@ -1,7 +1,12 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import matplotlib
 import sys # Import the sys module to handle command-line arguments
+
+# Force TrueType fonts (Type 42) instead of Type 3
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 # --- Argument Parsing ---
 # The script expects 4 arguments: 3 input CSV files and 1 output PDF path

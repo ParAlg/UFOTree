@@ -17,5 +17,5 @@ N=10000000
 ./benchmark_graph_update_speed
 
 cd ${base_dir}/scripts
-python3 plot_results.py ../results/update_speed_$N.csv ../results/update_speed_graph.csv ../results/update_speed.pdf
+python3 plot_seq_update_results.py ../results/update_speed_$N.csv ../results/update_speed_graph.csv ../results/update_speed.pdf
 # python3 plot_results.py ../results/update_speed_$N.csv ../results/update_speed_$N.csv ../results/update_speed.pdf

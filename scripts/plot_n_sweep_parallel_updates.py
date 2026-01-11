@@ -1,6 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
+
+# Force TrueType fonts (Type 42) instead of Type 3
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 # Load the data from the CSV file
 df = pd.read_csv("../results/n_sweep_parallel_update.csv")
