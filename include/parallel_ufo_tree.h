@@ -27,6 +27,8 @@ public:
     ~ParallelUFOTree();
     void batch_link(parlay::sequence<std::pair<int, int>>& links);
     void batch_cut(parlay::sequence<std::pair<int, int>>& cuts);
+    void BatchLink(parlay::sequence<std::pair<int, int>>& links) { batch_link(links); };
+    void BatchCut(parlay::sequence<std::pair<int, int>>& cuts) { batch_cut(cuts); };
     bool connected(vertex_t u, vertex_t v);
     // Testing helpers
     bool is_valid(parlay::sequence<std::pair<int, int>>& edges);
