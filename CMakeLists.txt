@@ -124,6 +124,7 @@ add_executable(parallel_dynamic_tree_tests
 #  test/test_runner.cpp
 #  test/parallel_mis_tests.cpp
   test/parallel_topology_tree_tests.cpp
+  test/int_sum_parallel_ufo_tree_path_query_tests.cpp
 #  test/parallel_ufo_tree_tests.cpp
 #  test/par_rc_tests.cpp
   test/par_tern_topology_tests.cpp
