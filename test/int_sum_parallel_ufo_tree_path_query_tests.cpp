@@ -9,7 +9,7 @@
 #include <vector>
 #include "int_sum_parallel_ufo_tree.h"
 
-using namespace ufo;
+using namespace ufo::int_sum;
 
 namespace {
 

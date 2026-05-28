@@ -9,7 +9,7 @@
 #include "int_sum_parallel_ufo_cluster.h"
 
 
-namespace ufo {
+namespace ufo::int_sum {
 
 template <typename aug_t = empty_t>
 class ParallelUFOTree {
@@ -138,6 +138,11 @@ ParallelUFOTree<aug_t>::ParallelUFOTree(vertex_t n, vertex_t k) : leaves(n), thr
     parlay::parallel_for(0, n, [&] (size_t i) {
         leaves[i].aggregate_weight = 1;
     });
+}
+
+namespace ufo {
+template <typename aug_t = empty_t>
+using IntSumParallelUFOTree = int_sum::ParallelUFOTree<aug_t>;
 }
 
 template <typename aug_t>

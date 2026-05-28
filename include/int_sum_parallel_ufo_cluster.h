@@ -5,7 +5,7 @@
 #include "pam/pam.h"
 
 
-namespace ufo {
+namespace ufo::int_sum {
 
 template <typename aug_t>
 struct ParallelUFOCluster;
@@ -73,6 +73,11 @@ inline void ParallelUFOCluster<aug_t>::insert_neighbor(Cluster* c) {
     neighbors = ufo_pam_set::insert(std::move(neighbors), c);
     degree = get_degree();
     mtx.unlock();
+}
+
+namespace ufo {
+template <typename aug_t>
+using IntSumParallelUFOCluster = int_sum::ParallelUFOCluster<aug_t>;
 }
 
 template <typename aug_t>
